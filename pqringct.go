@@ -5,59 +5,51 @@ This file defines all public constants and interfaces of PQRingCT.
 */
 
 type MasterPubKey struct {
-
 }
 
 type MasterSecretViewKey struct {
-
 }
 
 type MasterSecretSignKey struct {
-
 }
 
 type CoinbaseTx struct {
-
 }
 
-
 type TransferTx struct {
-
 }
 
 /*type DerivedPubKey struct {
-	
+
 }
 
 type ValueCommitment struct {
-	
+
 }
 
 type ValueCiphertext struct {
-	
+
 }*/
 
 type TxInputDesc struct {
-
 }
 
 type TxOutputDesc struct {
 	mpk *MasterPubKey
-	v int64
+	v   int64
 }
 
 type TXO struct {
-	
 }
 
 //	public fun	begin
-func Setup()  {
-	
+func Setup() {
+
 }
 
 func MasterKeyGen(masterSeed []byte) (mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, mseed []byte, err error) {
 	// to do
-	return nil,nil, nil, nil, nil
+	return nil, nil, nil, nil, nil
 }
 
 func CoinbaseTxGen(vin int64, txOutputDescList []*TxOutputDesc) (cbTx *CoinbaseTx, err error) {
@@ -70,7 +62,7 @@ func CoinbaseTxVerify(cbTx *CoinbaseTx) (valid bool) {
 	return false
 }
 
-func TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *MasterSecretViewKey) (valid bool, v int64, err error)  {
+func TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *MasterSecretViewKey) (valid bool, v int64, err error) {
 	//	to do
 	return false, 0, nil
 }
@@ -80,12 +72,12 @@ func TransferTxGen(txInputDescList []*TxInputDesc, txOutputDescList []*TxOutputD
 	return nil, nil
 }
 
-func TransferTxVerify(trTx *TransferTx) (valid bool)  {
+func TransferTxVerify(trTx *TransferTx) (valid bool) {
 	//	to do
 	return false
 }
-//	public fun	end
 
+//	public fun	end
 
 //	private fun	begin
 func txoGen(mpk *MasterPubKey, v int64) (txo *TXO, err error) {
@@ -93,7 +85,7 @@ func txoGen(mpk *MasterPubKey, v int64) (txo *TXO, err error) {
 	return nil, nil
 }
 
-func TxoSerialNumberGen()  {
+func TxoSerialNumberGen() {
 
 }
 
@@ -112,4 +104,5 @@ func elrsSign() (elrs []byte) {
 func elrsVerify() (valid bool) {
 	return false
 }
+
 //	private fun	end
