@@ -5,8 +5,9 @@ const (
 	PP_I = 5  //	PP_I defines the maximum number of consumed coins of a transfer transaction
 	PP_J = 5  //	PP_J defines the maximum number of generated coins of a transaction
 
-	PP_d = 128
-	PP_q = 4294962689 //	todo: q is a 32-bit prime such that q = 1 mod 512
+	PP_d   = 128
+	PP_q   = 4294962689 //	todo: q is a 32-bit prime such that q = 1 mod 512
+	PP_q_m = 214731344  //	todo: q_m = q/2-1
 	// PP_l = 128	//	We use fully-splitting ring, namely l=d, thus we only use d
 	PP_k = 4
 
@@ -25,3 +26,11 @@ const (
 	PP_m_a   = 1        //	todo:
 	PP_eta_f = 1024 - 1 // todo:
 )
+
+type PolyVecA struct {
+	vec [PP_l_a]Poly
+}
+
+type PolyVecC struct {
+	vec [PP_l_c]Poly
+}
