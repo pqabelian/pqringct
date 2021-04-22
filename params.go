@@ -34,3 +34,17 @@ type PolyVecA struct {
 type PolyVecC struct {
 	vec [PP_l_c]Poly
 }
+
+type PolyVecANTT struct {
+	vec [PP_l_a]PolyNTT
+}
+
+type PolyVecCNTT struct {
+	vec [PP_l_c]PolyNTT
+}
+
+type PubParams struct {
+	A [PP_k_a]PolyVecANTT
+	B [PP_k_c]PolyVecCNTT
+	C [PP_I + PP_J + 7]PolyVecCNTT //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
+}

@@ -1,16 +1,24 @@
 package pqringct
 
+import (
+	"github.com/cryptosuite/kyber-go/kyber"
+)
+
 /*
 This file defines all public constants and interfaces of PQRingCT.
 */
 
 type MasterPubKey struct {
+	kempk *kyber.PublicKey
+	t     [PP_k_a]PolyVecANTT // directly in NTT form?
 }
 
 type MasterSecretViewKey struct {
+	kemsk *kyber.SecretKey
 }
 
 type MasterSecretSignKey struct {
+	s [PP_l_a]PolyVecANTT
 }
 
 type CoinbaseTx struct {
@@ -77,16 +85,26 @@ func TransferTxVerify(trTx *TransferTx) (valid bool) {
 	return false
 }
 
+func TxoSerialNumberGen() {
+
+}
+
 //	public fun	end
 
 //	private fun	begin
+func expandKa(kappa []byte) (ds [PP_l_a]PolyVecA) {
+	var ret = [PP_l_a]PolyVecA{}
+	//	 todo:
+	return ret
+}
 func txoGen(mpk *MasterPubKey, v int64) (txo *TXO, err error) {
 	//	to do
+	//	var kappa = [32]byte{}
+	//	var ds = expandKa(kappa)
+	for i := 0; i < PP_l_a; i++ {
+
+	}
 	return nil, nil
-}
-
-func TxoSerialNumberGen() {
-
 }
 
 func rpulpProve() (rpulppf []byte) {
