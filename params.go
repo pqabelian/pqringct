@@ -7,7 +7,7 @@ const (
 
 	PP_d   = 128
 	PP_q   = 4294962689 //	q=11111111111111111110111000000001 is a 32-bit prime such that q = 1 mod 512,
-	PP_q_m = 214731344  //	q_m = q/2-1
+	PP_q_m = 2147481344 //	q_m = q/2-1
 	// PP_l = 128	//	We use fully-splitting ring, namely l=d, thus we only use d
 	PP_k = 4
 
