@@ -1,20 +1,16 @@
 package pqringct
 
-import (
-	"github.com/cryptosuite/kyber-go/kyber"
-)
-
 /*
 This file defines all public constants and interfaces of PQRingCT.
 */
 
 type MasterPubKey struct {
-	kempk *kyber.PublicKey
+	kempk []byte              //  from kyber.  kyber.PublicKey
 	t     [PP_k_a]PolyVecANTT // directly in NTT form?
 }
 
 type MasterSecretViewKey struct {
-	kemsk *kyber.SecretKey
+	kemsk []byte // from kyber. *kyber.SecretKey
 }
 
 type MasterSecretSignKey struct {
@@ -27,10 +23,10 @@ type CoinbaseTx struct {
 type TransferTx struct {
 }
 
-/*type DerivedPubKey struct {
-
+type DerivedPubKey struct {
 }
 
+/*
 type ValueCommitment struct {
 
 }

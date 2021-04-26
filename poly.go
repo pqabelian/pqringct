@@ -1,7 +1,17 @@
 package pqringct
 
+// Poly why do export?
 type Poly struct {
-	coeffs [PP_d]int32
+	coeffs []int32
+}
+
+// NewPoly create a struct with coeffs and if the length of coeffs must be more than parameter D of Public Parameter
+func NewPoly(pp *PublicParamter, coeffs []int32) *Poly {
+	tmp := make([]int32, pp.paramD)
+	for i := 0; i < len(tmp); i++ {
+		tmp[i] = coeffs[i]
+	}
+	return &Poly{coeffs: tmp}
 }
 
 func (poly *Poly) NTT() (polyntt *PolyNTT) {
