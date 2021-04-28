@@ -76,7 +76,7 @@ func randomIntSliceWithProbability(items []int, probabilities []float64, n int) 
 	generateSlice := make([]int, n, n)
 	rng := rand.Reader
 
-	for i:=0; i < n; i++ {
+	for i := 0; i < n; i++ {
 		num, err := rand.Int(rng, big.NewInt(256))
 		if err != nil {
 			log.Fatalln("randInt error")
@@ -118,7 +118,7 @@ func randomIntSliceWithWeight(items []int, weights []int, n int) []int {
 	generateSlice := make([]int, n, n)
 	rng := rand.Reader
 
-	for i:=0; i < n; i++ {
+	for i := 0; i < n; i++ {
 		num, err := rand.Int(rng, big.NewInt(int64(totalWeight)))
 		if err != nil {
 			log.Fatalln("randInt error")
@@ -137,4 +137,16 @@ func randomIntSliceWithWeight(items []int, weights []int, n int) []int {
 		generateSlice[i] = items[cnt]
 	}
 	return generateSlice
+}
+
+func reduce(a int64) int32 {
+	var tmp int64
+	tmp = a % PP_q
+	if tmp > PP_q_m {
+		tmp = tmp - PP_q
+	} else if tmp < -PP_q_m {
+		tmp = tmp + PP_q
+	}
+
+	return int32(tmp)
 }

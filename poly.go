@@ -1,7 +1,8 @@
 package pqringct
 
 type Poly struct {
-	coeffs [PP_d]int32
+	// the length must be paramD
+	coeffs []int32
 }
 
 func (poly *Poly) NTT() (polyntt *PolyNTT) {
@@ -77,18 +78,3 @@ func PolyNTTMul(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	}
 	return &ret
 }
-
-//	private functions	begin
-func reduce(a int64) int32 {
-	var tmp int64
-	tmp = a % PP_q
-	if tmp > PP_q_m {
-		tmp = tmp - PP_q
-	} else if tmp < -PP_q_m {
-		tmp = tmp + PP_q
-	}
-
-	return int32(tmp)
-}
-
-//	private functions	end

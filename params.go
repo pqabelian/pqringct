@@ -27,24 +27,145 @@ const (
 	PP_eta_f = 1024 - 1 // todo:
 )
 
+type PublicParamter struct {
+	//	paramN defines the value of V by V=2^N - 1
+	paramN int
+	//	paramI defines the maximum number of consumed coins of a transfer transaction
+	paramI int
+	//	paramJ defines the maximum number of generated coins of a transaction
+	paramJ int
+
+	// paramD define ??
+	paramD int
+	// paramQ define the field, which is an odd prime and it will be q=1 mod 2d
+	paramQ int
+	// paramQ is half of paramQ
+	paramQm int
+	// paramK is
+	paramK int
+
+	paramKa    int
+	paramLa    int
+	paramETAa  int
+	paramBETAa int
+
+	paramKc     int
+	paramLc     int
+	paramETAc   int
+	paramBETAc  int
+	paramETAc1  int
+	paramBETAc1 int
+
+	paramMa   int
+	paramETAf int
+}
+
+func NewPublicParamter(
+	paramN int,
+	paramI int,
+	paramJ int,
+	paramD int,
+	paramQ int,
+	//paramQm int,
+	paramK int,
+	paramKa int,
+	paramLa int,
+	paramETAa int,
+	paramBETAa int,
+	paramKc int,
+	paramLc int,
+	paramETAc int,
+	paramBETAc int,
+	paramETAc1 int,
+	paramBETAc1 int,
+	paramMa int,
+	paramETAf int,
+) *PublicParamter {
+
+	res := &PublicParamter{
+		paramN: paramN,
+		paramI: paramI,
+		paramJ: paramJ,
+		paramD: paramD,
+		paramQ: paramQ,
+		//paramQm:    paramQm,
+		paramK:     paramK,
+		paramKa:    paramKa,
+		paramLa:    paramLa,
+		paramETAa:  paramETAa,
+		paramBETAa: paramBETAa,
+		paramKc:    paramKc,
+		paramLc:    paramLc,
+		paramETAc:  paramETAc,
+		paramBETAc: paramBETAc,
+		paramMa:    paramMa,
+		paramETAf:  paramETAf,
+	}
+	res.paramQm = res.paramQ >> 1
+	return res
+}
+
+var DefaultPP *PublicParamter = NewPublicParamter(
+	51,
+	5,
+	5,
+
+	128,
+	4294962689,
+	4,
+
+	10,
+	10,
+	1024-1,
+	2,
+
+	10,
+	10,
+	1024-1,
+	2,
+
+	1024-1,
+	2,
+
+	1,
+	1024-1,
+)
+
+// PQRingCT TODO: optimize the interface using array?
+type PQRingCT interface {
+	MasterKeyGen(seed []byte) (*MasterPubKey, *MasterSecretViewKey, *MasterSecretSignKey)
+	CoinbaseTxGen(vin int32, txos []*TxOutputDesc) *CoinbaseTx //(dpk *DerivedPubKey,commit []byte,vc []byte)
+	CoinbaseTxVerify(tx *CoinbaseTx) bool
+	TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, mpk *MasterPubKey, key *MasterSecretViewKey) (bool, int32)
+	TransferTXGen([]*TxInputDesc, []*TxOutputDesc) *TransferTx
+	TransferTXVerify(tx *TransferTx) bool
+}
+
 type PolyVecA struct {
-	vec [PP_l_a]Poly
+	// the length must be paramLa
+	vec []Poly
 }
 
 type PolyVecC struct {
-	vec [PP_l_c]Poly
+	// the length must be paramLc
+	vec []Poly
 }
 
 type PolyVecANTT struct {
-	vec [PP_l_a]PolyNTT
+	// the length must be paramLa
+	vec []PolyNTT
 }
 
 type PolyVecCNTT struct {
-	vec [PP_l_c]PolyNTT
+	// the length must be paramLc
+	vec []PolyNTT
 }
 
 type PubParams struct {
-	A [PP_k_a]PolyVecANTT
-	B [PP_k_c]PolyVecCNTT
-	C [PP_I + PP_J + 7]PolyVecCNTT //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
+	// the length must be paramLa
+	A []PolyVecANTT
+	// the length must be paramLc
+	B []PolyVecCNTT
+	// the length must be paramI + paramJ + 7
+	C []PolyVecCNTT //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
 }

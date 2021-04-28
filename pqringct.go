@@ -27,11 +27,14 @@ type CoinbaseTx struct {
 type TransferTx struct {
 }
 
-/*type DerivedPubKey struct {
-
+type DerivedPubKey struct {
+}
+type Signature struct {
+}
+type Image struct {
 }
 
-type ValueCommitment struct {
+/*type ValueCommitment struct {
 
 }
 
@@ -85,42 +88,8 @@ func TransferTxVerify(trTx *TransferTx) (valid bool) {
 	return false
 }
 
-func TxoSerialNumberGen() {
-
+func TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, mssk *MasterSecretSignKey, msvk *MasterSecretViewKey) (snMa []Poly) {
+	panic("implement me")
 }
 
 //	public fun	end
-
-//	private fun	begin
-func expandKa(kappa []byte) (ds [PP_l_a]PolyVecA) {
-	var ret = [PP_l_a]PolyVecA{}
-	//	 todo:
-	return ret
-}
-func txoGen(mpk *MasterPubKey, v int64) (txo *TXO, err error) {
-	//	to do
-	//	var kappa = [32]byte{}
-	//	var ds = expandKa(kappa)
-	for i := 0; i < PP_l_a; i++ {
-
-	}
-	return nil, nil
-}
-
-func rpulpProve() (rpulppf []byte) {
-	return nil
-}
-
-func rpulpVerify() (valid bool) {
-	return false
-}
-
-func elrsSign() (elrs []byte) {
-	return nil
-}
-
-func elrsVerify() (valid bool) {
-	return false
-}
-
-//	private fun	end
