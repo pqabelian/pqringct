@@ -9,31 +9,31 @@ func (poly *Poly) NTT() (polyntt *PolyNTT) {
 	return nil
 }
 
-func PolyAdd(a *Poly, b *Poly) (r *Poly) {
+func PolyAdd(pp *PublicParameter, a *Poly, b *Poly) (r *Poly) {
 	var ret Poly
 	var tmp int64
 	for i := 0; i < PP_d; i++ {
 		tmp = int64(a.coeffs[i]) + int64(b.coeffs[i])
-		ret.coeffs[i] = reduce(tmp)
+		ret.coeffs[i] = reduce(pp, tmp)
 	}
 	return &ret
 }
 
-func PolySub(a *Poly, b *Poly) (r *Poly) {
+func PolySub(pp *PublicParameter, a *Poly, b *Poly) (r *Poly) {
 	var ret Poly
 	var tmp int64
 	for i := 0; i < PP_d; i++ {
 		tmp = int64(a.coeffs[i]) - int64(b.coeffs[i])
-		ret.coeffs[i] = reduce(tmp)
+		ret.coeffs[i] = reduce(pp, tmp)
 	}
 	return &ret
 }
 
-func PolyMul(a *Poly, b *Poly) (r *Poly) {
+func PolyMul(pp *PublicParameter, a *Poly, b *Poly) (r *Poly) {
 	var antt = a.NTT()
 	var bntt = b.NTT()
 
-	var rntt = PolyNTTMul(antt, bntt)
+	var rntt = PolyNTTMul(pp, antt, bntt)
 
 	return rntt.NTTInv()
 }
@@ -49,32 +49,32 @@ func (polyntt *PolyNTT) NTTInv() (poly *Poly) {
 	return nil
 }
 
-func PolyNTTAdd(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
+func PolyNTTAdd(pp *PublicParameter, a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	var ret PolyNTT
 	var tmp int64
 	for i := 0; i < PP_d; i++ {
 		tmp = int64(a.coeffs[i]) + int64(b.coeffs[i])
-		ret.coeffs[i] = reduce(tmp)
+		ret.coeffs[i] = reduce(pp, tmp)
 	}
 	return &ret
 }
 
-func PolyNTTSub(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
+func PolyNTTSub(pp *PublicParameter, a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	var ret PolyNTT
 	var tmp int64
 	for i := 0; i < PP_d; i++ {
 		tmp = int64(a.coeffs[i]) - int64(b.coeffs[i])
-		ret.coeffs[i] = reduce(tmp)
+		ret.coeffs[i] = reduce(pp, tmp)
 	}
 	return &ret
 }
 
-func PolyNTTMul(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
+func PolyNTTMul(pp *PublicParameter, a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	var ret PolyNTT
 	var tmp int64
 	for i := 0; i < PP_d; i++ {
 		tmp = int64(a.coeffs[i]) * int64(b.coeffs[i])
-		ret.coeffs[i] = reduce(tmp)
+		ret.coeffs[i] = reduce(pp, tmp)
 	}
 	return &ret
 }

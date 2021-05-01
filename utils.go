@@ -6,6 +6,7 @@ import (
 	"math/big"
 )
 
+// TODO: random benchmark with CCS20
 // generate single int with given probabilities
 func randomIntWithProbability(items []int, probabilities []float64) int {
 	if len(items) != len(probabilities) {
@@ -30,6 +31,7 @@ func randomIntWithProbability(items []int, probabilities []float64) int {
 	return items[cnt]
 }
 
+// TODO change the name to randomnessFromDistribution
 // generate single int with given weights
 func randomIntWithWeight(items []int, weights []int) int {
 	if len(items) != len(weights) {
@@ -98,7 +100,8 @@ func randomIntSliceWithProbability(items []int, probabilities []float64, n int) 
 }
 
 // generate int slice with given weights
-func randomIntSliceWithWeight(items []int, weights []int, n int) []int {
+// SampleFromRand and ExtendFromSeed
+func randomIntSliceWithWeight(items []int, weights []int, n int) (res []int) {
 	// check parameter validity
 	if n <= 0 {
 		log.Fatalln("generate array with zero length error")
@@ -117,7 +120,7 @@ func randomIntSliceWithWeight(items []int, weights []int, n int) []int {
 
 	generateSlice := make([]int, n, n)
 	rng := rand.Reader
-
+	//TODO: rng from seed not from rand.Reader
 	for i := 0; i < n; i++ {
 		num, err := rand.Int(rng, big.NewInt(int64(totalWeight)))
 		if err != nil {
@@ -139,14 +142,13 @@ func randomIntSliceWithWeight(items []int, weights []int, n int) []int {
 	return generateSlice
 }
 
-func reduce(a int64) int32 {
+func reduce(pp *PublicParameter, a int64) int32 {
 	var tmp int64
-	tmp = a % PP_q
-	if tmp > PP_q_m {
-		tmp = tmp - PP_q
-	} else if tmp < -PP_q_m {
-		tmp = tmp + PP_q
+	tmp = a % int64(pp.paramQ)
+	if tmp > int64(pp.paramQ>>1) {
+		tmp = tmp - int64(pp.paramQ)
+	} else if tmp < -int64(pp.paramQ>>1) {
+		tmp = tmp + int64(pp.paramQ)
 	}
-
 	return int32(tmp)
 }
