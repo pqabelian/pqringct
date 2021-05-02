@@ -36,19 +36,47 @@ type PublicParameter struct {
 	//	paramJ defines the maximum number of generated coins of a transaction
 	paramJ uint8
 
-	// paramD define the degree of the polynomial  R = Z[x]/(x^d+1)
-	paramD uint8 // equal to byte
-	// paramQ define the field, which is an odd prime and it will be q=1 mod 2d
-	paramQ uint32
-	// paramZeta define the primitive 2d-th root of unity
-	paramZeta uint32
-	// paramQ is half of paramQ
-	// paramQm uint64
-	// paramK is
-	paramK uint8
+	paramD int
+	/*
+		d: the degree of the polynomial ring, say R =Z[X] / (X^d + 1)
+		d should be a power of two, not too small (otherwise is insecure) and not too large (otherwise inefficient)
+		here we define it as 'int', since we need to loop from 0 to d-1 for some matrix, and int is fine for the possible
+		values, such as d=128, 256, 512, and even 1024, on any platform/OS, since int maybe int32 or int64.
+	*/
 
-	paramKa    uint8
-	paramLa    uint8
+	paramQ  uint32 // a 32-bit prime such that q = 1 mod 2d, Z_q =[-(q-1)/2, (q-1)/2]
+	paramQm uint32
+	/*
+		q is the module to define R_q[X] = Z_q[X] / (X^d +1)
+		q = 1 mod 2d will guarantee that R_q[X] is a fully-splitting ring, say that X^d+1 = (X-\zeta)(X-\zetz^3)...(X-\zeta^{2d-1}),
+		where \zeta is a primitive 2d-th root of unity in Z_q^*.
+		For efficiency, q is expected to small. Considering the security, q (approx.)= 2^32 is fine.
+		For uint32, q lies in [0, 2^32-1], and Z_q = [-(q-1)/2, (q-1)/1], int32 will be fine to denote the values in Z_q.
+		q_m = (q-1)/2, as this value will be often used in computation, we define it as a parameter, rather than compute it each time.
+	*/
+
+	paramK int
+	/*
+		k is a power of two such that k|d and q^{-k} is negligible.
+		As we will also loop from 0 to k-1, we define it with 'int' type.
+	*/
+
+	paramZeta int32
+	/*
+		zeta is a primitive 2d-th root of unity in Z_q^*.
+		As zeta \in Z_q, we define it as a 'int32' type.
+	*/
+
+
+	paramKa    int
+	/*
+		As we need to loop from 0 to l_a-1, we define it with 'int' type
+	*/
+	paramLa    int
+	/*
+	As we need to loop from 0 to l_a-1, we define it with 'int' type
+	 */
+
 	paramETAa  uint16
 	paramBETAa uint8
 
@@ -61,12 +89,14 @@ type PublicParameter struct {
 
 	paramMa   uint8
 	paramETAf uint16
+
+	paramCStr	[]byte
 }
 
-func NewPublicParameter(paramN uint8, paramI uint8, paramJ uint8, paramD uint8, paramQ uint32, paramZeta uint32, paramK uint8, paramKa uint8, paramLa uint8, paramETAa uint16, paramBETAa uint8, paramKc uint8, paramLc uint8, paramETAc uint16, paramBETAc uint8, paramETAc1 uint16, paramBETAc1 uint8, paramMa uint8, paramETAf uint16) *PublicParameter {
+func NewPublicParameter(paramN uint8, paramI uint8, paramJ uint8, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa uint8, paramLa uint8, paramETAa uint16, paramBETAa uint8, paramKc uint8, paramLc uint8, paramETAc uint16, paramBETAc uint8, paramETAc1 uint16, paramBETAc1 uint8, paramMa uint8, paramETAf uint16) *PublicParameter {
 	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramETAa: paramETAa, paramBETAa: paramBETAa, paramKc: paramKc, paramLc: paramLc, paramETAc: paramETAc, paramBETAc: paramBETAc, paramETAc1: paramETAc1, paramBETAc1: paramBETAc1, paramMa: paramMa, paramETAf: paramETAf}
 }
-
+/*
 func (p *PublicParameter) MasterKeyGen(seed []byte) (*MasterPubKey, *MasterSecretViewKey, *MasterSecretSignKey) {
 	panic("implement me")
 	//b=reduce(a,q)
@@ -91,7 +121,7 @@ func (p *PublicParameter) TransferTXGen(descs []*TxInputDesc, descs2 []*TxOutput
 
 func (p *PublicParameter) TransferTXVerify(tx *TransferTx) bool {
 	panic("implement me")
-}
+}*/
 
 var DefaultPP *PublicParameter = NewPublicParameter(
 	51,
@@ -131,33 +161,14 @@ type PQRingCT interface {
 	TransferTXVerify(tx *TransferTx) bool
 }
 
-type PolyVecA struct {
-	// the length must be paramLa
-	vec []Poly
-}
-
-type PolyVecC struct {
-	// the length must be paramLc
-	vec []Poly
-}
-
-type PolyVecANTT struct {
-	// the length must be paramLa
-	vec []PolyNTT
-}
-
-type PolyVecCNTT struct {
-	// the length must be paramLc
-	vec []PolyNTT
-}
 
 type PubParams struct {
 	// the length must be paramLa
-	A []PolyVecANTT
+	A []PolyNTTVec
 	// the length must be paramLc
-	B []PolyVecCNTT
+	B []PolyNTTVec
 	// the length must be paramI + paramJ + 7
-	C []PolyVecCNTT //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
+	C []PolyNTTVec //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
 }
 
 // xis is used for ntt and inv-ntt
