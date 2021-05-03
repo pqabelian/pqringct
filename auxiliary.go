@@ -12,14 +12,13 @@ func txoGen(mpk *MasterPubKey, v int64) (txo *TXO, SrDXLc [][]byte) {
 	return nil, nil
 }
 
-
 // expandPubM
 func expandPubM(seed []int) (pp PubParams) {
 	panic("implement me")
 	return PubParams{
-		A: []PolyVecANTT{},
-		B: []PolyVecCNTT{},
-		C: []PolyVecCNTT{},
+		A: []PolyNTTVec{},
+		B: []PolyNTTVec{},
+		C: []PolyNTTVec{},
 	}
 }
 

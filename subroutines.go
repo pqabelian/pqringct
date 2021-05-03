@@ -1,6 +1,5 @@
 package pqringct
 
-
 // rpulpProve generates balance proof
 func rpulpProve() (rpulppf []byte) {
 	//TODO: add inputs
@@ -27,7 +26,7 @@ func elrsVerify() (valid bool) {
 
 /**
 todo: generate MatrixA from pp.Cstr
- */
+*/
 func (pp *PublicParameter) ExpandPubMatrixA() (matrixA []*PolyNTTVec) {
 	matrix := make([]*PolyNTTVec, pp.paramKa)
 
@@ -55,9 +54,9 @@ func (pp *PublicParameter) ExpandPubMatrixB() (matrixB []*PolyNTTVec) {
 }
 
 func (pp *PublicParameter) ExpandPubMatrixC() (matrixC []*PolyNTTVec) {
-	matrix := make([]*PolyNTTVec, pp.paramI + pp.paramJ+7)
+	matrix := make([]*PolyNTTVec, pp.paramI+pp.paramJ+7)
 
-	for i := 0; i < pp.paramI + pp.paramJ+7; i++ {
+	for i := 0; i < pp.paramI+pp.paramJ+7; i++ {
 		matrix[i].polyNTTs = make([]*PolyNTT, pp.paramLc)
 		// todo
 	}
@@ -67,20 +66,10 @@ func (pp *PublicParameter) ExpandPubMatrixC() (matrixC []*PolyNTTVec) {
 
 /*
 todo: expand a seed to a PolyVec with length l_a from (S_r)^d
- */
-func (pp *PublicParameter) ExpandKeyA(seed []byte) (sp *PolyVec) {
+*/
+func (pp *PublicParameter) ExpandRandomnessA(seed []byte) (sp *PolyVec) {
 
 	polys := make([]*Poly, pp.paramLa)
-//	todo
-	r := &PolyVec{
-		polys: polys,
-	}
-	return r
-}
-
-func (pp *PublicParameter) ExpandKeyC(seed []byte) (cmtr *PolyVec) {
-
-	polys := make([]*Poly, pp.paramLc)
 	//	todo
 	r := &PolyVec{
 		polys: polys,
@@ -88,13 +77,46 @@ func (pp *PublicParameter) ExpandKeyC(seed []byte) (cmtr *PolyVec) {
 	return r
 }
 
+func (pp *PublicParameter) ExpandRandomnessC(seed []byte) (r *PolyVec) {
 
-func (pp *PublicParameter) PolyNTTVecInnerProduct(a *PolyNTTVec, b *PolyNTTVec, len int) (r *PolyNTT) {
-	r = NewZeroPolyNTT()
-	for i := 0; i < len; i++ {
-		r = pp.PolyNTTAdd(r, pp.PolyNTTMul(a.polyNTTs[i], b.polyNTTs[i]))
+	polys := make([]*Poly, pp.paramLc)
+	//	todo
+	rst := &PolyVec{
+		polys: polys,
 	}
-
-	return r
+	return rst
 }
 
+func (pp PublicParameter) sampleRandomnessC() (r *PolyVec) {
+	polys := make([]*Poly, pp.paramLc)
+	//	todo
+	rst := &PolyVec{
+		polys: polys,
+	}
+	return rst
+}
+
+func (pp *PublicParameter) PolyNTTVecInnerProduct(a *PolyNTTVec, b *PolyNTTVec, len int) (r *PolyNTT) {
+	rst := NewZeroPolyNTT()
+	for i := 0; i < len; i++ {
+		rst = pp.PolyNTTAdd(r, pp.PolyNTTMul(a.polyNTTs[i], b.polyNTTs[i]))
+	}
+
+	return rst
+}
+
+func intToBinary(v uint64, bitnum int) (bits []int32) {
+	rstbits := make([]int32, bitnum)
+	for i := 0; i < bitnum; i++ {
+		rstbits[i] = int32((v >> i) & 1)
+	}
+	return rstbits
+}
+
+func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]int32) {
+	// todo: in randomness, we need a method to expandUniformBits()
+	//	todo: for binaryMatrxi we may do some optimoztion, e.g. use []byte to denote the matrix directly
+	//	so that for a 128*128 matrix, we just need 16*16 bytes rather than 128*128 int32's.
+
+	return
+}

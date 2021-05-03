@@ -1,7 +1,9 @@
 package pqringct
 
 import (
+	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
+	"math"
 )
 
 type PolyVec struct {
@@ -13,7 +15,6 @@ type PolyNTTVec struct {
 	// the length must be paramLa
 	polyNTTs []*PolyNTT
 }
-
 
 /*
 This file defines all public constants and interfaces of PQRingCT.
@@ -33,9 +34,15 @@ type MasterSecretSignKey struct {
 }
 
 type CoinbaseTx struct {
+	Version uint32
+
+	Vin        uint64
+	OutputTxos []*TXO
+	TxWitness  []byte
 }
 
 type TransferTx struct {
+	Version uint32
 }
 
 type DerivedPubKey struct {
@@ -60,20 +67,21 @@ type TxInputDesc struct {
 
 type TxOutputDesc struct {
 	mpk *MasterPubKey
-	v   int64
+	v   uint64
 }
 
 type TXO struct {
 	dpk *DerivedPubKey
 	cmt *PolyNTTVec
-	vc	[]byte
+	vc  []byte
 }
 
 //	public fun	begin
-func Setup() (pp *PublicParameter){
+func Setup() (pp *PublicParameter) {
 	// todo
 	return nil
 }
+
 /*
 func MasterKeyGen(masterSeed []byte, parameter *PublicParameter) (mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, mseed []byte, err error) {
 	// to do
@@ -109,13 +117,12 @@ func TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, mssk *MasterSecre
 	panic("implement me")
 }*/
 
-
 func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
-/*	mpk := MasterPubKey{}
-	msvk := MasterSecretViewKey{}
-	mssk := MasterSecretSignKey{}
+	/*	mpk := MasterPubKey{}
+		msvk := MasterSecretViewKey{}
+		mssk := MasterSecretSignKey{}
 
-	return &mpk, &msvk, &mssk, nil*/
+		return &mpk, &msvk, &mssk, nil*/
 
 	//	kappa := []byte
 	s := &PolyNTTVec{}
@@ -145,8 +152,108 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *M
 	return rstmpk, rstmsvk, rstmssk, nil
 }
 
-func (pp *PublicParameter) CoinbaseTxGen(vin int32, txos []*TxOutputDesc) *CoinbaseTx {
-	panic("implement me")
+func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDesc) (cbTx *CoinbaseTx, err error) {
+	if vin > (uint64(1)<<pp.paramN - 1) {
+		return nil, errors.New("vin is not in [0, 2^N-1]") // todo: more accurate info
+	}
+
+	if len(txOutputDescs) == 0 || len(txOutputDescs) > pp.paramJ {
+		return nil, errors.New("the number of outputs is not in [1, I_max]") // todo: more accurate info
+	}
+
+	J := len(txOutputDescs)
+
+	mBinarys := make([][]int32, J+2)
+	mNTTs := make([]*PolyNTT, J+2)
+
+	rstcbTx := CoinbaseTx{}
+	rstcbTx.Version = 0 // todo: how to set and how to use the version
+	rstcbTx.Vin = vin
+	rstcbTx.OutputTxos = make([]*TXO, J)
+	cmtrs := make([]*PolyNTTVec, J)
+
+	vout := uint64(0)
+	for j, txOutputDesc := range txOutputDescs {
+		if txOutputDesc.v > (uint64(1)<<pp.paramN - 1) {
+			return nil, errors.New("v is not in [0, 2^N-1]") // todo: more accurate info, including the i
+		}
+		vout += txOutputDesc.v
+		if vout > (uint64(1)<<pp.paramN - 1) {
+			return nil, errors.New("v is not in [0, 2^N-1]") // todo: more accurate info, including the i
+		}
+
+		rstcbTx.OutputTxos[j], cmtrs[j], err = pp.txoGen(txOutputDesc.mpk, txOutputDesc.v)
+		if err != nil {
+			return nil, err
+		}
+
+		mBinarys[j] = intToBinary(txOutputDesc.v, pp.paramD)
+		mNTTs[j] = &PolyNTT{mBinarys[j]}
+	}
+	if vout > vin {
+		return nil, errors.New("the output value exceeds the input value") // todo: more accurate info
+	}
+
+	if J == 1 {
+		//	J=1
+
+	} else {
+		//	J >= 2
+		n := J
+		n2 := J + 2
+
+		vinBinary := intToBinary(vin, pp.paramD)
+		u := &PolyNTT{vinBinary}
+
+		fBinay := make([]int32, pp.paramD) // todo: compute the carry vector f
+		f := &PolyNTT{fBinay}
+		mBinarys[J] = fBinay
+		mNTTs[J] = f
+
+	restart:
+		eBinary := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
+		e := &PolyNTT{eBinary}
+		mBinarys[J+1] = eBinary
+		mNTTs[J+1] = e
+
+		r := pp.NTTVec(pp.sampleRandomnessC())
+
+		b_hat := &PolyNTTVec{}
+		b_hat.polyNTTs = make([]*PolyNTT, pp.paramKa)
+		for i := 0; i < pp.paramKa; i++ {
+			b_hat.polyNTTs[i] = pp.PolyNTTVecInnerProduct(pp.paramMatrixB[i], r, pp.paramLc)
+		}
+
+		c_hats := make([]*PolyNTT, n+2)
+		for i := 0; i < J+2; i++ {
+			c_hats[i] = pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], r, pp.paramLc), mNTTs[i])
+		}
+
+		var infNorm int32
+		up := make([]int32, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of up[i] over int32
+		seed4BinM := []byte{}          // todo: compute the seed using hash function on (b_hat, c_hats).
+		binM := expandBinaryMatrix(seed4BinM, pp.paramD, pp.paramD)
+		// todo: check B f + e
+		for i := 0; i < pp.paramD; i++ {
+			up[i] = 0
+			for j := 0; j < pp.paramD; j++ {
+				up[i] = up[i] + binM[i][j]*eBinary[j]
+			}
+
+			infNorm = up[i]
+			if infNorm < 0 {
+				infNorm = -infNorm
+			}
+			if infNorm > int32(pp.paramEtaF-uint32(J-1)) {
+				goto restart
+			}
+		}
+
+		// todo
+
+	}
+
+	return nil, nil
 }
 
 func (pp *PublicParameter) CoinbaseTxVerify(tx *CoinbaseTx) bool {
@@ -169,46 +276,44 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 	//	(C, kappa)
 	kappa := []byte{} // todo
 
-	matrixA := pp.ExpandPubMatrixA()
+	//matrixA := pp.ExpandPubMatrixA()
 
-	sp := pp.ExpandKeyA(kappa)
-	spNTT := pp.NTTVec(sp)
+	sp := pp.NTTVec(pp.ExpandRandomnessA(kappa))
 
 	//	(C, t)
 	dpkt := &PolyNTTVec{}
 	dpkt.polyNTTs = make([]*PolyNTT, pp.paramKa)
 	for i := 0; i < pp.paramKa; i++ {
-		dpkt.polyNTTs[i] = pp.PolyNTTAdd(mpk.t.polyNTTs[i], pp.PolyNTTVecInnerProduct(matrixA[i], spNTT, pp.paramLa))
+		dpkt.polyNTTs[i] = pp.PolyNTTAdd(mpk.t.polyNTTs[i], pp.PolyNTTVecInnerProduct(pp.paramMatrixA[i], sp, pp.paramLa))
 	}
 
 	dpk := &DerivedPubKey{
 		t: dpkt,
 	}
 
-	matrixB := pp.ExpandPubMatrixB()
-	matrixC := pp.ExpandPubMatrixC()
+	//	matrixB := pp.ExpandPubMatrixB()
+	//	matrixC := pp.ExpandPubMatrixC()
 
 	//	cmt
-	cmtr := pp.ExpandKeyC(kappa)
-	cmtrNTT := pp.NTTVec(cmtr)
+	cmtr := pp.NTTVec(pp.ExpandRandomnessC(kappa))
 
 	cmt := &PolyNTTVec{}
-	cmt.polyNTTs = make([]*PolyNTT, pp.paramKc + 1)
+	cmt.polyNTTs = make([]*PolyNTT, pp.paramKc+1)
 	for i := 0; i < pp.paramKc; i++ {
-		cmt.polyNTTs[i] = pp.PolyNTTVecInnerProduct(matrixB[i], cmtrNTT, pp.paramLc)
+		cmt.polyNTTs[i] = pp.PolyNTTVecInnerProduct(pp.paramMatrixB[i], cmtr, pp.paramLc)
 	}
-	cmt.polyNTTs[pp.paramKc] = pp.PolyNTTVecInnerProduct(matrixC[0], cmtrNTT, pp.paramLc)
+	cmt.polyNTTs[pp.paramKc] = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cmtr, pp.paramLc)
 
 	//	vc
 	//	todo
 
-	rtxo := &TXO{
+	rsttxo := &TXO{
 		dpk,
 		cmt,
-		nil,// todo
+		nil, // todo
 	}
 
-	return rtxo, cmtrNTT, nil
+	return rsttxo, cmtr, nil
 }
 
 //	public fun	end
