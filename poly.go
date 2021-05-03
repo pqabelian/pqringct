@@ -8,6 +8,14 @@ type Poly struct {
 	coeffs []int32
 }
 
+/*
+The NTT-form poly in a fully-splitting ring
+*/
+type PolyNTT struct {
+	coeffs []int32
+}
+
+
 // NewPoly create a struct with coeffs and if the length of coeffs must be more than parameter D of Public Parameter
 func (pp *PublicParameter) NewPoly(coeffs []int32) *Poly {
 	tmp := make([]int32, pp.paramD)
@@ -45,6 +53,24 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 	return &PolyNTT{coeffs: coeffs}
 }
 
+/*
+Transfer a vector of polys to a vector of polyNTTs
+ */
+func (pp *PublicParameter) NTTVec(polyVec *PolyVec) (polyNTTVec *PolyNTTVec) {
+	if polyVec == nil {
+		return nil
+	}
+
+	r := &PolyNTTVec{}
+	r.polyNTTs = make([]*PolyNTT, len(polyVec.polys))
+
+	for i := 0; i < len(polyVec.polys); i++ {
+		r.polyNTTs[i] = pp.NTT( polyVec.polys[i])
+	}
+
+	return r
+}
+
 func (pp *PublicParameter) PolyAdd(a *Poly, b *Poly) (r *Poly) {
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
@@ -69,12 +95,6 @@ func (pp *PublicParameter) PolyMul(a *Poly, b *Poly) (r *Poly) {
 	return pp.NTTInv(rntt)
 }
 
-/*
-The NTT-form poly in a fully-splitting ring
-*/
-type PolyNTT struct {
-	coeffs []int32
-}
 
 /*
 	todo: output a PolyNTT with all coefficients are 0.
@@ -114,29 +134,8 @@ func (pp *PublicParameter) PolyNTTMul(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	return &PolyNTT{coeffs: coeffs}
 }
 
-func (pp *PublicParameter) PolyNTTVecInnerProduct(a *PolyNTTVec, b *PolyNTTVec, len int) (r *PolyNTT) {
-	r = NewZeroPolyNTT()
-	for i := 0; i < len; i++ {
-		r = pp.PolyNTTAdd(r, pp.PolyNTTMul(a.vec[i], b.vec[i]))
-	}
-
-	return r
-}
-
 
 //	private functions	begin
-func (pp *PublicParameter) reduce(a int64) int32 {
-	qm := int64(pp.paramQm)
 
-	rst := a % int64(pp.paramQ)
-
-	if rst > qm {
-		rst = rst - qm
-	} else if rst < -qm {
-		rst = rst + qm
-	}
-
-	return int32(rst)
-}
 
 //	private functions	end

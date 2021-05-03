@@ -32,11 +32,37 @@ func (pp *PublicParameter) ExpandPubMatrixA() (matrixA []*PolyNTTVec) {
 	matrix := make([]*PolyNTTVec, pp.paramKa)
 
 	for i := 0; i < pp.paramKa; i++ {
-		matrix[i].vec = make([]*PolyNTT, pp.paramLa)
+		matrix[i].polyNTTs = make([]*PolyNTT, pp.paramLa)
 		// todo
 	}
 
 	return matrixA
+}
+
+/**
+todo: generate MatrixB from pp.Cstr
+todo: store the matrices in PP or generate them each time they are generated
+*/
+func (pp *PublicParameter) ExpandPubMatrixB() (matrixB []*PolyNTTVec) {
+	matrix := make([]*PolyNTTVec, pp.paramKc)
+
+	for i := 0; i < pp.paramKa; i++ {
+		matrix[i].polyNTTs = make([]*PolyNTT, pp.paramLc)
+		// todo
+	}
+
+	return matrix
+}
+
+func (pp *PublicParameter) ExpandPubMatrixC() (matrixC []*PolyNTTVec) {
+	matrix := make([]*PolyNTTVec, pp.paramI + pp.paramJ+7)
+
+	for i := 0; i < pp.paramI + pp.paramJ+7; i++ {
+		matrix[i].polyNTTs = make([]*PolyNTT, pp.paramLc)
+		// todo
+	}
+
+	return matrix
 }
 
 /*
@@ -44,10 +70,31 @@ todo: expand a seed to a PolyVec with length l_a from (S_r)^d
  */
 func (pp *PublicParameter) ExpandKeyA(seed []byte) (sp *PolyVec) {
 
-	vec := make([]*Poly, pp.paramLa)
+	polys := make([]*Poly, pp.paramLa)
 //	todo
-	sp = &PolyVec{
-		vec: vec,
+	r := &PolyVec{
+		polys: polys,
 	}
-	return sp
+	return r
 }
+
+func (pp *PublicParameter) ExpandKeyC(seed []byte) (cmtr *PolyVec) {
+
+	polys := make([]*Poly, pp.paramLc)
+	//	todo
+	r := &PolyVec{
+		polys: polys,
+	}
+	return r
+}
+
+
+func (pp *PublicParameter) PolyNTTVecInnerProduct(a *PolyNTTVec, b *PolyNTTVec, len int) (r *PolyNTT) {
+	r = NewZeroPolyNTT()
+	for i := 0; i < len; i++ {
+		r = pp.PolyNTTAdd(r, pp.PolyNTTMul(a.polyNTTs[i], b.polyNTTs[i]))
+	}
+
+	return r
+}
+

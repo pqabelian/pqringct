@@ -6,12 +6,12 @@ import (
 
 type PolyVec struct {
 	// the length must be paramLa
-	vec []*Poly
+	polys []*Poly
 }
 
 type PolyNTTVec struct {
 	// the length must be paramLa
-	vec []*PolyNTT
+	polyNTTs []*PolyNTT
 }
 
 
@@ -66,7 +66,7 @@ type TxOutputDesc struct {
 type TXO struct {
 	dpk *DerivedPubKey
 	cmt *PolyNTTVec
-	vc	uint32
+	vc	[]byte
 }
 
 //	public fun	begin
@@ -119,14 +119,14 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *M
 
 	//	kappa := []byte
 	s := &PolyNTTVec{}
-	//len(s.vec) != pp.paramLa
+	//len(s.polys) != pp.paramLa
 
 	t := &PolyNTTVec{}
-	t.vec = make([]*PolyNTT, pp.paramKa)
+	t.polyNTTs = make([]*PolyNTT, pp.paramKa)
 
 	matrixA := pp.ExpandPubMatrixA()
 	for i := 0; i < pp.paramKa; i++ {
-		t.vec[i] = pp.PolyNTTVecInnerProduct(matrixA[i], s, pp.paramLa)
+		t.polyNTTs[i] = pp.PolyNTTVecInnerProduct(matrixA[i], s, pp.paramLa)
 	}
 
 	rstmpk := &MasterPubKey{
@@ -170,33 +170,45 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 	kappa := []byte{} // todo
 
 	matrixA := pp.ExpandPubMatrixA()
+
 	sp := pp.ExpandKeyA(kappa)
+	spNTT := pp.NTTVec(sp)
 
-	nttVec := make([]*PolyNTT, pp.paramLa)
-	for i := 0; i < pp.paramLa; i++ {
-		nttVec[i] = pp.NTT( sp.vec[i])
-	}
-	spNTT := &PolyNTTVec{
-		nttVec,
-	}
-
-	t := &PolyNTTVec{}
-	t.vec = make([]*PolyNTT, pp.paramKa)
+	//	(C, t)
+	dpkt := &PolyNTTVec{}
+	dpkt.polyNTTs = make([]*PolyNTT, pp.paramKa)
 	for i := 0; i < pp.paramKa; i++ {
-		t.vec[i] = pp.PolyNTTAdd(mpk.t.vec[i], pp.PolyNTTVecInnerProduct(matrixA[i], spNTT, pp.paramLa))
-	}
-	dpk := DerivedPubKey{
-
+		dpkt.polyNTTs[i] = pp.PolyNTTAdd(mpk.t.polyNTTs[i], pp.PolyNTTVecInnerProduct(matrixA[i], spNTT, pp.paramLa))
 	}
 
-	txo := &TXO{
-		&DerivedPubKey{
-			,
-		},
-		cmt
+	dpk := &DerivedPubKey{
+		t: dpkt,
 	}
 
-	return nil, spNTT, nil
+	matrixB := pp.ExpandPubMatrixB()
+	matrixC := pp.ExpandPubMatrixC()
+
+	//	cmt
+	cmtr := pp.ExpandKeyC(kappa)
+	cmtrNTT := pp.NTTVec(cmtr)
+
+	cmt := &PolyNTTVec{}
+	cmt.polyNTTs = make([]*PolyNTT, pp.paramKc + 1)
+	for i := 0; i < pp.paramKc; i++ {
+		cmt.polyNTTs[i] = pp.PolyNTTVecInnerProduct(matrixB[i], cmtrNTT, pp.paramLc)
+	}
+	cmt.polyNTTs[pp.paramKc] = pp.PolyNTTVecInnerProduct(matrixC[0], cmtrNTT, pp.paramLc)
+
+	//	vc
+	//	todo
+
+	rtxo := &TXO{
+		dpk,
+		cmt,
+		nil,// todo
+	}
+
+	return rtxo, cmtrNTT, nil
 }
 
 //	public fun	end
