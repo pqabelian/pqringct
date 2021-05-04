@@ -3,7 +3,6 @@ package pqringct
 import (
 	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
-	"math"
 )
 
 type PolyVec struct {
@@ -194,7 +193,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 	} else {
 		//	J >= 2
 		n := J
-		n2 := J + 2
+		n2 := n + 2
 
 		b_hat := &PolyNTTVec{}
 		b_hat.polyNTTs = make([]*PolyNTT, pp.paramKa)
@@ -211,7 +210,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		f := make([]int32, pp.paramD) // todo: compute the carry vector f
 		msg_hats[J] = f
 
-	CbTxGenJ2Restart:
+	cbTxGenJ2Restart:
 		e := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
 		msg_hats[J+1] = e
 
@@ -241,7 +240,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 				infNorm = -infNorm
 			}
 			if infNorm > int32(pp.paramEtaF-uint32(J-1)) {
-				goto CbTxGenJ2Restart
+				goto cbTxGenJ2Restart
 			}
 		}
 

@@ -7,12 +7,12 @@ import (
 
 func TestIntBinaryNTT(t *testing.T) {
 	pp := PublicParameter{}
-	pp.paramD = 128
+	pp.paramD = 8
 
-	v := uint64(2013)
-	polyNTT := pp.intBinaryNTT(v)
+	v := uint64(9)
+	binstr := intToBinary(v, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		k := polyNTT.coeffs[i]
+		k := binstr[i]
 		fmt.Println(k)
 	}
 
