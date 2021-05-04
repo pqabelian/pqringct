@@ -163,9 +163,6 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 
 	J := len(txOutputDescs)
 
-	mBinarys := make([][]int32, J+2)
-	mNTTs := make([]*PolyNTT, J+2)
-
 	rstcbTx := CoinbaseTx{}
 	rstcbTx.Version = 0 // todo: how to set and how to use the version
 	rstcbTx.Vin = vin
@@ -186,9 +183,6 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		if err != nil {
 			return nil, err
 		}
-
-		mBinarys[j] = intToBinary(txOutputDesc.v, pp.paramD)
-		mNTTs[j] = &PolyNTT{mBinarys[j]}
 	}
 	if vout > vin {
 		return nil, errors.New("the output value exceeds the input value") // todo: more accurate info
@@ -202,31 +196,33 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		n := J
 		n2 := J + 2
 
-		vinBinary := intToBinary(vin, pp.paramD)
-		u := &PolyNTT{vinBinary}
+		b_hat := &PolyNTTVec{}
+		b_hat.polyNTTs = make([]*PolyNTT, pp.paramKa)
 
-		fBinay := make([]int32, pp.paramD) // todo: compute the carry vector f
-		f := &PolyNTT{fBinay}
-		mBinarys[J] = fBinay
-		mNTTs[J] = f
+		msg_hats := make([][]int32, n2)
+		c_hats := make([]*PolyNTT, n2)
 
-	restart:
-		eBinary := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
-		e := &PolyNTT{eBinary}
-		mBinarys[J+1] = eBinary
-		mNTTs[J+1] = e
+		u_hats := make([][]int32, 3)
+
+		for j := 0; j < J; j++ {
+			msg_hats[j] = intToBinary(txOutputDescs[j].v, pp.paramD)
+		}
+
+		f := make([]int32, pp.paramD) // todo: compute the carry vector f
+		msg_hats[J] = f
+
+	CbTxGenJ2Restart:
+		e := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
+		msg_hats[J+1] = e
 
 		r := pp.NTTVec(pp.sampleRandomnessC())
 
-		b_hat := &PolyNTTVec{}
-		b_hat.polyNTTs = make([]*PolyNTT, pp.paramKa)
 		for i := 0; i < pp.paramKa; i++ {
 			b_hat.polyNTTs[i] = pp.PolyNTTVecInnerProduct(pp.paramMatrixB[i], r, pp.paramLc)
 		}
 
-		c_hats := make([]*PolyNTT, n+2)
-		for i := 0; i < J+2; i++ {
-			c_hats[i] = pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], r, pp.paramLc), mNTTs[i])
+		for i := 0; i < n2; i++ { // n2 = J+2
+			c_hats[i] = pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], r, pp.paramLc), &PolyNTT{msg_hats[i]})
 		}
 
 		var infNorm int32
@@ -237,7 +233,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		for i := 0; i < pp.paramD; i++ {
 			up[i] = 0
 			for j := 0; j < pp.paramD; j++ {
-				up[i] = up[i] + binM[i][j]*eBinary[j]
+				up[i] = up[i] + binM[i][j]*e[j]
 			}
 
 			infNorm = up[i]
@@ -245,12 +241,16 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 				infNorm = -infNorm
 			}
 			if infNorm > int32(pp.paramEtaF-uint32(J-1)) {
-				goto restart
+				goto CbTxGenJ2Restart
 			}
 		}
 
-		// todo
+		u_hats[0] = intToBinary(vin, pp.paramD)
+		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[2] = up
 
+		// todo
+		//rpulpProve()
 	}
 
 	return nil, nil

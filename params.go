@@ -132,7 +132,7 @@ type PublicParameter struct {
 	paramMatrixC []*PolyNTTVec
 }
 
-func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramETAa uint16, paramBETAa uint8, paramKc int, paramLc int, paramETAc uint16, paramBETAc uint8, paramETAc1 uint16, paramBETAc1 uint8, paramMa uint8, paramETAf uint16) *PublicParameter {
+func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramETAa uint16, paramBETAa uint8, paramKc int, paramLc int, paramETAc uint16, paramBETAc uint8, paramETAc1 uint16, paramBETAc1 uint8, paramMa uint8, paramEtaF uint32) *PublicParameter {
 	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramETAa: paramETAa, paramBETAa: paramBETAa, paramKc: paramKc, paramLc: paramLc, paramETAc: paramETAc, paramBETAc: paramBETAc, paramETAc1: paramETAc1, paramBETAc1: paramBETAc1, paramMa: paramMa, paramEtaF: paramEtaF}
 }
 
