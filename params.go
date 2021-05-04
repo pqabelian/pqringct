@@ -51,6 +51,10 @@ type PublicParameter struct {
 		values, such as d=128, 256, 512, and even 1024, on any platform/OS, since int maybe int32 or int64.
 	*/
 	paramD int
+	/*
+		paramDInv = d^{-1} mod q
+	*/
+	paramDInv int32
 
 	/*
 		q is the module to define R_q[X] = Z_q[X] / (X^d +1)
@@ -72,6 +76,11 @@ type PublicParameter struct {
 		As we will also loop for k, we define it with 'int' type.
 	*/
 	paramK int
+
+	/*
+		paramKInv = k^{-1} mod q
+	*/
+	paramKInv int32
 
 	/*
 		zeta is a primitive 2d-th root of unity in Z_q^*.
@@ -130,6 +139,11 @@ type PublicParameter struct {
 		paramMatrixC is expand from paramCStr, with size (paramI + paramJ + 7) rows, each row with size l_c
 	*/
 	paramMatrixC []*PolyNTTVec
+
+	/**
+	paramMu defines the const mu, which is determined by the value of N and d
+	*/
+	paramMu []int32
 }
 
 func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramETAa uint16, paramBETAa uint8, paramKc int, paramLc int, paramETAc uint16, paramBETAc uint8, paramETAc1 uint16, paramBETAc1 uint8, paramMa uint8, paramEtaF uint32) *PublicParameter {

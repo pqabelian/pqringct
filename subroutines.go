@@ -1,5 +1,7 @@
 package pqringct
 
+import "hash/maphash"
+
 // rpulpProve generates balance proof
 type RpUlpType uint8
 
@@ -17,7 +19,7 @@ n >= 2 && n <= n1 && n1 <= n2 && n <= pp.paramI+pp.paramJ && n2 <= pp.paramI+pp.
 */
 func (pp PublicParameter) rpulpProve(cmt_bs []*PolyNTTVec, cmt_cs []*PolyNTT, cmt_rs []*PolyNTTVec, n int,
 	b_hat *PolyNTTVec, r_hat *PolyNTTVec, c_hats []*PolyNTT, msg_hats [][]int32, n2 int,
-	n1 int, rpulpType RpUlpType, B [][]int32, I int, J int, u_hats [][]int32) (err error) {
+	n1 int, rpulpType RpUlpType, B [][]int32, I int, J int, m int, u_hats [][]int32) (err error) {
 
 	c_waves := make([]*PolyNTT, n)
 	for i := 0; i < n; i++ {
@@ -46,6 +48,87 @@ rpUlpProveRestart:
 	c_hat_g := pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], r_hat, pp.paramLc), g)
 
 	seed1 := []byte{} // todo
+	alphas, betas, gammas := pp.expandUniformRandomnessInRqZq(seed1, n1)
+
+	delta_waves := make([][]*PolyNTT, pp.paramK)
+	delta_hats := make([][]*PolyNTT, pp.paramK)
+	for t := 0; t < pp.paramK; t++ {
+		delta_waves[t] = make([]*PolyNTT, n)
+		delta_hats[t] = make([]*PolyNTT, n)
+		for i := 0; i < n; i++ {
+			delta_waves[t][i] = pp.PolyNTTVecInnerProduct(pp.PolyNTTVecSub(pp.paramMatrixC[i+1], pp.paramMatrixC[0], pp.paramLc), cmt_ys[t][i], pp.paramLc)
+			delta_hats[t][i] = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], pp.PolyNTTVecSub(ys[t], cmt_ys[t][i], pp.paramLc), pp.paramLc)
+		}
+	}
+
+	psi := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], r_hat, pp.paramLc)
+	psip := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], ys[0], pp.paramLc)
+
+	for t := 0; t < pp.paramK; t++ {
+		tmp1 := NewZeroPolyNTT()
+		tmp2 := NewZeroPolyNTT()
+
+		for i := 0; i < n1; i++ {
+			tmp := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], ys[t], pp.paramLc)
+
+			tmp1 = pp.PolyNTTAdd(
+				tmp1,
+				pp.PolyNTTMul(
+					alphas[i],
+					pp.PolyNTTMul(
+						pp.PolyNTTSub(
+							pp.PolyNTTAdd(&PolyNTT{msg_hats[i]}, &PolyNTT{msg_hats[i]}),
+							&PolyNTT{pp.paramMu}), tmp)))
+
+			tmp2 = pp.PolyNTTAdd(
+				tmp2,
+				pp.PolyNTTMul(alphas[i],
+					pp.PolyNTTMul(tmp, tmp)))
+		}
+
+		psi = pp.PolyNTTSub(psi, pp.PolyNTTMul(betas[t], pp.PolyNTTSigma(tmp1, -t)))
+		psip = pp.PolyNTTAdd(psip, pp.PolyNTTMul(betas[t], pp.PolyNTTSigma(tmp2, -t)))
+	}
+
+	p := make([][]*PolyNTT, pp.paramK)
+	for t := 0; t < pp.paramK; t++ {
+		p[t] = make([]*PolyNTT, n2)
+
+		for j := 0; j < n2; j++ {
+
+			pcoeffs := []int32{0}
+			// todo
+			p[t][j] = &PolyNTT{coeffs: pcoeffs}
+		}
+	}
+
+	phi := NewZeroPolyNTT()
+	for t := 0; t < pp.paramK; t++ {
+		tmp1 := NewZeroPolyNTT()
+		for tau := 0; tau < pp.paramK; tau++ {
+
+			tmp := NewZeroPolyNTT()
+			for j := 0; j < n2; j++ {
+				tmp = pp.PolyNTTAdd(tmp, pp.PolyNTTMul(p[t][j], &PolyNTT{msg_hats[j]}))
+			}
+
+			constPoly := NewZeroPoly()
+			constPoly.coeffs[0] = pp.reduce(int64(pp.intVecInnerProduct(u_hats, gammas[t], m, pp.paramD)) * int64(pp.paramDInv))
+
+			tmp = pp.PolyNTTSub(tmp, pp.NTT(constPoly))
+
+			tmp1 = pp.PolyNTTAdd(tmp1, pp.PolyNTTSigma(tmp, tau))
+		}
+
+		xt := NewZeroPoly()
+		xt.coeffs[t] = 1
+
+		phi = pp.PolyNTTMul(pp.NTT(xt), tmp1)
+	}
+	phi = pp.PolyNTTScaleMul(pp.paramKInv, phi)
+	phi = pp.PolyNTTAdd(phi, g)
+
+	// todo phi'
 
 	goto rpUlpProveRestart
 
@@ -156,21 +239,27 @@ func (pp PublicParameter) sampleUniformPloyWithLowZeros() (r *Poly) {
 	return rst
 }
 
-func (pp *PublicParameter) PolyNTTVecInnerProduct(a *PolyNTTVec, b *PolyNTTVec, vecLen int) (r *PolyNTT) {
-	rst := NewZeroPolyNTT()
-	for i := 0; i < vecLen; i++ {
-		rst = pp.PolyNTTAdd(rst, pp.PolyNTTMul(a.polyNTTs[i], b.polyNTTs[i]))
-	}
-
-	return rst
+func (pp PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int) (alphas []*PolyNTT, betas []*PolyNTT, gammas [][][]int32) {
+	//	todo
+	return
 }
 
-func (pp *PublicParameter) PolyNTTMatrixMulVector(M []*PolyNTTVec, vec *PolyNTTVec, rowNum int, vecLen int) (r *PolyNTTVec) {
-	rst := &PolyNTTVec{}
-	rst.polyNTTs = make([]*PolyNTT, rowNum)
+func (pp PublicParameter) PolyNTTSigma(polyNTT *PolyNTT, i int) (r *PolyNTT) {
+	// todo
+	return
+}
+
+/**
+This method allow the vectors to be 2D, i.e. matrix
+*/
+func (pp PublicParameter) intVecInnerProduct(a [][]int32, b [][]int32, rowNum int, colNum int) (r int32) {
+	rst := int32(0)
 	for i := 0; i < rowNum; i++ {
-		rst.polyNTTs[i] = pp.PolyNTTVecInnerProduct(M[i], vec, vecLen)
+		for j := 0; j < colNum; j++ {
+			rst = pp.reduce(int64(rst) + int64(pp.reduce(int64(a[i][j])*int64(b[i][j]))))
+		}
 	}
+
 	return rst
 }
 
