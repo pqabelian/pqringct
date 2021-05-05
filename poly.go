@@ -70,6 +70,21 @@ func (pp *PublicParameter) NTTVec(polyVec *PolyVec) (polyNTTVec *PolyNTTVec) {
 	return r
 }
 
+func (pp *PublicParameter) NTTInvVec(polyNTTVec *PolyNTTVec) (polyVec *PolyVec) {
+	if polyNTTVec == nil {
+		return nil
+	}
+
+	r := &PolyVec{}
+	r.polys = make([]*Poly, len(polyNTTVec.polyNTTs))
+
+	for i := 0; i < len(polyNTTVec.polyNTTs); i++ {
+		r.polys[i] = pp.NTTInv(polyNTTVec.polyNTTs[i])
+	}
+
+	return r
+}
+
 func (pp *PublicParameter) PolyAdd(a *Poly, b *Poly) (r *Poly) {
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
@@ -98,14 +113,21 @@ func (pp *PublicParameter) PolyMul(a *Poly, b *Poly) (r *Poly) {
 	todo: output a Poly with all coefficients are 0.
 */
 func NewZeroPoly() (r *Poly) {
-	return nil
+	return
 }
 
 /*
 	todo: output a PolyNTT with all coefficients are 0.
 */
 func NewZeroPolyNTT() (r *PolyNTT) {
-	return nil
+	return
+}
+
+/*
+todo： utput a PolyNTTVec with all polyNTTs are zero-PolyNTT.
+*/
+func NewZeroPolyNTTVec(vecLen int) (r *PolyNTTVec) {
+	return
 }
 
 /*
@@ -139,12 +161,23 @@ func (pp *PublicParameter) PolyNTTMul(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	return &PolyNTT{coeffs: coeffs}
 }
 
-func (pp *PublicParameter) PolyNTTScaleMul(c int32, polyNTT *PolyNTT) (r *PolyNTT) {
-	coeffs := make([]int32, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = pp.reduce(int64(c) * int64(polyNTT.coeffs[i]))
+func (pp *PublicParameter) PolyNTTVecScaleMul(polyNTTScale *PolyNTT, polyNTTVec *PolyNTTVec, vecLen int) (r *PolyNTTVec) {
+	rst := &PolyNTTVec{}
+	rst.polyNTTs = make([]*PolyNTT, vecLen)
+	for i := 0; i < vecLen; i++ {
+		rst.polyNTTs[i] = pp.PolyNTTMul(polyNTTScale, polyNTTVec.polyNTTs[i])
 	}
-	return &PolyNTT{coeffs: coeffs}
+	return rst
+}
+
+func (pp *PublicParameter) PolyNTTVecAdd(a *PolyNTTVec, b *PolyNTTVec, vecLen int) (r *PolyNTTVec) {
+	rst := &PolyNTTVec{}
+	rst.polyNTTs = make([]*PolyNTT, vecLen)
+	for i := 0; i < vecLen; i++ {
+		rst.polyNTTs[i] = pp.PolyNTTAdd(a.polyNTTs[i], b.polyNTTs[i])
+	}
+
+	return rst
 }
 
 func (pp *PublicParameter) PolyNTTVecSub(a *PolyNTTVec, b *PolyNTTVec, vecLen int) (r *PolyNTTVec) {
@@ -172,6 +205,31 @@ func (pp *PublicParameter) PolyNTTMatrixMulVector(M []*PolyNTTVec, vec *PolyNTTV
 	for i := 0; i < rowNum; i++ {
 		rst.polyNTTs[i] = pp.PolyNTTVecInnerProduct(M[i], vec, vecLen)
 	}
+	return rst
+}
+
+func (p *Poly) PolyInfNorm() (infNorm int32) {
+	rst := int32(0)
+	for _, coeff := range p.coeffs {
+		if coeff > rst {
+			rst = coeff
+		} else if coeff < 0 && -coeff > rst {
+			rst = -coeff
+		}
+	}
+
+	return rst
+}
+
+func (pv PolyVec) PolyInfNorm() (infNorm int32) {
+	rst := int32(0)
+	for _, p := range pv.polys {
+		tmp := p.PolyInfNorm()
+		if tmp > rst {
+			rst = tmp
+		}
+	}
+
 	return rst
 }
 

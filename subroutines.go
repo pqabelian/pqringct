@@ -1,7 +1,5 @@
 package pqringct
 
-import "hash/maphash"
-
 // rpulpProve generates balance proof
 type RpUlpType uint8
 
@@ -19,7 +17,7 @@ n >= 2 && n <= n1 && n1 <= n2 && n <= pp.paramI+pp.paramJ && n2 <= pp.paramI+pp.
 */
 func (pp PublicParameter) rpulpProve(cmt_bs []*PolyNTTVec, cmt_cs []*PolyNTT, cmt_rs []*PolyNTTVec, n int,
 	b_hat *PolyNTTVec, r_hat *PolyNTTVec, c_hats []*PolyNTT, msg_hats [][]int32, n2 int,
-	n1 int, rpulpType RpUlpType, B [][]int32, I int, J int, m int, u_hats [][]int32) (err error) {
+	n1 int, rpulpType RpUlpType, B [][]int32, I int, J int, m int, u_hats [][]int32) (ret_c_waves []*PolyNTT, ret_c_hat_g *PolyNTT, ret_psi *PolyNTT, ret_phi *PolyNTT, ret_ch *PolyNTT, est_cmt_zs [][]*PolyNTTVec, rest_zs []*PolyNTTVec, err error) {
 
 	c_waves := make([]*PolyNTT, n)
 	for i := 0; i < n; i++ {
@@ -50,6 +48,7 @@ rpUlpProveRestart:
 	seed1 := []byte{} // todo
 	alphas, betas, gammas := pp.expandUniformRandomnessInRqZq(seed1, n1)
 
+	//	\tilde{\delta}^(t)_i, \hat{\delta}^(t)_i,
 	delta_waves := make([][]*PolyNTT, pp.paramK)
 	delta_hats := make([][]*PolyNTT, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
@@ -61,6 +60,7 @@ rpUlpProveRestart:
 		}
 	}
 
+	//	psi, psi'
 	psi := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], r_hat, pp.paramLc)
 	psip := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], ys[0], pp.paramLc)
 
@@ -90,6 +90,7 @@ rpUlpProveRestart:
 		psip = pp.PolyNTTAdd(psip, pp.PolyNTTMul(betas[t], pp.PolyNTTSigma(tmp2, -t)))
 	}
 
+	//	p^(t)_j:
 	p := make([][]*PolyNTT, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
 		p[t] = make([]*PolyNTT, n2)
@@ -102,6 +103,7 @@ rpUlpProveRestart:
 		}
 	}
 
+	//	phi
 	phi := NewZeroPolyNTT()
 	for t := 0; t < pp.paramK; t++ {
 		tmp1 := NewZeroPolyNTT()
@@ -121,16 +123,65 @@ rpUlpProveRestart:
 		}
 
 		xt := NewZeroPoly()
-		xt.coeffs[t] = 1
+		xt.coeffs[t] = pp.paramKInv
 
 		phi = pp.PolyNTTMul(pp.NTT(xt), tmp1)
 	}
-	phi = pp.PolyNTTScaleMul(pp.paramKInv, phi)
+
 	phi = pp.PolyNTTAdd(phi, g)
 
-	// todo phi'
+	//	phi'^(\xi)
+	phips := make([]*PolyNTT, pp.paramK)
+	for xi := 0; xi < pp.paramK; xi++ {
+		phips[xi] = NewZeroPolyNTT()
 
-	goto rpUlpProveRestart
+		for t := 0; t < pp.paramK; t++ {
+
+			tmp1 := NewZeroPolyNTT()
+			for tau := 0; tau < pp.paramK; tau++ {
+				tmp := NewZeroPolyNTTVec(pp.paramLc)
+				for j := 0; j < n2; j++ {
+					tmp = pp.PolyNTTVecAdd(tmp, pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixC[j+1], pp.paramLc), pp.paramKc)
+				}
+
+				tmp1 = pp.PolyNTTAdd(tmp1, pp.PolyNTTSigma(pp.PolyNTTVecInnerProduct(tmp, ys[(xi-tau)%pp.paramK], pp.paramLc), tau))
+
+			}
+
+			xt := NewZeroPoly()
+			xt.coeffs[t] = pp.paramKInv
+
+			phips[xi] = pp.PolyNTTAdd(phips[xi], pp.PolyNTTMul(pp.NTT(xt), tmp1))
+		}
+
+		phips[xi] = pp.PolyNTTAdd(phips[xi], pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], ys[xi], pp.paramLc))
+	}
+
+	//	seed_ch and ch
+	seed_ch := []byte{} // todo
+	ch := pp.NTT(pp.expandChallenge(seed_ch))
+
+	// z
+	cmt_zs := make([][]*PolyNTTVec, pp.paramK)
+	zs := make([]*PolyNTTVec, pp.paramK)
+	for t := 0; t < pp.paramK; t++ {
+		sigma_t_ch := pp.PolyNTTSigma(ch, t)
+		for i := 0; i < n; i++ {
+			cmt_zs[t][i] = pp.PolyNTTVecAdd(cmt_ys[t][i], pp.PolyNTTVecScaleMul(sigma_t_ch, cmt_rs[i], pp.paramLc), pp.paramLc)
+
+			if pp.NTTInvVec(cmt_zs[t][i]).PolyInfNorm() > pp.paramEtaC-pp.paramBetaC {
+				goto rpUlpProveRestart
+			}
+		}
+
+		zs[t] = pp.PolyNTTVecAdd(ys[t], pp.PolyNTTVecScaleMul(sigma_t_ch, r_hat, pp.paramLc), pp.paramLc)
+
+		if pp.NTTInvVec(zs[t]).PolyInfNorm() > pp.paramEtaC-pp.paramBetaC {
+			goto rpUlpProveRestart
+		}
+	}
+
+	return c_waves, c_hat_g, psi, phi, ch, cmt_zs, zs, nil
 
 }
 
@@ -241,6 +292,13 @@ func (pp PublicParameter) sampleUniformPloyWithLowZeros() (r *Poly) {
 
 func (pp PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int) (alphas []*PolyNTT, betas []*PolyNTT, gammas [][][]int32) {
 	//	todo
+	return
+}
+
+/*
+todo:
+*/
+func (pp PublicParameter) expandChallenge(seed []byte) (r *Poly) {
 	return
 }
 

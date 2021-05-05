@@ -111,8 +111,16 @@ type PublicParameter struct {
 	*/
 	paramLc int
 
-	paramETAc   uint16
-	paramBETAc  uint8
+	/*
+		As eta_c is used to specify the infNorm of polys in Ring, thus we define it with type 'int32' (as q)
+	*/
+	paramEtaC int32
+
+	/*
+		As beta_c is used to specify the infNorm of polys in Ring, thus we define it with type 'int32' (as q)
+	*/
+	paramBetaC int32
+
 	paramETAc1  uint16
 	paramBETAc1 uint8
 
@@ -146,8 +154,8 @@ type PublicParameter struct {
 	paramMu []int32
 }
 
-func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramETAa uint16, paramBETAa uint8, paramKc int, paramLc int, paramETAc uint16, paramBETAc uint8, paramETAc1 uint16, paramBETAc1 uint8, paramMa uint8, paramEtaF uint32) *PublicParameter {
-	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramETAa: paramETAa, paramBETAa: paramBETAa, paramKc: paramKc, paramLc: paramLc, paramETAc: paramETAc, paramBETAc: paramBETAc, paramETAc1: paramETAc1, paramBETAc1: paramBETAc1, paramMa: paramMa, paramEtaF: paramEtaF}
+func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramETAa uint16, paramBETAa uint8, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramETAc1 uint16, paramBETAc1 uint8, paramMa uint8, paramEtaF uint32) *PublicParameter {
+	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramETAa: paramETAa, paramBETAa: paramBETAa, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramETAc1: paramETAc1, paramBETAc1: paramBETAc1, paramMa: paramMa, paramEtaF: paramEtaF}
 }
 
 /*

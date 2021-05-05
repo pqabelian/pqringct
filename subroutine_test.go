@@ -15,5 +15,13 @@ func TestIntBinaryNTT(t *testing.T) {
 		k := binstr[i]
 		fmt.Println(k)
 	}
+}
 
+func TestMod(t *testing.T) {
+	pp := PublicParameter{}
+	pp.paramK = 4
+
+	xi := 0
+	tau := 1
+	fmt.Println((xi - tau) % pp.paramK)
 }
