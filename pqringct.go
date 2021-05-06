@@ -130,7 +130,7 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *M
 	t := &PolyNTTVec{}
 	t.polyNTTs = make([]*PolyNTT, pp.paramKa)
 
-	matrixA := pp.ExpandPubMatrixA()
+	matrixA := pp.expandPubMatrixA()
 	for i := 0; i < pp.paramKa; i++ {
 		t.polyNTTs[i] = pp.PolyNTTVecInnerProduct(matrixA[i], s, pp.paramLa)
 	}
@@ -275,9 +275,9 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 	//	(C, kappa)
 	kappa := []byte{} // todo
 
-	//matrixA := pp.ExpandPubMatrixA()
+	//matrixA := pp.expandPubMatrixA()
 
-	sp := pp.NTTVec(pp.ExpandRandomnessA(kappa))
+	sp := pp.NTTVec(pp.expandRandomnessA(kappa))
 
 	//	(C, t)
 	dpkt := &PolyNTTVec{}
@@ -290,11 +290,11 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 		t: dpkt,
 	}
 
-	//	matrixB := pp.ExpandPubMatrixB()
-	//	matrixC := pp.ExpandPubMatrixC()
+	//	matrixB := pp.expandPubMatrixB()
+	//	matrixC := pp.expandPubMatrixC()
 
 	//	cmt
-	cmtr := pp.NTTVec(pp.ExpandRandomnessC(kappa))
+	cmtr := pp.NTTVec(pp.expandRandomnessC(kappa))
 
 	cmt := &PolyNTTVec{}
 	cmt.polyNTTs = make([]*PolyNTT, pp.paramKc+1)
