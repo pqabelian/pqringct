@@ -480,4 +480,29 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 	return rettxo, cmtr, nil
 }
 
+func (pp PublicParameter) TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn *PolyNTTVec) {
+	if dpk == nil || mpk == nil || msvk == nil || mssk == nil {
+		return nil
+	}
+
+	// todo: check the well-formness of dpk, mpk, msvk, and mssk
+
+	// todo: decaps and obtain kappa
+	kappa := []byte{} // todo
+	sp := pp.NTTVec(pp.expandRandomnessA(kappa))
+	t_hat_p := pp.PolyNTTVecAdd(
+		mpk.t,
+		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, sp, pp.paramKa, pp.paramLa),
+		pp.paramKa)
+
+	if pp.PolyNTTVecEqualCheck(dpk.t, t_hat_p) != true {
+		return nil
+	}
+
+	keyImgMatrix := pp.expandKeyImgMatrix(dpk.t)
+	s_hat := pp.PolyNTTVecAdd(mssk.s, sp, pp.paramKa)
+
+	return pp.PolyNTTMatrixMulVector(keyImgMatrix, s_hat, pp.paramMa, pp.paramLa)
+}
+
 //	public fun	end

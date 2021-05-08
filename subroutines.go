@@ -494,6 +494,13 @@ func (pp *PublicParameter) expandPubMatrixC() (matrixC []*PolyNTTVec) {
 	return matrix
 }
 
+func (pp PublicParameter) expandKeyImgMatrix(t *PolyNTTVec) (matrixH []*PolyNTTVec) {
+	matrix := make([]*PolyNTTVec, pp.paramMa)
+	// todo
+
+	return matrix
+}
+
 /*
 todo: expand a seed to a PolyVec with length l_a from (S_r)^d
 */
