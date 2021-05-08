@@ -1,5 +1,7 @@
 package pqringct
 
+import "bytes"
+
 // rpulpProve generates balance proof
 type RpUlpType uint8
 
@@ -11,11 +13,11 @@ const (
 )
 
 /**
-cmt_bs []*PolyNTTVec, cmt_cs []*PolyNTT, cmt_rs []*PolyNTTVec: cmt_bs[i] = matrixB * cmt_rs[i], cmt_cs[i] =<matrixC[0], cmt_rs[i]> + (msg_hats[i])_NTT, where msg_hats[i] is viewd as a PolyNTT
+cmts []*Commitment, cmt_rs []*PolyNTTVec: cmt_bs[i] = matrixB * cmt_rs[i], cmt_cs[i] =<matrixC[0], cmt_rs[i]> + (msg_hats[i])_NTT, where msg_hats[i] is viewd as a PolyNTT
 h_hat *PolyNTTVec, r_hat *PolyNTTVec, c_hats []*PolyNTT
 n >= 2 && n <= n1 && n1 <= n2 && n <= pp.paramI+pp.paramJ && n2 <= pp.paramI+pp.paramJ+4
 */
-func (pp PublicParameter) rpulpProve(cmt_bs []*PolyNTTVec, cmt_cs []*PolyNTT, cmt_rs []*PolyNTTVec, n int,
+func (pp PublicParameter) rpulpProve(cmts []*Commitment, cmt_rs []*PolyNTTVec, n int,
 	b_hat *PolyNTTVec, r_hat *PolyNTTVec, c_hats []*PolyNTT, msg_hats [][]int32, n2 int,
 	n1 int, rpulpType RpUlpType, B [][]int32, I int, J int, m int, u_hats [][]int32) (ret_c_waves []*PolyNTT, ret_c_hat_g *PolyNTT, ret_psi *PolyNTT, ret_phi *PolyNTT, ret_chseed []byte, ret_cmt_zs [][]*PolyNTTVec, ret_zs []*PolyNTTVec, err error) {
 
@@ -196,7 +198,7 @@ rpUlpProveRestart:
 	return c_waves, c_hat_g, psi, phi, chseed, cmt_zs, zs, nil
 }
 
-func (pp PublicParameter) rpulpVerify(cmt_bs []*PolyNTTVec, cmt_cs []*PolyNTT, n int,
+func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	b_hat *PolyNTTVec, c_hats []*PolyNTT, n2 int,
 	n1 int, rpulpType RpUlpType, B [][]int32, I int, J int, m int, u_hats [][]int32,
 	c_waves []*PolyNTT, c_hat_g *PolyNTT, psi *PolyNTT, phi *PolyNTT, chseed []byte, cmt_zs [][]*PolyNTTVec, zs []*PolyNTTVec) (valid bool) {
@@ -205,7 +207,7 @@ func (pp PublicParameter) rpulpVerify(cmt_bs []*PolyNTTVec, cmt_cs []*PolyNTT, n
 		return false
 	}
 
-	if len(cmt_bs) != n || len(cmt_cs) != n {
+	if len(cmts) != n {
 		return false
 	}
 
@@ -276,7 +278,7 @@ func (pp PublicParameter) rpulpVerify(cmt_bs []*PolyNTTVec, cmt_cs []*PolyNTT, n
 		for i := 0; i < n; i++ {
 			cmt_ws[t][i] = pp.PolyNTTVecSub(
 				pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_zs[t][i], pp.paramKc, pp.paramLc),
-				pp.PolyNTTVecScaleMul(sigma_chs[t], cmt_bs[i], pp.paramKc),
+				pp.PolyNTTVecScaleMul(sigma_chs[t], cmts[i].b, pp.paramKc),
 				pp.paramKc)
 		}
 		ws[t] = pp.PolyNTTVecSub(
@@ -301,7 +303,7 @@ func (pp PublicParameter) rpulpVerify(cmt_bs []*PolyNTTVec, cmt_cs []*PolyNTT, n
 					pp.PolyNTTVecSub(pp.paramMatrixC[i+1], pp.paramMatrixC[0], pp.paramLc),
 					cmt_zs[t][i],
 					pp.paramLc),
-				pp.PolyNTTMul(sigma_chs[t], pp.PolyNTTSub(c_waves[i], cmt_cs[i])))
+				pp.PolyNTTMul(sigma_chs[t], pp.PolyNTTSub(c_waves[i], cmts[i].c)))
 
 			delta_hats[t][i] = pp.PolyNTTSub(
 				pp.PolyNTTVecInnerProduct(
@@ -432,8 +434,10 @@ func (pp PublicParameter) rpulpVerify(cmt_bs []*PolyNTTVec, cmt_cs []*PolyNTT, n
 	}
 
 	//	seed_ch and ch
-	//	seed_ch := []byte{} // todo
-	// todo If seed_ch != chseed , return false.
+	seed_ch := []byte{} // todo
+	if bytes.Compare(seed_ch, chseed) != 0 {
+		return false
+	}
 
 	return true
 }

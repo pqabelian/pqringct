@@ -45,10 +45,11 @@ type PublicParameter struct {
 	paramJ int
 
 	/*
-		d: the degree of the polynomial ring, say R =Z[X] / (X^d + 1)
-		d should be a power of two, not too small (otherwise is insecure) and not too large (otherwise inefficient)
-		here we define it as 'int', since we need to loop from 0 to d-1 for some matrix, and int is fine for the possible
-		values, such as d=128, 256, 512, and even 1024, on any platform/OS, since int maybe int32 or int64.
+			d: the degree of the polynomial ring, say R =Z[X] / (X^d + 1)
+			d should be a power of two, not too small (otherwise is insecure) and not too large (otherwise inefficient)
+			here we define it as 'int', since we need to loop from 0 to d-1 for some matrix, and int is fine for the possible
+			values, such as d=128, 256, 512, and even 1024, on any platform/OS, since int maybe int32 or int64.
+		require: d >= 128
 	*/
 	paramD int
 	/*
@@ -127,9 +128,9 @@ type PublicParameter struct {
 	paramMa uint8
 
 	/*
-		As paramEtaF may be q/12, we define it with 'uint32' type
+		As paramEtaF may be q/12, we define it with 'int32' type
 	*/
-	paramEtaF uint32
+	paramEtaF int32
 
 	paramCStr []byte
 
@@ -154,7 +155,7 @@ type PublicParameter struct {
 	paramMu []int32
 }
 
-func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramETAa uint16, paramBETAa uint8, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramETAc1 uint16, paramBETAc1 uint8, paramMa uint8, paramEtaF uint32) *PublicParameter {
+func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramETAa uint16, paramBETAa uint8, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramETAc1 uint16, paramBETAc1 uint8, paramMa uint8, paramEtaF int32) *PublicParameter {
 	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramETAa: paramETAa, paramBETAa: paramBETAa, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramETAc1: paramETAc1, paramBETAc1: paramBETAc1, paramMa: paramMa, paramEtaF: paramEtaF}
 }
 

@@ -32,12 +32,25 @@ type MasterSecretSignKey struct {
 	s *PolyNTTVec
 }
 
+type CbTxWitness struct {
+	b_hat   *PolyNTTVec
+	c_hats  []*PolyNTT
+	u_p     []int32
+	c_waves []*PolyNTT
+	c_hat_g *PolyNTT
+	psi     *PolyNTT
+	phi     *PolyNTT
+	chseed  []byte
+	cmt_zs  [][]*PolyNTTVec
+	zs      []*PolyNTTVec
+}
+
 type CoinbaseTx struct {
 	Version uint32
 
 	Vin        uint64
 	OutputTxos []*TXO
-	TxWitness  []byte
+	TxWitness  *CbTxWitness
 }
 
 type TransferTx struct {
@@ -48,6 +61,12 @@ type DerivedPubKey struct {
 	//	ckem // todo
 	t *PolyNTTVec
 }
+
+type Commitment struct {
+	b *PolyNTTVec
+	c *PolyNTT
+}
+
 type Signature struct {
 }
 type Image struct {
@@ -71,7 +90,7 @@ type TxOutputDesc struct {
 
 type TXO struct {
 	dpk *DerivedPubKey
-	cmt *PolyNTTVec
+	cmt *Commitment
 	vc  []byte
 }
 
@@ -152,8 +171,10 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *M
 }
 
 func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDesc) (cbTx *CoinbaseTx, err error) {
-	if vin > (uint64(1)<<pp.paramN - 1) {
-		return nil, errors.New("vin is not in [0, 2^N-1]") // todo: more accurate info
+	V := uint64(1)<<pp.paramN - 1
+
+	if vin > V {
+		return nil, errors.New("vin is not in [0, V]") // todo: more accurate info
 	}
 
 	if len(txOutputDescs) == 0 || len(txOutputDescs) > pp.paramJ {
@@ -162,26 +183,29 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 
 	J := len(txOutputDescs)
 
-	rstcbTx := CoinbaseTx{}
-	rstcbTx.Version = 0 // todo: how to set and how to use the version
-	rstcbTx.Vin = vin
-	rstcbTx.OutputTxos = make([]*TXO, J)
-	cmtrs := make([]*PolyNTTVec, J)
+	retcbTx := &CoinbaseTx{}
+	retcbTx.Version = 0 // todo: how to set and how to use the version? The bpf just care the content of cbTx?
+	retcbTx.Vin = vin
+	retcbTx.OutputTxos = make([]*TXO, J)
+
+	cmts := make([]*Commitment, J)
+	cmt_rs := make([]*PolyNTTVec, J)
 
 	vout := uint64(0)
 	for j, txOutputDesc := range txOutputDescs {
-		if txOutputDesc.v > (uint64(1)<<pp.paramN - 1) {
-			return nil, errors.New("v is not in [0, 2^N-1]") // todo: more accurate info, including the i
+		if txOutputDesc.v > V {
+			return nil, errors.New("v is not in [0, V]") // todo: more accurate info, including the i
 		}
 		vout += txOutputDesc.v
-		if vout > (uint64(1)<<pp.paramN - 1) {
-			return nil, errors.New("v is not in [0, 2^N-1]") // todo: more accurate info, including the i
+		if vout > V {
+			return nil, errors.New("the output value is not in [0, V]") // todo: more accurate info, including the i
 		}
 
-		rstcbTx.OutputTxos[j], cmtrs[j], err = pp.txoGen(txOutputDesc.mpk, txOutputDesc.v)
+		retcbTx.OutputTxos[j], cmt_rs[j], err = pp.txoGen(txOutputDesc.mpk, txOutputDesc.v)
 		if err != nil {
 			return nil, err
 		}
+		cmts[j] = retcbTx.OutputTxos[j].cmt
 	}
 	if vout > vin {
 		return nil, errors.New("the output value exceeds the input value") // todo: more accurate info
@@ -195,11 +219,9 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		n := J
 		n2 := n + 2
 
-		b_hat := &PolyNTTVec{}
-		b_hat.polyNTTs = make([]*PolyNTT, pp.paramKa)
+		c_hats := make([]*PolyNTT, n2)
 
 		msg_hats := make([][]int32, n2)
-		c_hats := make([]*PolyNTT, n2)
 
 		u_hats := make([][]int32, 3)
 
@@ -214,49 +236,158 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		e := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
 		msg_hats[J+1] = e
 
-		r := pp.NTTVec(pp.sampleRandomnessC())
+		r_hat := pp.NTTVec(pp.sampleRandomnessC())
 
-		for i := 0; i < pp.paramKa; i++ {
-			b_hat.polyNTTs[i] = pp.PolyNTTVecInnerProduct(pp.paramMatrixB[i], r, pp.paramLc)
-		}
+		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKc, pp.paramLc)
 
 		for i := 0; i < n2; i++ { // n2 = J+2
-			c_hats[i] = pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], r, pp.paramLc), &PolyNTT{msg_hats[i]})
+			c_hats[i] = pp.PolyNTTAdd(
+				pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], r_hat, pp.paramLc),
+				&PolyNTT{msg_hats[i]})
 		}
 
-		var infNorm int32
-		up := make([]int32, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of up[i] over int32
-		seed4BinM := []byte{}          // todo: compute the seed using hash function on (b_hat, c_hats).
-		binM := expandBinaryMatrix(seed4BinM, pp.paramD, pp.paramD)
+		u_p := make([]int32, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		seed_binM := []byte{}           // todo: compute the seed using hash function on (b_hat, c_hats).
+		binM := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
 		// todo: check B f + e
 		for i := 0; i < pp.paramD; i++ {
-			up[i] = 0
+			u_p[i] = 0
 			for j := 0; j < pp.paramD; j++ {
-				up[i] = up[i] + binM[i][j]*e[j]
+				u_p[i] = u_p[i] + binM[i][j]*e[j]
 			}
 
-			infNorm = up[i]
+			infNorm := u_p[i]
 			if infNorm < 0 {
 				infNorm = -infNorm
 			}
-			if infNorm > int32(pp.paramEtaF-uint32(J-1)) {
+			if infNorm > (pp.paramEtaF - int32(J-1)) {
 				goto cbTxGenJ2Restart
 			}
 		}
 
 		u_hats[0] = intToBinary(vin, pp.paramD)
 		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
-		u_hats[2] = up
+		u_hats[2] = u_p
 
-		// todo
-		//rpulpProve()
+		n1 := n
+		c_waves, c_hat_g, psi, phi, chseed, cmt_zs, zs, pi_err := pp.rpulpProve(cmts, cmt_rs, n, b_hat, r_hat, c_hats, msg_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats)
+
+		if pi_err != nil {
+			return nil, pi_err
+		}
+
+		cbTx.TxWitness = &CbTxWitness{
+			b_hat:   b_hat,
+			c_hats:  c_hats,
+			u_p:     u_p,
+			c_waves: c_waves,
+			c_hat_g: c_hat_g,
+			psi:     psi,
+			phi:     phi,
+			chseed:  chseed,
+			cmt_zs:  cmt_zs,
+			zs:      zs,
+		}
 	}
 
-	return nil, nil
+	return cbTx, nil
 }
 
-func (pp *PublicParameter) CoinbaseTxVerify(tx *CoinbaseTx) bool {
-	panic("implement me")
+func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
+	if cbTx == nil {
+		return false
+	}
+
+	V := uint64(1)<<pp.paramN - 1
+
+	if cbTx.Vin > V {
+		return false
+	}
+
+	if cbTx.OutputTxos == nil || len(cbTx.OutputTxos) == 0 {
+		return false
+	}
+
+	if cbTx.TxWitness == nil {
+		return false
+	}
+
+	J := len(cbTx.OutputTxos)
+	if J > pp.paramJ {
+		return false
+	}
+
+	// todo: check no repeated dpk in cbTx.OutputTxos
+	// todo: check cbTx.OutputTxos[j].cmt is well-formed
+
+	if J == 1 {
+		// todo:
+
+	} else {
+		// check the well-formness of cbTx.TxWitness
+		if cbTx.TxWitness.b_hat == nil || cbTx.TxWitness.c_hats == nil || cbTx.TxWitness.u_p == nil || cbTx.TxWitness.c_waves == nil ||
+			cbTx.TxWitness.c_hat_g == nil || cbTx.TxWitness.psi == nil || cbTx.TxWitness.phi == nil || cbTx.TxWitness.chseed == nil ||
+			cbTx.TxWitness.cmt_zs == nil || cbTx.TxWitness.zs == nil {
+			return false
+		}
+
+		n := J
+		n2 := J + 2
+
+		if len(cbTx.TxWitness.c_hats) != n2 {
+			return false
+		}
+
+		if len(cbTx.TxWitness.c_waves) != n {
+			return false
+		}
+
+		if len(cbTx.TxWitness.cmt_zs) != pp.paramK || len(cbTx.TxWitness.zs) != pp.paramK {
+			return false
+		}
+
+		for t := 0; t < pp.paramK; t++ {
+			if len(cbTx.TxWitness.cmt_zs[t]) != n {
+				return false
+			}
+		}
+
+		//	infNorm of u'
+		infNorm := int32(0)
+		if len(cbTx.TxWitness.u_p) != pp.paramD {
+			return false
+		}
+		for i := 0; i < pp.paramD; i++ {
+			infNorm = cbTx.TxWitness.u_p[i]
+			if infNorm < 0 {
+				infNorm = -infNorm
+			}
+
+			if infNorm >= (pp.paramEtaF - int32(J-1)) { // todo: q/12 or eta_f - (J-1)
+				return false
+			}
+		}
+
+		seed_binM := []byte{} // todo: compute the seed using hash function on (b_hat, c_hats).
+		binM := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
+
+		u_hats := make([][]int32, 3)
+		u_hats[0] = intToBinary(cbTx.Vin, pp.paramD)
+		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[2] = cbTx.TxWitness.u_p
+
+		cmts := make([]*Commitment, n)
+		for i := 0; i < n; i++ {
+			cmts[i] = cbTx.OutputTxos[i].cmt
+		}
+
+		n1 := n
+		return pp.rpulpVerify(cmts, n, cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats,
+			cbTx.TxWitness.c_waves, cbTx.TxWitness.c_hat_g, cbTx.TxWitness.psi, cbTx.TxWitness.phi, cbTx.TxWitness.chseed, cbTx.TxWitness.cmt_zs, cbTx.TxWitness.zs)
+
+	}
+
+	return true
 }
 
 func (pp *PublicParameter) TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, mpk *MasterPubKey, key *MasterSecretViewKey) (bool, int32) {
@@ -296,23 +427,20 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 	//	cmt
 	cmtr := pp.NTTVec(pp.expandRandomnessC(kappa))
 
-	cmt := &PolyNTTVec{}
-	cmt.polyNTTs = make([]*PolyNTT, pp.paramKc+1)
-	for i := 0; i < pp.paramKc; i++ {
-		cmt.polyNTTs[i] = pp.PolyNTTVecInnerProduct(pp.paramMatrixB[i], cmtr, pp.paramLc)
-	}
-	cmt.polyNTTs[pp.paramKc] = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cmtr, pp.paramLc)
+	cmt := &Commitment{}
+	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmtr, pp.paramKc, pp.paramLc)
+	cmt.c = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cmtr, pp.paramLc)
 
 	//	vc
 	//	todo
 
-	rsttxo := &TXO{
+	rettxo := &TXO{
 		dpk,
 		cmt,
 		nil, // todo
 	}
 
-	return rsttxo, cmtr, nil
+	return rettxo, cmtr, nil
 }
 
 //	public fun	end
