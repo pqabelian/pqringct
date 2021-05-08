@@ -161,6 +161,24 @@ func (pp *PublicParameter) PolyNTTMul(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	return &PolyNTT{coeffs: coeffs}
 }
 
+func (pp *PublicParameter) PolyNTTEqualCheck(a *PolyNTT, b *PolyNTT) (eq bool) {
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a.coeffs) != pp.paramD || len(b.coeffs) != pp.paramD {
+		return false
+	}
+
+	for i := 0; i < pp.paramD; i++ {
+		if a.coeffs[i] != b.coeffs[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (pp *PublicParameter) PolyNTTVecAdd(a *PolyNTTVec, b *PolyNTTVec, vecLen int) (r *PolyNTTVec) {
 	rst := &PolyNTTVec{}
 	rst.polyNTTs = make([]*PolyNTT, vecLen)
@@ -179,6 +197,28 @@ func (pp *PublicParameter) PolyNTTVecSub(a *PolyNTTVec, b *PolyNTTVec, vecLen in
 	}
 
 	return rst
+}
+
+func (pp *PublicParameter) PolyNTTVecEqualCheck(a *PolyNTTVec, b *PolyNTTVec) (eq bool) {
+	if a == nil || b == nil {
+		return false
+	}
+
+	if a.polyNTTs == nil || b.polyNTTs == nil {
+		return false
+	}
+
+	if len(a.polyNTTs) != len(b.polyNTTs) {
+		return false
+	}
+
+	for i := 0; i < len(a.polyNTTs); i++ {
+		if pp.PolyNTTEqualCheck(a.polyNTTs[i], b.polyNTTs[i]) != true {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (pp *PublicParameter) PolyNTTVecScaleMul(polyNTTScale *PolyNTT, polyNTTVec *PolyNTTVec, vecLen int) (r *PolyNTTVec) {

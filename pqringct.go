@@ -390,8 +390,45 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 	return true
 }
 
-func (pp *PublicParameter) TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, mpk *MasterPubKey, key *MasterSecretViewKey) (bool, int32) {
-	panic("implement me")
+func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *MasterSecretViewKey) (bool, uint64) {
+	if txo == nil || mpk == nil || msvk == nil {
+		return false, 0
+	}
+
+	// todo: check the well-formness of dpk
+
+	// todo: decaps and obtain kappa
+	kappa := []byte{} // todo
+	sp := pp.NTTVec(pp.expandRandomnessA(kappa))
+	t_hat_p := pp.PolyNTTVecAdd(
+		mpk.t,
+		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, sp, pp.paramKa, pp.paramLa),
+		pp.paramKa)
+
+	if pp.PolyNTTVecEqualCheck(txo.dpk.t, t_hat_p) != true {
+		return false, 0
+	}
+
+	v := uint64(0) // todo: recover v from txo.vc
+	// todo: check v
+
+	m := intToBinary(v, pp.paramD)
+	cmt_r := pp.NTTVec(pp.expandRandomnessC(kappa))
+	cmt := &Commitment{}
+	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_r, pp.paramKc, pp.paramLc)
+	cmt.c = pp.PolyNTTAdd(
+		pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cmt_r, pp.paramLc),
+		&PolyNTT{m})
+
+	if pp.PolyNTTVecEqualCheck(cmt.b, txo.cmt.b) != true {
+		return false, 0
+	}
+
+	if pp.PolyNTTEqualCheck(cmt.c, txo.cmt.c) != true {
+		return false, 0
+	}
+
+	return true, v
 }
 
 func (pp *PublicParameter) TransferTXGen(descs []*TxInputDesc, descs2 []*TxOutputDesc) *TransferTx {
