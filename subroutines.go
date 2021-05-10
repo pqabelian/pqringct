@@ -443,9 +443,153 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 }
 
 // elrsSign genarates authorizing and authentication proof
-func elrsSign() (*Signature, *Image) {
-	//TODO: add inputs
-	return nil, nil
+func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg []byte, sidx int, s_a *PolyNTTVec, s_c *PolyNTTVec) (chseed []byte, z_as [][]*PolyNTTVec, z_cs [][]*PolyNTTVec, keyImg *PolyNTTVec, err error) {
+	//	check the well-formness of inputs
+	if t_as == nil || t_cs == nil || msg == nil || s_a == nil || s_c == nil {
+		return nil, nil, nil, nil, nil // todo: error
+	}
+
+	if len(t_as) == 0 || len(t_cs) == 0 || len(msg) == 0 {
+		return nil, nil, nil, nil, nil // todo: error
+	}
+
+	if len(t_as) != len(t_cs) {
+		return nil, nil, nil, nil, nil // todo: error
+	}
+
+	ringSize := len(t_as)
+
+	if sidx < 0 || sidx >= ringSize {
+		return nil, nil, nil, nil, nil // todo: error
+	}
+
+	for j := 0; j < ringSize; j++ {
+		if len(t_as[j].polyNTTs) != pp.paramKa {
+			return nil, nil, nil, nil, nil // todo: error
+		}
+		if len(t_cs[j].polyNTTs) != pp.paramKc+1 {
+			return nil, nil, nil, nil, nil // todo: error
+		}
+	}
+
+	if len(s_a.polyNTTs) != pp.paramLa || len(s_c.polyNTTs) != pp.paramLc {
+		return nil, nil, nil, nil, nil // todo: error
+	}
+
+	if pp.NTTInvVec(s_a).infNorm() > 2 {
+		return nil, nil, nil, nil, nil // todo: error
+	}
+	if pp.NTTInvVec(s_c).infNorm() > 2 {
+		return nil, nil, nil, nil, nil // todo: error
+	}
+
+	if pp.PolyNTTVecEqualCheck(t_as[sidx], pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_a, pp.paramKa, pp.paramLa)) != true {
+		return nil, nil, nil, nil, nil // todo: error
+	}
+
+	matrixBExt := make([]*PolyNTTVec, pp.paramKc+1)
+	for i := 0; i < pp.paramKc; i++ {
+		matrixBExt[i] = pp.paramMatrixB[i]
+	}
+	matrixBExt[pp.paramKc] = pp.paramMatrixC[0]
+
+	if pp.PolyNTTVecEqualCheck(t_cs[sidx], pp.PolyNTTMatrixMulVector(matrixBExt, s_c, pp.paramKc+1, pp.paramLc)) != true {
+		return nil, nil, nil, nil, nil // todo: error
+	}
+
+	//	keyImgMatrices
+	imgMatrixs := make([][]*PolyNTTVec, ringSize)
+	for j := 0; j < ringSize; j++ {
+		imgMatrixs[j] = pp.expandKeyImgMatrix(t_as[j])
+	}
+
+	//	keyImage I
+	retkeyImg := pp.PolyNTTMatrixMulVector(imgMatrixs[sidx], s_a, pp.paramMa, pp.paramLa)
+
+	retz_as := make([][]*PolyNTTVec, pp.paramK)
+	retz_cs := make([][]*PolyNTTVec, pp.paramK)
+	for j := 0; j < ringSize; j++ {
+		retz_as[j] = make([]*PolyNTTVec, pp.paramLa)
+		retz_cs[j] = make([]*PolyNTTVec, pp.paramLc)
+	}
+	var retchseed []byte
+
+	y_as := make([]*PolyNTTVec, pp.paramK)
+	y_cs := make([]*PolyNTTVec, pp.paramK)
+
+	w_as := make([]*PolyNTTVec, pp.paramK)
+	w_cs := make([]*PolyNTTVec, pp.paramK)
+	w_hat_as := make([]*PolyNTTVec, pp.paramK)
+
+elrsSignRestart:
+
+	for tau := 0; tau < pp.paramK; tau++ {
+		y_as[tau] = pp.NTTVec(pp.sampleMaskA())
+		y_cs[tau] = pp.NTTVec(pp.sampleMaskC2())
+
+		w_as[tau] = pp.PolyNTTMatrixMulVector(pp.paramMatrixA, y_as[tau], pp.paramKa, pp.paramLa)
+		w_cs[tau] = pp.PolyNTTMatrixMulVector(matrixBExt, y_cs[tau], pp.paramKc+1, pp.paramLc)
+		w_hat_as[tau] = pp.PolyNTTMatrixMulVector(imgMatrixs[sidx], y_as[tau], pp.paramMa, pp.paramLa)
+	}
+
+	var seedj []byte
+	var chj *PolyNTT
+	var sigma_tau_ch *PolyNTT
+
+	for j := (sidx + 1) % ringSize; ; {
+		seedj = []byte{} // todo
+		chj = pp.NTT(pp.expandChallenge(seedj))
+
+		for tau := 0; tau < pp.paramK; tau++ {
+			retz_as[tau][j] = pp.NTTVec(pp.sampleZetaA())
+			retz_cs[tau][j] = pp.NTTVec(pp.sampleZetaC2())
+
+			sigma_tau_ch = pp.sigmaPolyNTT(chj, tau)
+
+			w_as[tau] = pp.PolyNTTVecSub(
+				pp.PolyNTTMatrixMulVector(pp.paramMatrixA, retz_as[tau][j], pp.paramKa, pp.paramLa),
+				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_as[j], pp.paramKa),
+				pp.paramKa)
+
+			w_cs[tau] = pp.PolyNTTVecSub(
+				pp.PolyNTTMatrixMulVector(matrixBExt, retz_cs[tau][j], pp.paramKc+1, pp.paramLc),
+				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_cs[j], pp.paramKc+1),
+				pp.paramKc+1)
+
+			w_hat_as[tau] = pp.PolyNTTVecSub(
+				pp.PolyNTTMatrixMulVector(imgMatrixs[j], retz_as[tau][j], pp.paramMa, pp.paramLa),
+				pp.PolyNTTVecScaleMul(sigma_tau_ch, retkeyImg, pp.paramMa),
+				pp.paramMa)
+		}
+
+		if j == 0 {
+			retchseed = seedj
+		}
+
+		j = (j + 1) % ringSize
+		if j == sidx {
+			break
+		}
+	}
+
+	seedj = []byte{} // todo
+	chj = pp.NTT(pp.expandChallenge(seedj))
+
+	for tau := 0; tau < pp.paramK; tau++ {
+		sigma_tau_ch = pp.sigmaPolyNTT(chj, tau)
+
+		retz_as[tau][sidx] = pp.PolyNTTVecAdd(y_as[tau], pp.PolyNTTVecScaleMul(sigma_tau_ch, s_a, pp.paramLa), pp.paramLa)
+		if pp.NTTInvVec(retz_as[tau][sidx]).infNorm() > pp.paramEtaA-pp.paramBetaA {
+			goto elrsSignRestart
+		}
+
+		retz_cs[tau][sidx] = pp.PolyNTTVecAdd(y_cs[tau], pp.PolyNTTVecScaleMul(sigma_tau_ch, s_c, pp.paramLc), pp.paramLc)
+		if pp.NTTInvVec(retz_cs[tau][sidx]).infNorm() > pp.paramEtaC2-pp.paramBetaC2 {
+			goto elrsSignRestart
+		}
+	}
+
+	return retchseed, retz_as, retz_cs, retkeyImg, nil
 }
 
 // elrsVerify verify the authorizing and authentication proof generated by elrsSign
@@ -533,7 +677,43 @@ func (pp PublicParameter) sampleRandomnessC() (r *PolyVec) {
 	return rst
 }
 
+func (pp PublicParameter) sampleMaskA() (r *PolyVec) {
+	polys := make([]*Poly, pp.paramLa)
+	//	todo
+	rst := &PolyVec{
+		polys: polys,
+	}
+	return rst
+}
+
+func (pp PublicParameter) sampleZetaA() (r *PolyVec) {
+	polys := make([]*Poly, pp.paramLa)
+	//	todo
+	rst := &PolyVec{
+		polys: polys,
+	}
+	return rst
+}
+
 func (pp PublicParameter) sampleMaskC() (r *PolyVec) {
+	polys := make([]*Poly, pp.paramLc)
+	//	todo
+	rst := &PolyVec{
+		polys: polys,
+	}
+	return rst
+}
+
+func (pp PublicParameter) sampleMaskC2() (r *PolyVec) {
+	polys := make([]*Poly, pp.paramLc)
+	//	todo
+	rst := &PolyVec{
+		polys: polys,
+	}
+	return rst
+}
+
+func (pp PublicParameter) sampleZetaC2() (r *PolyVec) {
 	polys := make([]*Poly, pp.paramLc)
 	//	todo
 	rst := &PolyVec{

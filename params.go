@@ -99,8 +99,8 @@ type PublicParameter struct {
 	*/
 	paramLa int
 
-	paramETAa  uint16
-	paramBETAa uint8
+	paramEtaA  int32
+	paramBetaA int32
 
 	/*
 		As we need to loop for k_c, we define it with 'int' type
@@ -122,8 +122,8 @@ type PublicParameter struct {
 	*/
 	paramBetaC int32
 
-	paramETAc1  uint16
-	paramBETAc1 uint8
+	paramEtaC2  int32
+	paramBetaC2 int32
 
 	/*
 		m_a is used to specify the row number of Key Image Matrix
@@ -159,8 +159,8 @@ type PublicParameter struct {
 	paramMu []int32
 }
 
-func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramETAa uint16, paramBETAa uint8, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramETAc1 uint16, paramBETAc1 uint8, paramMa int, paramEtaF int32) *PublicParameter {
-	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramETAa: paramETAa, paramBETAa: paramBETAa, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramETAc1: paramETAc1, paramBETAc1: paramBETAc1, paramMa: paramMa, paramEtaF: paramEtaF}
+func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32) *PublicParameter {
+	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF}
 }
 
 /*

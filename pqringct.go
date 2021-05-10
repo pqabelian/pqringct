@@ -480,7 +480,7 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 	return rettxo, cmtr, nil
 }
 
-func (pp PublicParameter) TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn *PolyNTTVec) {
+func (pp PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn *PolyNTTVec) {
 	if dpk == nil || mpk == nil || msvk == nil || mssk == nil {
 		return nil
 	}
