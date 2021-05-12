@@ -33,16 +33,10 @@ type MasterSecretSignKey struct {
 }
 
 type CbTxWitness struct {
-	b_hat   *PolyNTTVec
-	c_hats  []*PolyNTT
-	u_p     []int32
-	c_waves []*PolyNTT
-	c_hat_g *PolyNTT
-	psi     *PolyNTT
-	phi     *PolyNTT
-	chseed  []byte
-	cmt_zs  [][]*PolyNTTVec
-	zs      []*PolyNTTVec
+	b_hat     *PolyNTTVec
+	c_hats    []*PolyNTT
+	u_p       []int32
+	rpulpprof *rpulpProof
 }
 
 type CoinbaseTx struct {
@@ -67,8 +61,23 @@ type Commitment struct {
 	c *PolyNTT
 }
 
-type Signature struct {
+type rpulpProof struct {
+	c_waves []*PolyNTT
+	c_hat_g *PolyNTT
+	psi     *PolyNTT
+	phi     *PolyNTT
+	chseed  []byte
+	cmt_zs  [][]*PolyNTTVec
+	zs      []*PolyNTTVec
 }
+
+type elrsSignature struct {
+	chseed []byte
+	z_as   [][]*PolyNTTVec
+	z_cs   [][]*PolyNTTVec
+	keyImg *PolyNTTVec
+}
+
 type Image struct {
 }
 
@@ -270,23 +279,17 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		u_hats[2] = u_p
 
 		n1 := n
-		c_waves, c_hat_g, psi, phi, chseed, cmt_zs, zs, pi_err := pp.rpulpProve(cmts, cmt_rs, n, b_hat, r_hat, c_hats, msg_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats)
+		rprlppi, pi_err := pp.rpulpProve(cmts, cmt_rs, n, b_hat, r_hat, c_hats, msg_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats)
 
 		if pi_err != nil {
 			return nil, pi_err
 		}
 
 		cbTx.TxWitness = &CbTxWitness{
-			b_hat:   b_hat,
-			c_hats:  c_hats,
-			u_p:     u_p,
-			c_waves: c_waves,
-			c_hat_g: c_hat_g,
-			psi:     psi,
-			phi:     phi,
-			chseed:  chseed,
-			cmt_zs:  cmt_zs,
-			zs:      zs,
+			b_hat:     b_hat,
+			c_hats:    c_hats,
+			u_p:       u_p,
+			rpulpprof: rprlppi,
 		}
 	}
 
@@ -325,9 +328,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 
 	} else {
 		// check the well-formness of cbTx.TxWitness
-		if cbTx.TxWitness.b_hat == nil || cbTx.TxWitness.c_hats == nil || cbTx.TxWitness.u_p == nil || cbTx.TxWitness.c_waves == nil ||
-			cbTx.TxWitness.c_hat_g == nil || cbTx.TxWitness.psi == nil || cbTx.TxWitness.phi == nil || cbTx.TxWitness.chseed == nil ||
-			cbTx.TxWitness.cmt_zs == nil || cbTx.TxWitness.zs == nil {
+		if cbTx.TxWitness.b_hat == nil || cbTx.TxWitness.c_hats == nil || cbTx.TxWitness.u_p == nil || cbTx.TxWitness.rpulpprof == nil {
 			return false
 		}
 
@@ -336,20 +337,6 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 
 		if len(cbTx.TxWitness.c_hats) != n2 {
 			return false
-		}
-
-		if len(cbTx.TxWitness.c_waves) != n {
-			return false
-		}
-
-		if len(cbTx.TxWitness.cmt_zs) != pp.paramK || len(cbTx.TxWitness.zs) != pp.paramK {
-			return false
-		}
-
-		for t := 0; t < pp.paramK; t++ {
-			if len(cbTx.TxWitness.cmt_zs[t]) != n {
-				return false
-			}
 		}
 
 		//	infNorm of u'
@@ -382,9 +369,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 		}
 
 		n1 := n
-		return pp.rpulpVerify(cmts, n, cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats,
-			cbTx.TxWitness.c_waves, cbTx.TxWitness.c_hat_g, cbTx.TxWitness.psi, cbTx.TxWitness.phi, cbTx.TxWitness.chseed, cbTx.TxWitness.cmt_zs, cbTx.TxWitness.zs)
-
+		return pp.rpulpVerify(cmts, n, cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats, cbTx.TxWitness.rpulpprof)
 	}
 
 	return true
