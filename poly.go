@@ -127,7 +127,8 @@ func (pp *PublicParameter) PolyMul(a *Poly, b *Poly) (r *Poly) {
 	todo: output a PolyNTT with all coefficients are 0.
 */
 func (pp *PublicParameter) NewZeroPolyNTT() (r *PolyNTT) {
-	return
+	coeffs := make([]int32, pp.paramD)
+	return &PolyNTT{coeffs}
 }
 
 /*

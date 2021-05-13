@@ -429,23 +429,15 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 	//	(C, kappa)
 	kappa := []byte{} // todo
 
-	//matrixA := pp.expandPubMatrixA()
-
-	sp := pp.NTTVec(pp.expandRandomnessA(kappa))
+	s_p := pp.NTTVec(pp.expandRandomnessA(kappa))
 
 	//	(C, t)
-	dpkt := &PolyNTTVec{}
-	dpkt.polyNTTs = make([]*PolyNTT, pp.paramKa)
-	for i := 0; i < pp.paramKa; i++ {
-		dpkt.polyNTTs[i] = pp.PolyNTTAdd(mpk.t.polyNTTs[i], pp.PolyNTTVecInnerProduct(pp.paramMatrixA[i], sp, pp.paramLa))
-	}
-
-	dpk := &DerivedPubKey{
-		t: dpkt,
-	}
-
-	//	matrixB := pp.expandPubMatrixB()
-	//	matrixC := pp.expandPubMatrixC()
+	dpk := &DerivedPubKey{}
+	// todo : dpk.c
+	dpk.t = pp.PolyNTTVecAdd(
+		mpk.t,
+		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa),
+		pp.paramKa)
 
 	//	cmt
 	cmtr := pp.NTTVec(pp.expandRandomnessC(kappa))

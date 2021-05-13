@@ -81,8 +81,11 @@ rpUlpProveRestart:
 					alphas[i],
 					pp.PolyNTTMul(
 						pp.PolyNTTSub(
-							pp.PolyNTTAdd(&PolyNTT{msg_hats[i]}, &PolyNTT{msg_hats[i]}),
-							&PolyNTT{pp.paramMu}), tmp)))
+							pp.PolyNTTAdd(
+								&PolyNTT{msg_hats[i]},
+								&PolyNTT{msg_hats[i]}),
+							&PolyNTT{pp.paramMu}),
+						tmp)))
 
 			tmp2 = pp.PolyNTTAdd(
 				tmp2,
@@ -777,7 +780,7 @@ func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec) {
 	return retr
 }
 
-func (pp PublicParameter) sampleRandomnessC() (r *PolyVec) {
+func (pp *PublicParameter) sampleRandomnessC() (r *PolyVec) {
 	polys := make([]*Poly, pp.paramLc)
 	//	todo
 	rst := &PolyVec{
@@ -848,6 +851,12 @@ func (pp PublicParameter) sampleZetaC2() (r *PolyVec) {
 		polys: polys,
 	}
 	return rst
+}
+
+func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte) {
+
+	// todo
+	return
 }
 
 func (pp PublicParameter) sampleUniformPloyWithLowZeros() (r *Poly) {
