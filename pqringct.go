@@ -152,16 +152,17 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *M
 		return &mpk, &msvk, &mssk, nil*/
 
 	//	kappa := []byte
-	s := &PolyNTTVec{}
+	var s *PolyNTTVec
+	if seed != nil {
+		//	todo:
+		//	todo: check the validity of seed
+		s = pp.NTTVec(pp.expandRandomnessA(seed))
+	} else {
+		s = pp.NTTVec(pp.sampleRandomnessA())
+	}
 	//len(s.polys) != pp.paramLa
 
-	t := &PolyNTTVec{}
-	t.polyNTTs = make([]*PolyNTT, pp.paramKa)
-
-	matrixA := pp.expandPubMatrixA()
-	for i := 0; i < pp.paramKa; i++ {
-		t.polyNTTs[i] = pp.PolyNTTVecInnerProduct(matrixA[i], s, pp.paramLa)
-	}
+	t := pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKa, pp.paramLa)
 
 	rstmpk := &MasterPubKey{
 		nil, // todo

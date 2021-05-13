@@ -755,17 +755,35 @@ func (pp PublicParameter) expandKeyImgMatrix(t *PolyNTTVec) (matrixH []*PolyNTTV
 	return matrix
 }
 
+func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec) {
+	polys := make([]*Poly, pp.paramLa)
+	//	todo
+	retr := &PolyVec{
+		polys: polys,
+	}
+	return retr
+}
+
 /*
 todo: expand a seed to a PolyVec with length l_a from (S_r)^d
 */
-func (pp *PublicParameter) expandRandomnessA(seed []byte) (sp *PolyVec) {
+func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec) {
 
 	polys := make([]*Poly, pp.paramLa)
 	//	todo
-	r := &PolyVec{
+	retr := &PolyVec{
 		polys: polys,
 	}
-	return r
+	return retr
+}
+
+func (pp PublicParameter) sampleRandomnessC() (r *PolyVec) {
+	polys := make([]*Poly, pp.paramLc)
+	//	todo
+	rst := &PolyVec{
+		polys: polys,
+	}
+	return rst
 }
 
 func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec) {
@@ -778,25 +796,7 @@ func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec) {
 	return rst
 }
 
-func (pp PublicParameter) sampleRandomnessC() (r *PolyVec) {
-	polys := make([]*Poly, pp.paramLc)
-	//	todo
-	rst := &PolyVec{
-		polys: polys,
-	}
-	return rst
-}
-
 func (pp PublicParameter) sampleMaskA() (r *PolyVec) {
-	polys := make([]*Poly, pp.paramLa)
-	//	todo
-	rst := &PolyVec{
-		polys: polys,
-	}
-	return rst
-}
-
-func (pp PublicParameter) sampleZetaA() (r *PolyVec) {
 	polys := make([]*Poly, pp.paramLa)
 	//	todo
 	rst := &PolyVec{
@@ -815,6 +815,24 @@ func (pp PublicParameter) sampleMaskC() (r *PolyVec) {
 }
 
 func (pp PublicParameter) sampleMaskC2() (r *PolyVec) {
+	polys := make([]*Poly, pp.paramLc)
+	//	todo
+	rst := &PolyVec{
+		polys: polys,
+	}
+	return rst
+}
+
+func (pp PublicParameter) sampleZetaA() (r *PolyVec) {
+	polys := make([]*Poly, pp.paramLa)
+	//	todo
+	rst := &PolyVec{
+		polys: polys,
+	}
+	return rst
+}
+
+func (pp PublicParameter) sampleZetaC() (r *PolyVec) {
 	polys := make([]*Poly, pp.paramLc)
 	//	todo
 	rst := &PolyVec{
