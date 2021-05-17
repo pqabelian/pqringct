@@ -911,3 +911,12 @@ func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]int32) {
 
 	return
 }
+
+func (cmt *Commitment) toPolyNTTVec() *PolyNTTVec {
+	ret := &PolyNTTVec{}
+	ret.polyNTTs = make([]*PolyNTT, len(cmt.b.polyNTTs)+1)
+	copy(ret.polyNTTs, cmt.b.polyNTTs)
+	ret.polyNTTs[len(cmt.b.polyNTTs)] = cmt.c
+
+	return ret
+}

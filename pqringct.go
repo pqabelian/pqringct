@@ -52,16 +52,16 @@ type CoinbaseTx struct {
 type TrTxInput struct {
 	TxoList []*TXO
 	//SerialNumber []byte
-	SerialNumber *PolyNTTVec // todo: change to a hash value
+	SerialNumber []byte // todo: change to a hash value
 }
 
 type TrTxWitness struct {
-	b_hat     *PolyNTTVec
-	c_hats    []*PolyNTT
-	u_p       []int32
-	rpulpprof *rpulpProof
-	cmtps     []*Commitment
-	elrsSigs  []*elrsSignature
+	b_hat      *PolyNTTVec
+	c_hats     []*PolyNTT
+	u_p        []int32
+	rpulpproof *rpulpProof
+	cmtps      []*Commitment
+	elrsSigs   []*elrsSignature
 }
 
 type TransferTx struct {
@@ -641,7 +641,7 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 		rettrTx.Inputs[i].SerialNumber = pp.txoSerialNumberGen(inputDescs[i].txoList[inputDescs[i].sidx].dpk, inputDescs[i].mpk, inputDescs[i].msvk, inputDescs[i].mssk)
 	}
 
-	trTxCon := []byte{} // todo
+	msgTrTxCon := []byte{} // todo
 
 	elrsSigs := make([]*elrsSignature, I)
 	cmtps := make([]*Commitment, I)
@@ -671,10 +671,7 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 			cmt_rs[i],
 			pp.paramLc)
 
-		t_c_p := &PolyNTTVec{}
-		t_c_p.polyNTTs = make([]*PolyNTT, pp.paramKc+1)
-		copy(t_c_p.polyNTTs, cmtps[i].b.polyNTTs)
-		t_c_p.polyNTTs[pp.paramKc] = cmtps[i].c
+		t_c_p := cmtps[i].toPolyNTTVec()
 
 		ringSize := len(inputDescs[i].txoList)
 		t_as := make([]*PolyNTTVec, ringSize)
@@ -682,18 +679,14 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 		for j := 0; j < ringSize; j++ {
 			t_as[j] = inputDescs[i].txoList[j].dpk.t
 
-			t_cs[j] = &PolyNTTVec{}
-			t_cs[j].polyNTTs = make([]*PolyNTT, pp.paramKc+1)
 			if len(inputDescs[i].txoList[j].cmt.b.polyNTTs) != pp.paramKc {
 				return nil, err // todo
 			}
-			copy(t_cs[j].polyNTTs, inputDescs[i].txoList[j].cmt.b.polyNTTs)
-			t_cs[j].polyNTTs[pp.paramKc] = inputDescs[i].txoList[j].cmt.c
-
+			t_cs[j] = inputDescs[i].txoList[j].cmt.toPolyNTTVec()
 			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKc+1)
 		}
 
-		elrsSigs[i], err = pp.elrsSign(t_as, t_cs, trTxCon, inputDescs[i].sidx, s_a, s_c)
+		elrsSigs[i], err = pp.elrsSign(t_as, t_cs, msgTrTxCon, inputDescs[i].sidx, s_a, s_c)
 		if err != nil {
 			return nil, err // todo
 		}
@@ -757,12 +750,12 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 
 		trTx.TxWitness = &TrTxWitness{
-			b_hat:     b_hat,
-			c_hats:    c_hats,
-			u_p:       u_p,
-			rpulpprof: rprlppi,
-			cmtps:     cmtps,
-			elrsSigs:  elrsSigs,
+			b_hat:      b_hat,
+			c_hats:     c_hats,
+			u_p:        u_p,
+			rpulpproof: rprlppi,
+			cmtps:      cmtps,
+			elrsSigs:   elrsSigs,
 		}
 
 	} else {
@@ -796,6 +789,12 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 		seed_binM := []byte{}                // todo: compute the seed using hash function on (b_hat, c_hats).
 		binM := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
 		// todo: check B (f_1 || f_2) + e
+		betaF := I
+		if J+1 > betaF {
+			betaF = J + 1
+		}
+		betaF = betaF - 1
+
 		for i := 0; i < pp.paramD; i++ {
 			u_p_temp[i] = 0
 			for j := 0; j < pp.paramD; j++ {
@@ -806,12 +805,6 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 			if infNorm < 0 {
 				infNorm = -infNorm
 			}
-
-			betaF := I
-			if J+1 > betaF {
-				betaF = J + 1
-			}
-			betaF = betaF - 1
 
 			if infNorm > int64(pp.paramEtaF-int32(betaF)) {
 				goto trTxGenI2Restart
@@ -835,20 +828,158 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 
 		trTx.TxWitness = &TrTxWitness{
-			b_hat:     b_hat,
-			c_hats:    c_hats,
-			u_p:       u_p,
-			rpulpprof: rprlppi,
-			cmtps:     cmtps,
-			elrsSigs:  elrsSigs,
+			b_hat:      b_hat,
+			c_hats:     c_hats,
+			u_p:        u_p,
+			rpulpproof: rprlppi,
+			cmtps:      cmtps,
+			elrsSigs:   elrsSigs,
 		}
 	}
 
 	return nil, err
 }
 
-func (pp *PublicParameter) TransferTXVerify(tx *TransferTx) bool {
-	panic("implement me")
+func (pp *PublicParameter) TransferTXVerify(trTx *TransferTx) bool {
+	if trTx == nil {
+		return false
+	}
+
+	I := len(trTx.Inputs)
+	J := len(trTx.OutputTxos)
+
+	if I <= 0 || I > pp.paramI {
+		return false
+	}
+	if J <= 0 || J > pp.paramJ {
+		return false
+	}
+
+	for i := 0; i < I; i++ {
+		input := trTx.Inputs[i]
+		if input.TxoList == nil || input.SerialNumber == nil {
+			return false
+		}
+		// todo: check whether there exists repeated dpk in trTx.Inputs[i]
+
+		// todo: check whether there exists two txoList such that they have common Txos but are different
+
+		// todo: check whether theres exits repeated serialNumber
+	}
+
+	for j := 0; j < J; j++ {
+		//	todo: check the well-form of outputTxos
+
+		// todo: check whether there exits repeated dpk in the outputTxos
+	}
+
+	//	todo: check the well-form of TxWitness
+
+	//	check the ring signatures
+	msgTrTxCon := []byte{}
+	for i := 0; i < I; i++ {
+		//	check the validity of sigma_{lrs,i}
+		sn := keyImgToSerialNumber(trTx.TxWitness.elrsSigs[i].keyImg)
+		if bytes.Compare(sn, trTx.Inputs[i].SerialNumber) != 0 {
+			return false
+		}
+
+		ringSize := len(trTx.Inputs[i].TxoList)
+		t_as := make([]*PolyNTTVec, ringSize)
+		t_cs := make([]*PolyNTTVec, ringSize)
+
+		t_c_p := trTx.TxWitness.cmtps[i].toPolyNTTVec()
+		for j := 0; j < ringSize; j++ {
+			t_as[j] = trTx.Inputs[i].TxoList[j].dpk.t
+
+			t_cs[j] = trTx.Inputs[i].TxoList[j].cmt.toPolyNTTVec()
+			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKc+1)
+		}
+
+		if pp.elrsVerify(t_as, t_cs, msgTrTxCon, trTx.TxWitness.elrsSigs[i]) != true {
+			return false
+		}
+	}
+
+	// check the balance proof
+	n := I + J
+	cmts := make([]*Commitment, n)
+	for i := 0; i < I; i++ {
+		cmts[i] = trTx.TxWitness.cmtps[i]
+	}
+	for j := 0; j < J; j++ {
+		cmts[I+j] = trTx.OutputTxos[j].cmt
+	}
+
+	u := intToBinary(trTx.fee, pp.paramD)
+
+	if I == 1 {
+		n2 := n + 2
+		n1 := n
+
+		betaF := pp.paramEtaF - int32(J)
+
+		//	todo: consider with TransferTxGen
+		for i := 0; i < len(trTx.TxWitness.u_p); i++ {
+			infNorm := trTx.TxWitness.u_p[i]
+			if infNorm < 0 {
+				infNorm = -infNorm
+			}
+			if infNorm > (pp.paramEtaF - int32(betaF)) {
+				return false
+			}
+		}
+
+		seed_binM := []byte{} // todo: compute the seed using hash function on (b_hat, c_hats).
+		binM := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
+
+		u_hats := make([][]int32, 3)
+		u_hats[0] = u                        //
+		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[2] = trTx.TxWitness.u_p
+
+		if pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 3, u_hats, trTx.TxWitness.rpulpproof) != true {
+			return false
+		}
+	} else {
+		//	I >= 2
+		n2 := n + 4
+		n1 := n + 1
+
+		betaF := I
+		if J+1 > betaF {
+			betaF = J + 1
+		}
+		betaF = betaF - 1
+
+		//	todo: consider with TransferTxGen
+		for i := 0; i < len(trTx.TxWitness.u_p); i++ {
+			infNorm := trTx.TxWitness.u_p[i]
+			if infNorm < 0 {
+				infNorm = -infNorm
+			}
+			if infNorm > (pp.paramEtaF - int32(betaF)) {
+				return false
+			}
+		}
+
+		seed_binM := []byte{} // todo: compute the seed using hash function on (b_hat, c_hats).
+		binM := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
+
+		u_hats := make([][]int32, 5)
+		u_hats[0] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[1] = u                        // todo: -u
+		u_hats[2] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[3] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[4] = trTx.TxWitness.u_p
+
+		if pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 5, u_hats, trTx.TxWitness.rpulpproof) != true {
+			return false
+		}
+	}
+
+	return true
+
 }
 
 func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *PolyNTTVec, err error) {
@@ -884,7 +1015,8 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 	return rettxo, cmtr, nil
 }
 
-func (pp PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn *PolyNTTVec) {
+//	todo: serial number is a hash value
+func (pp *PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte) {
 	if dpk == nil || mpk == nil || msvk == nil || mssk == nil {
 		return nil
 	}
@@ -906,7 +1038,17 @@ func (pp PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubK
 	keyImgMatrix := pp.expandKeyImgMatrix(dpk.t)
 	s_hat := pp.PolyNTTVecAdd(mssk.s, sp, pp.paramKa)
 
-	return pp.PolyNTTMatrixMulVector(keyImgMatrix, s_hat, pp.paramMa, pp.paramLa)
+	keyImg := pp.PolyNTTMatrixMulVector(keyImgMatrix, s_hat, pp.paramMa, pp.paramLa)
+
+	// todo: serialize keyImg and compute the corresponding hash
+	return keyImgToSerialNumber(keyImg)
+}
+
+//	todo: serial number is a hash value
+func keyImgToSerialNumber(keyImg *PolyNTTVec) (sn []byte) {
+	// todo:
+	retsn := []byte{}
+	return retsn
 }
 
 //	public fun	end
