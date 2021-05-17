@@ -84,6 +84,18 @@ type PublicParameter struct {
 	paramKInv int32
 
 	/*
+		paramSigmaPermutations is determined by (d,k) and the selection of sigma
+		paramSigmaPermutations [t] with t=0~(k-1) works for sigma^t
+	*/
+	paramSigmaPermutations [][]int
+
+	/*
+		paramSigmaInvPermutations is determined by (d,k) and the selection of sigma
+		paramSigmaInvPermutations [t] with t=0~(k-1) works for sigma^{-t}
+	*/
+	paramSigmaInvPermutations [][]int
+
+	/*
 		zeta is a primitive 2d-th root of unity in Z_q^*.
 		As zeta \in Z_q, we define it with 'int32' type.
 	*/
