@@ -270,7 +270,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		for t := 0; t < pp.paramK; t++ {
 			zs[t] = pp.PolyNTTVecAdd(
 				ys[t],
-				pp.PolyNTTVecScaleMul(pp.sigmaPolyNTT(ch, t), cmt_rs[0], pp.paramLc),
+				pp.PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(ch, t), cmt_rs[0], pp.paramLc),
 				pp.paramLc)
 
 			if pp.NTTInvVec(zs[t]).infNorm() > pp.paramEtaC-pp.paramBetaC {
@@ -423,7 +423,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 		ch := pp.NTT(pp.expandChallenge(cbTx.TxWitness.rpulpproof.chseed))
 		msg := intToBinary(cbTx.Vin, pp.paramD)
 		for t := 0; t < pp.paramK; t++ {
-			sigma_t_ch := pp.sigmaPolyNTT(ch, t)
+			sigma_t_ch := pp.sigmaPowerPolyNTT(ch, t)
 
 			ws[t] = pp.PolyNTTVecSub(
 				pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], pp.paramKc, pp.paramLc),
