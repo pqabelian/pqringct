@@ -2,6 +2,7 @@ package pqringct
 
 import (
 	"crypto/rand"
+	"golang.org/x/crypto/sha3"
 	"log"
 	"math/big"
 )
@@ -31,7 +32,7 @@ func randomIntWithProbability(items []int, probabilities []float64) int {
 	return items[cnt]
 }
 
-// TODO change the name to randomnessFromDistribution
+// TODO_DONE change the name to randomnessFromDistribution
 // generate single int with given weights
 func randomIntWithWeight(items []int, weights []int) int {
 	if len(items) != len(weights) {
@@ -151,4 +152,20 @@ func reduce(pp *PublicParameter, a int64) int32 {
 		tmp = tmp + int64(pp.paramQ)
 	}
 	return int32(tmp)
+}
+
+// H encapsulates a hash function to output a byte stream of arbitrary length
+// TODO: Should be as a parameter not a function,in that way, it can be substitute by other function?
+func H(data []byte) ([]byte, error) {
+	shake256 := sha3.NewShake256()
+	_, err := shake256.Write(data)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]byte, 32)
+	_, err = shake256.Read(res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }

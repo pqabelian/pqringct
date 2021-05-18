@@ -101,6 +101,9 @@ type elrsSignature struct {
 	keyImg *PolyNTTVec
 }
 
+type Image struct {
+}
+
 /*type ValueCommitment struct {
 
 }
@@ -134,6 +137,41 @@ func Setup() (pp *PublicParameter) {
 	// todo
 	return nil
 }
+
+/*
+func MasterKeyGen(masterSeed []byte, parameter *PublicParameter) (mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, mseed []byte, err error) {
+	// to do
+	return nil, nil, nil, nil, nil
+}
+
+func CoinbaseTxGen(vin int64, txOutputDescList []*TxOutputDesc) (cbTx *CoinbaseTx, err error) {
+	//	to do
+	return nil, nil
+}
+
+func CoinbaseTxVerify(cbTx *CoinbaseTx) (valid bool) {
+	//	to do
+	return false
+}
+
+func TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *MasterSecretViewKey) (valid bool, v int64, err error) {
+	//	to do
+	return false, 0, nil
+}
+
+func TransferTxGen(txInputDescList []*TxInputDesc, txOutputDescList []*TxOutputDesc, fee int64) (transferTx *TransferTx, err error) {
+	//	to do
+	return nil, nil
+}
+
+func TransferTxVerify(trTx *TransferTx) (valid bool) {
+	//	to do
+	return false
+}
+
+func TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, mssk *MasterSecretSignKey, msvk *MasterSecretViewKey) (snMa []Poly) {
+	panic("implement me")
+}*/
 
 func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
 	/*	mpk := MasterPubKey{}
@@ -232,7 +270,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		for t := 0; t < pp.paramK; t++ {
 			zs[t] = pp.PolyNTTVecAdd(
 				ys[t],
-				pp.PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(ch, t), cmt_rs[0], pp.paramLc),
+				pp.PolyNTTVecScaleMul(pp.sigmaPolyNTT(ch, t), cmt_rs[0], pp.paramLc),
 				pp.paramLc)
 
 			if pp.NTTInvVec(zs[t]).infNorm() > pp.paramEtaC-pp.paramBetaC {
@@ -261,21 +299,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			msg_hats[j] = intToBinary(txOutputDescs[j].v, pp.paramD)
 		}
 
-		u := intToBinary(vin, pp.paramD)
-
-		//	f is the carry vector, such that, u = m_0 + m_1 + ... + m_{J-1}
-		//	f[0] = 0, and for i=1 to d-1,
-		//	m_0[i-1]+ ... + m_{J-1}[i-1] + f[i-1] = u[i-1] + 2 f[i],
-		//	m_0[i-1]+ ... + m_{J-1}[i-1] + f[i-1] = u[i-1]
-		f := make([]int32, pp.paramD)
-		f[0] = 0
-		for i := 1; i < pp.paramD; i++ {
-			tmp := int32(0)
-			for j := 0; j < J; j++ {
-				tmp = tmp + msg_hats[j][i-1]
-			}
-			f[i] = (tmp + f[i-1] - u[i-1]) >> 1
-		}
+		f := make([]int32, pp.paramD) // todo: compute the carry vector f
 		msg_hats[J] = f
 
 	cbTxGenJ2Restart:
@@ -315,7 +339,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			u_p[i] = pp.reduce(u_p_tmp[i])
 		}
 
-		u_hats[0] = u
+		u_hats[0] = intToBinary(vin, pp.paramD)
 		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
 		u_hats[2] = u_p
 
@@ -399,7 +423,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 		ch := pp.NTT(pp.expandChallenge(cbTx.TxWitness.rpulpproof.chseed))
 		msg := intToBinary(cbTx.Vin, pp.paramD)
 		for t := 0; t < pp.paramK; t++ {
-			sigma_t_ch := pp.sigmaPowerPolyNTT(ch, t)
+			sigma_t_ch := pp.sigmaPolyNTT(ch, t)
 
 			ws[t] = pp.PolyNTTVecSub(
 				pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], pp.paramKc, pp.paramLc),
@@ -614,7 +638,7 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 
 	for i := 0; i < I; i++ {
 		rettrTx.Inputs[i].TxoList = inputDescs[i].txoList
-		rettrTx.Inputs[i].SerialNumber = pp.TxoSerialNumberGen(inputDescs[i].txoList[inputDescs[i].sidx].dpk, inputDescs[i].mpk, inputDescs[i].msvk, inputDescs[i].mssk)
+		rettrTx.Inputs[i].SerialNumber = pp.txoSerialNumberGen(inputDescs[i].txoList[inputDescs[i].sidx].dpk, inputDescs[i].mpk, inputDescs[i].msvk, inputDescs[i].mssk)
 	}
 
 	msgTrTxCon := []byte{} // todo
@@ -674,19 +698,7 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 	if I == 1 {
 		c_hats := make([]*PolyNTT, n2) //	n2 = n+2
 
-		//	f is the carry vector, such that, m_1 = m_2+ ... + m_n + u
-		//	f[0] = 0, and for i=1 to d-1,
-		//	m_0[i-1] + 2 f[i] = m_1[i-1] + .. + m_{n-1}[i-1] + u[i-1] + f[i-1],
-		//	m_0[d-1] 		  = m_1[d-1] + .. + m_{n-1}[d-1] + f[d-1],
-		f := make([]int32, pp.paramD)
-		f[0] = 0
-		for i := 1; i < pp.paramD; i++ {
-			tmp := int32(0)
-			for j := 1; j < n; j++ {
-				tmp = tmp + msg_hats[j][i-1]
-			}
-			f[i] = (tmp + u[i-1] + f[i-1] - msg_hats[0][i-1]) >> 1
-		}
+		f := make([]int32, pp.paramD) // todo: compute the carry vector f
 		msg_hats[n] = f
 
 	trTxGenI1Restart:
@@ -752,34 +764,9 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 
 		msg_hats[n] = intToBinary(inputTotal, pp.paramD) //	v_in
 
-		//	f1 is the carry vector, such that, m_0 + m_1+ ... + m_{I-1} = m_{n}
-		//	f1[0] = 0, and for i=1 to d-1,
-		//	m_0[i-1] + .. + m_{I-1}[i-1] + f1[i-1] = m_n[i-1] + 2 f[i] ,
-		//	m_0[d-1] + .. + m_{I-1}[d-1] + f1[d-1] = m_n[d-1] ,
-		f1 := make([]int32, pp.paramD)
-		f1[0] = 0
-		for i := 1; i < pp.paramD; i++ {
-			tmp := int32(0)
-			for j := 0; j < I; j++ {
-				tmp = tmp + msg_hats[j][i-1]
-			}
-			f1[i] = (tmp + f1[i-1] - msg_hats[n][i-1]) >> 1
-		}
+		f1 := make([]int32, pp.paramD) // todo: compute the carry vector f1
 		msg_hats[n+1] = f1
-
-		//	f2 is the carry vector, such that, m_I + m_{I+1}+ ... + m_{(I+J)-1} + u = m_{n}
-		//	f2[0] = 0, and for i=1 to d-1,
-		//	m_I[i-1] + .. + m_{I+J-1}[i-1] + u[i-1] + f2[i-1] = m_n[i-1] + 2 f[i] ,
-		//	m_I[d-1] + .. + m_{I+J-1}[d-1] + u[d-1] + f2[d-1] = m_n[d-1] ,
-		f2 := make([]int32, pp.paramD)
-		f2[0] = 0
-		for i := 1; i < pp.paramD; i++ {
-			tmp := int32(0)
-			for j := 0; j < I; j++ {
-				tmp = tmp + msg_hats[I+j][i-1]
-			}
-			f2[i] = (tmp + u[i-1] + f2[i-1] - msg_hats[n][i-1]) >> 1
-		}
+		f2 := make([]int32, pp.paramD) // todo: compute the carry vector f2
 		msg_hats[n+2] = f2
 
 	trTxGenI2Restart:
@@ -1029,10 +1016,7 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 }
 
 //	todo: serial number is a hash value
-/*
-As wallet may call this algorithm to generate serial numbers for the coins, this method is set to be public.
-*/
-func (pp *PublicParameter) TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte) {
+func (pp *PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte) {
 	if dpk == nil || mpk == nil || msvk == nil || mssk == nil {
 		return nil
 	}

@@ -2,9 +2,12 @@ package pqringct
 
 import (
 	"crypto/rand"
+	"errors"
 	"golang.org/x/crypto/sha3"
 	"log"
 )
+
+var ErrLength = errors.New("invalid length")
 
 // Distribution defines the distribution in pqringct
 type Distribution struct {
@@ -24,6 +27,7 @@ var Sr Distribution = Distribution{
 	weights:     []int{5, 6, 5},
 }
 
+// randomBytes returns a byte array with given length from crypto/rand.Reader
 func randomBytes(length int) []byte {
 	res := make([]byte, length)
 	for length > 0 {
@@ -39,7 +43,41 @@ func randomBytes(length int) []byte {
 	return res
 }
 
-// TODO: using randomnessFromDistribution to implement others
+// randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=6/16 and P(1)=P(-1)=5/16
+// and return an array with given length
+func randomnessFromProbabilityDistributions(seed []byte, length int) ([]int32, error) {
+	res := make([]int32, length)
+	// if the seed is nil, acquire the seed from crypto/rand.Reader
+	if seed == nil {
+		seed = randomBytes(length / 2)
+	}
+	// check the length of seed, make sure the randomness is enough
+	if len(seed) < length/2 {
+		return nil, ErrLength
+	}
+	var a1, a2, b1, b2 int32
+	for i := 0; i < length/2; i++ {
+		a1 = int32((seed[i] & (1 << 3)) >> 3)
+		a2 = int32((seed[i] & (1 << 2)) >> 2)
+		b1 = int32((seed[i] & (1 << 1)) >> 1)
+		b2 = int32((seed[i] & (1 << 0)) >> 0)
+		res[2*i] = a1 + a2 - b1 - b2
+		a1 = int32((seed[i] & (1 << 7)) >> 7)
+		a2 = int32((seed[i] & (1 << 6)) >> 6)
+		b1 = int32((seed[i] & (1 << 5)) >> 5)
+		b2 = int32((seed[i] & (1 << 4)) >> 4)
+		res[2*i+1] = a1 + a2 - b1 - b2
+	}
+	for i := 0; i < length; i++ {
+		if res[i] < -1 {
+			res[i] += 3
+		}
+		if res[i] > 1 {
+			res[i] -= 3
+		}
+	}
+	return res, nil
+}
 
 func randomFromDistribution(seed []byte, dist Distribution, length int) ([]byte, []int) {
 	// TODO: consider add a parameter System Parameter for seed ?
