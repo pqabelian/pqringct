@@ -162,6 +162,12 @@ func (pp *PublicParameter) PolyNTTMul(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	return &PolyNTT{coeffs: coeffs}
 }
 
+func (pp *PublicParameter) PolyNTTPower(a *PolyNTT, e uint) (r *PolyNTT) {
+	coeffs := make([]int32, pp.paramD)
+	// todo
+	return &PolyNTT{coeffs: coeffs}
+}
+
 func (pp *PublicParameter) PolyNTTEqualCheck(a *PolyNTT, b *PolyNTT) (eq bool) {
 	if a == nil || b == nil {
 		return false

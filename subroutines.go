@@ -892,9 +892,10 @@ todo:
  t: 0~(d-1)
 */
 func (pp *PublicParameter) sigmaPowerPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT) {
+	nttPower := pp.PolyNTTPower(polyNTT, uint(t))
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = polyNTT.coeffs[pp.paramSigmaPermutations[t][i]]
+		coeffs[i] = nttPower.coeffs[pp.paramSigmaPermutations[t][i]]
 	}
 	return &PolyNTT{coeffs}
 }
@@ -903,9 +904,10 @@ func (pp *PublicParameter) sigmaPowerPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNT
 todo:
 */
 func (pp *PublicParameter) sigmaInvPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT) {
+	nttPower := pp.PolyNTTPower(polyNTT, uint(t))
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = polyNTT.coeffs[pp.paramSigmaInvPermutations[t][i]]
+		coeffs[i] = nttPower.coeffs[pp.paramSigmaInvPermutations[t][i]]
 	}
 	return &PolyNTT{coeffs}
 }
