@@ -739,8 +739,20 @@ func (pp PublicParameter) expandKeyImgMatrix(t *PolyNTTVec) (matrixH []*PolyNTTV
 }
 
 func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec) {
-	polys := make([]*Poly, pp.paramLa)
-	//	todo
+	// why la?
+	//polys := make([]*Poly, pp.paramLa)
+	min := -int64((pp.paramQ-1)/2)
+	max := int64((pp.paramQ-1)/2)
+
+	polys := make([]*Poly, pp.paramKa)
+	for i := 0 ; i < pp.paramKa ; i++ {
+		tmp := make([]int32, pp.paramLa)
+		for j := 0 ; j < pp.paramLa ; j++ {
+			tmp[j] = int32(randomIntFromInterval(min, max))
+		}
+		polys[i] = &Poly{coeffs:tmp}
+	}
+
 	retr := &PolyVec{
 		polys: polys,
 	}

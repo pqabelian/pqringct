@@ -142,6 +142,19 @@ func randomIntSliceWithWeight(items []int, weights []int, n int) (res []int) {
 	return generateSlice
 }
 
+// generate an integer in [min, max]
+func randomIntFromInterval(min int64, max int64) int64 {
+	maxTmp := max - min
+
+	rng := rand.Reader
+	num, err := rand.Int(rng, big.NewInt(maxTmp))
+	if err != nil {
+		log.Fatalln("randInt error")
+	}
+	num64 := num.Int64()
+	return num64 + min
+}
+
 func reduce(pp *PublicParameter, a int64) int32 {
 	var tmp int64
 	tmp = a % int64(pp.paramQ)
