@@ -29,8 +29,12 @@ const (
 
 //TODO_DONE : change the int to intX or uintX
 type PublicParameter struct {
-	//	paramN defines the value of V by V=2^N - 1
-	paramN uint8 // N<256
+	/*
+		paramN defines the value of V by V=2^N - 1
+		N <= d
+		As we need to loop for paramN, we define them with 'int' type.
+	*/
+	paramN int
 
 	/*
 		paramI defines the maximum number of consumed coins of a transfer transaction
@@ -171,8 +175,8 @@ type PublicParameter struct {
 	paramMu []int32
 }
 
-func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramDInv int32, paramQ uint32, paramQm uint32, paramK int, paramKInv int32, paramZeta int32, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32, paramCStr []byte) *PublicParameter {
-	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramDInv: paramDInv, paramQ: paramQ, paramQm: paramQm, paramK: paramK, paramKInv: paramKInv, paramZeta: paramZeta, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF, paramCStr: paramCStr}
+func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32) *PublicParameter {
+	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF}
 }
 
 /*
@@ -208,12 +212,9 @@ var DefaultPP *PublicParameter = NewPublicParameter(
 	5,
 
 	128,
-	-33554396,
 	4294962689,
-	2147481344,
-	4,
-	-1073740672,
 	27080629,
+	4,
 
 	10,
 	10,
@@ -230,7 +231,6 @@ var DefaultPP *PublicParameter = NewPublicParameter(
 
 	1,
 	1024-1,
-	[]byte{65, 112, 112, 108, 105, 101, 100, 32, 67, 114, 121, 112, 116, 111, 103, 114, 97, 112, 104, 121, 32, 76, 97, 98},
 )
 
 // PQRingCT TODO_DONE: optimize the interface using array?  not
