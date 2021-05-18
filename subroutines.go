@@ -21,7 +21,7 @@ n >= 2 && n <= n1 && n1 <= n2 && n <= pp.paramI+pp.paramJ && n2 <= pp.paramI+pp.
 */
 func (pp PublicParameter) rpulpProve(cmts []*Commitment, cmt_rs []*PolyNTTVec, n int,
 	b_hat *PolyNTTVec, r_hat *PolyNTTVec, c_hats []*PolyNTT, msg_hats [][]int32, n2 int,
-	n1 int, rpulpType RpUlpType, B [][]int32, I int, J int, m int, u_hats [][]int32) (rpulppi *rpulpProof, err error) {
+	n1 int, rpulpType RpUlpType, binMatrixB [][]int32, I int, J int, m int, u_hats [][]int32) (rpulppi *rpulpProof, err error) {
 
 	c_waves := make([]*PolyNTT, n)
 	for i := 0; i < n; i++ {
@@ -98,17 +98,7 @@ rpUlpProveRestart:
 	}
 
 	//	p^(t)_j:
-	p := make([][]*PolyNTT, pp.paramK)
-	for t := 0; t < pp.paramK; t++ {
-		p[t] = make([]*PolyNTT, n2)
-
-		for j := 0; j < n2; j++ {
-
-			pcoeffs := []int32{0}
-			// todo
-			p[t][j] = &PolyNTT{coeffs: pcoeffs}
-		}
-	}
+	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
 	//	phi
 	phi := pp.NewZeroPolyNTT()
@@ -122,7 +112,7 @@ rpUlpProveRestart:
 			}
 
 			constPoly := pp.NewZeroPoly()
-			constPoly.coeffs[0] = pp.reduce(int64(pp.intVecInnerProduct(u_hats, gammas[t], m, pp.paramD)) * int64(pp.paramDInv))
+			constPoly.coeffs[0] = pp.reduce(int64(pp.intMatrixInnerProduct(u_hats, gammas[t], m, pp.paramD)) * int64(pp.paramDInv))
 
 			tmp = pp.PolyNTTSub(tmp, pp.NTT(constPoly))
 
@@ -215,7 +205,7 @@ rpUlpProveRestart:
 
 func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	b_hat *PolyNTTVec, c_hats []*PolyNTT, n2 int,
-	n1 int, rpulpType RpUlpType, B [][]int32, I int, J int, m int, u_hats [][]int32,
+	n1 int, rpulpType RpUlpType, binMatrixB [][]int32, I int, J int, m int, u_hats [][]int32,
 	rpulppi *rpulpProof) (valid bool) {
 
 	if !(n >= 2 && n <= n1 && n1 <= n2 && n <= pp.paramI+pp.paramJ && n2 <= pp.paramI+pp.paramJ+4) {
@@ -369,17 +359,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 		pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], rpulppi.zs[0], pp.paramLc))
 
 	//	p^(t)_j:
-	p := make([][]*PolyNTT, pp.paramK)
-	for t := 0; t < pp.paramK; t++ {
-		p[t] = make([]*PolyNTT, n2)
-
-		for j := 0; j < n2; j++ {
-
-			pcoeffs := []int32{0}
-			// todo
-			p[t][j] = &PolyNTT{coeffs: pcoeffs}
-		}
-	}
+	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
 	//	phip
 	phip := pp.NewZeroPolyNTT()
@@ -393,7 +373,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 			}
 
 			constPoly := pp.NewZeroPoly()
-			constPoly.coeffs[0] = pp.reduce(int64(pp.intVecInnerProduct(u_hats, gammas[t], m, pp.paramD)) * int64(pp.paramDInv))
+			constPoly.coeffs[0] = pp.reduce(int64(pp.intMatrixInnerProduct(u_hats, gammas[t], m, pp.paramD)) * int64(pp.paramDInv))
 
 			tmp = pp.PolyNTTSub(tmp, pp.NTT(constPoly))
 
@@ -889,7 +869,7 @@ todo:
 }*/
 
 /*
- t: 0~(d-1)
+ t: 0~(k-1)
 */
 func (pp *PublicParameter) sigmaPowerPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT) {
 	nttPower := pp.PolyNTTPower(polyNTT, uint(t))
@@ -915,12 +895,21 @@ func (pp *PublicParameter) sigmaInvPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT)
 /**
 This method allow the vectors to be 2D, i.e. matrix
 */
-func (pp *PublicParameter) intVecInnerProduct(a [][]int32, b [][]int32, rowNum int, colNum int) (r int32) {
+func (pp *PublicParameter) intMatrixInnerProduct(a [][]int32, b [][]int32, rowNum int, colNum int) (r int32) {
 	rst := int32(0)
 	for i := 0; i < rowNum; i++ {
 		for j := 0; j < colNum; j++ {
 			rst = pp.reduce(int64(rst) + int64(pp.reduce(int64(a[i][j])*int64(b[i][j]))))
 		}
+	}
+
+	return rst
+}
+
+func (pp *PublicParameter) intVecInnerProduct(a []int32, b []int32, vecLen int) (r int32) {
+	rst := int32(0)
+	for i := 0; i < vecLen; i++ {
+		rst = pp.reduce(int64(rst) + int64(pp.reduce(int64(a[i])*int64(b[i]))))
 	}
 
 	return rst
@@ -949,4 +938,151 @@ func (cmt *Commitment) toPolyNTTVec() *PolyNTTVec {
 	ret.polyNTTs[len(cmt.b.polyNTTs)] = cmt.c
 
 	return ret
+}
+
+/*func transposeMatrix(matrix [][]int32, rowNum int, colNum int) (transM [][]int32) {
+	rettransMatrix := make([][]int32, colNum)
+	for i := 0; i < colNum; i++ {
+		rettransMatrix[i] = make([]int32, rowNum)
+		for j := 0; j < rowNum; j++ {
+			rettransMatrix[i][j] = matrix[j][i]
+		}
+	}
+
+	return rettransMatrix
+}*/
+
+func getMatrixColumn(matrix [][]int32, rowNum int, j int) (col []int32) {
+	retcol := make([]int32, rowNum)
+	for i := 0; i < rowNum; i++ {
+		retcol[i] = matrix[i][j]
+	}
+
+	return retcol
+}
+
+func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]int32, I int, J int, gammas [][][]int32) (ps [][]*PolyNTT) {
+	p := make([][]*PolyNTT, pp.paramK)
+
+	switch rpulpType {
+	case RpUlpTypeCbTx1:
+
+	case RpUlpTypeCbTx2:
+		n := J
+		n2 := n + 2
+		// m = 3
+		for t := 0; t < pp.paramK; t++ {
+			p[t] = make([]*PolyNTT, n2)
+			for j := 0; j < n; j++ {
+				p[t][j] = &PolyNTT{gammas[t][0]}
+			}
+			//	p[t][n] = NTT^{-1}(F^T gamma[t][0] + F_1^T gamma[t][1] + B^T gamma[t][2])
+			coeffs := make([]int32, pp.paramD)
+			for i := 0; i < pp.paramD; i++ {
+				// F^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
+				// B^T[i]: ith-col of B
+				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][2], pp.paramD)
+				if i == 0 {
+					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i]))
+				} else if i < (pp.paramN - 1) {
+					coeffs[i] = pp.reduce(int64(coeffs[i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+				} else { // i in [N-1, d-1]
+					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+				}
+			}
+			p[t][n] = &PolyNTT{coeffs}
+
+			p[t][n+1] = &PolyNTT{gammas[t][2]}
+		}
+	case RpUlpTypeTrTx1:
+		n := I + J
+		n2 := n + 2
+		// m = 3
+		for t := 0; t < pp.paramK; t++ {
+			p[t] = make([]*PolyNTT, n2)
+
+			p[t][0] = &PolyNTT{gammas[t][0]}
+
+			minuscoeffs := make([]int32, pp.paramD)
+			for i := 0; i < pp.paramD; i++ {
+				minuscoeffs[i] = -gammas[t][0][i]
+			}
+			for j := 1; j < n; j++ {
+				p[t][j] = &PolyNTT{minuscoeffs}
+			}
+
+			//	p[t][n] = NTT^{-1}((-F)^T gamma[t][0] + F_1^T gamma[t][1] + B^T gamma[t][2])
+			coeffs := make([]int32, pp.paramD)
+			for i := 0; i < pp.paramD; i++ {
+				//(-F)^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
+				// B^T[i]: ith-col of B
+				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][2], pp.paramD)
+				if i == 0 {
+					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] - gammas[t][0][i]))
+				} else if i < (pp.paramN - 1) {
+					coeffs[i] = pp.reduce(int64(coeffs[i] + 2*gammas[t][0][i-1] - gammas[t][0][i]))
+				} else { // i in [N-1, d-1]
+					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + 2*gammas[t][0][i-1] - gammas[t][0][i]))
+				}
+			}
+			p[t][n] = &PolyNTT{coeffs}
+
+			p[t][n+1] = &PolyNTT{gammas[t][2]}
+		}
+	case RpUlpTypeTrTx2:
+		n := I + J
+		n2 := n + 4
+		//	B : d rows 2d columns
+		//	m = 5
+		for t := 0; t < pp.paramK; t++ {
+			p[t] = make([]*PolyNTT, n2)
+
+			for j := 0; j < I; j++ {
+				p[t][j] = &PolyNTT{gammas[t][0]}
+			}
+			for j := I; j < I+J; j++ {
+				p[t][j] = &PolyNTT{gammas[t][1]}
+			}
+
+			coeffs_n := make([]int32, pp.paramD)
+			for i := 0; i < pp.paramD; i++ {
+				coeffs_n[i] = -gammas[t][0][i] - gammas[t][1][i]
+			}
+			p[t][n] = &PolyNTT{coeffs_n}
+
+			//	p[t][n+1] = NTT^{-1}(F^T gamma[t][0] + F_1^T gamma[t][2] + B_1^T gamma[t][4])
+			coeffs_np1 := make([]int32, pp.paramD)
+			for i := 0; i < pp.paramD; i++ {
+				//F^T[i] gamma[t][0] + F_1^T[i] gamma[t][2] + B^T[i] gamma[t][4]
+				coeffs_np1[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][4], pp.paramD)
+				if i == 0 {
+					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] + gammas[t][2][i] + gammas[t][0][i]))
+				} else if i < (pp.paramN - 1) {
+					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+				} else { // i in [N-1, d-1]
+					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] + gammas[t][2][i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+				}
+			}
+			p[t][n+1] = &PolyNTT{coeffs_np1}
+
+			//	p[t][n+2] = NTT^{-1}(F^T gamma[t][1] + F_1^T gamma[t][3] + B_2^T gamma[t][4])
+			coeffs_np2 := make([]int32, pp.paramD)
+			for i := 0; i < pp.paramD; i++ {
+				//F^T[i] gamma[t][1] + F_1^T[i] gamma[t][3] + B_2^T[i] gamma[t][4]
+				coeffs_np2[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, pp.paramD+i), gammas[t][4], pp.paramD)
+				if i == 0 {
+					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] + gammas[t][3][i] + gammas[t][1][i]))
+				} else if i < (pp.paramN - 1) {
+					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] - 2*gammas[t][1][i-1] + gammas[t][1][i]))
+				} else { // i in [N-1, d-1]
+					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] + gammas[t][3][i] - 2*gammas[t][1][i-1] + gammas[t][1][i]))
+				}
+			}
+			p[t][n+2] = &PolyNTT{coeffs_np2}
+
+			p[t][n+3] = &PolyNTT{gammas[t][4]}
+		}
+	}
+
+	return p
 }

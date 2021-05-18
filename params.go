@@ -29,8 +29,12 @@ const (
 
 //TODO_DONE : change the int to intX or uintX
 type PublicParameter struct {
-	//	paramN defines the value of V by V=2^N - 1
-	paramN uint8 // N<256
+	/*
+		paramN defines the value of V by V=2^N - 1
+		N <= d
+		As we need to loop for paramN, we define them with 'int' type.
+	*/
+	paramN int
 
 	/*
 		paramI defines the maximum number of consumed coins of a transfer transaction
@@ -171,7 +175,7 @@ type PublicParameter struct {
 	paramMu []int32
 }
 
-func NewPublicParameter(paramN uint8, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32) *PublicParameter {
+func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32) *PublicParameter {
 	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF}
 }
 

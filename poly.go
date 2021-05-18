@@ -165,6 +165,9 @@ func (pp *PublicParameter) PolyNTTMul(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 func (pp *PublicParameter) PolyNTTPower(a *PolyNTT, e uint) (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
 	// todo
+	for i := 0; i < pp.paramD; i++ {
+
+	}
 	return &PolyNTT{coeffs: coeffs}
 }
 
