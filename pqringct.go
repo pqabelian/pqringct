@@ -7,13 +7,29 @@ import (
 )
 
 type PolyVec struct {
-	// the length must be paramLa
+	// the length must be paramLa?
 	polys []*Poly
 }
 
+func NewPolyVec(rowlength int, colLength int) *PolyVec {
+	res := make([]*Poly, rowlength)
+	for i := 0; i < rowlength; i++ {
+		res[i] = NewPoly(colLength)
+	}
+	return &PolyVec{polys: res}
+}
+
 type PolyNTTVec struct {
-	// the length must be paramLa
+	// the length must be paramLa?
 	polyNTTs []*PolyNTT
+}
+
+func NewPolyNTTVec(rowlength int, colLength int) *PolyNTTVec {
+	res := make([]*PolyNTT, rowlength)
+	for i := 0; i < rowlength; i++ {
+		res[i] = NewPolyNTT(colLength)
+	}
+	return &PolyNTTVec{polyNTTs: res}
 }
 
 /*
@@ -270,7 +286,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		for t := 0; t < pp.paramK; t++ {
 			zs[t] = pp.PolyNTTVecAdd(
 				ys[t],
-				pp.PolyNTTVecScaleMul(pp.sigmaPolyNTT(ch, t), cmt_rs[0], pp.paramLc),
+				pp.PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(ch, t), cmt_rs[0], pp.paramLc),
 				pp.paramLc)
 
 			if pp.NTTInvVec(zs[t]).infNorm() > pp.paramEtaC-pp.paramBetaC {
@@ -423,7 +439,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 		ch := pp.NTT(pp.expandChallenge(cbTx.TxWitness.rpulpproof.chseed))
 		msg := intToBinary(cbTx.Vin, pp.paramD)
 		for t := 0; t < pp.paramK; t++ {
-			sigma_t_ch := pp.sigmaPolyNTT(ch, t)
+			sigma_t_ch := pp.sigmaPowerPolyNTT(ch, t)
 
 			ws[t] = pp.PolyNTTVecSub(
 				pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], pp.paramKc, pp.paramLc),
@@ -1035,7 +1051,12 @@ func (pp *PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPub
 		return nil
 	}
 
-	keyImgMatrix := pp.expandKeyImgMatrix(dpk.t)
+	//keyImgMatrix,err := pp.expandKeyImgMatrix(dpk.t)
+	keyImgMatrix, err := pp.expandKeyImgMatrix(dpk.t)
+	if err != nil {
+		// TODO: define Const Error Variable
+		return nil
+	}
 	s_hat := pp.PolyNTTVecAdd(mssk.s, sp, pp.paramKa)
 
 	keyImg := pp.PolyNTTMatrixMulVector(keyImgMatrix, s_hat, pp.paramMa, pp.paramLa)

@@ -79,6 +79,36 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]int32, e
 	return res, nil
 }
 
+// randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=1/2 and P(1)=P(-1)=1/4
+// and return an array with given length
+func randomnessFromChallengeSpace(seed []byte, length int) ([]int32, error) {
+	res := make([]int32, length)
+	// if the seed is nil, acquire the seed from crypto/rand.Reader
+	if seed == nil {
+		seed = randomBytes(length / 4)
+	}
+	// check the length of seed, make sure the randomness is enough
+	if len(seed) < length/4 {
+		return nil, ErrLength
+	}
+	var a1, a2, a3, a4, b1, b2, b3, b4 int32
+	for i := 0; i < length/4; i++ {
+		a1 = int32((seed[i] & (1 << 0)) >> 0)
+		b1 = int32((seed[i] & (1 << 1)) >> 1)
+		a2 = int32((seed[i] & (1 << 2)) >> 2)
+		b2 = int32((seed[i] & (1 << 3)) >> 3)
+		a3 = int32((seed[i] & (1 << 4)) >> 4)
+		b3 = int32((seed[i] & (1 << 5)) >> 5)
+		a4 = int32((seed[i] & (1 << 6)) >> 6)
+		b4 = int32((seed[i] & (1 << 7)) >> 7)
+		res[2*i+0] = a1 - b1
+		res[2*i+1] = a2 - b2
+		res[2*i+2] = a3 - b3
+		res[2*i+3] = a4 - b4
+	}
+	return res, nil
+}
+
 func randomFromDistribution(seed []byte, dist Distribution, length int) ([]byte, []int) {
 	// TODO: consider add a parameter System Parameter for seed ?
 	if seed == nil || len(seed) == 0 {

@@ -2,6 +2,7 @@ package pqringct
 
 import (
 	"bytes"
+	"golang.org/x/crypto/sha3"
 )
 
 // rpulpProve generates balance proof
@@ -498,7 +499,10 @@ func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg [
 	//	keyImgMatrices
 	imgMatrixs := make([][]*PolyNTTVec, ringSize)
 	for j := 0; j < ringSize; j++ {
-		imgMatrixs[j] = pp.expandKeyImgMatrix(t_as[j])
+		imgMatrixs[j], err = pp.expandKeyImgMatrix(t_as[j])
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	//	keyImage I
@@ -661,7 +665,11 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 	for j := 0; j < ringSize; j++ {
 		chj := pp.NTT(pp.expandChallenge(seedj))
 
-		imgMatrix := pp.expandKeyImgMatrix(t_as[j])
+		imgMatrix, err := pp.expandKeyImgMatrix(t_as[j])
+		if err != nil {
+			// TODO: define Const Error Variable
+			return false
+		}
 
 		for tau := 0; tau < pp.paramK; tau++ {
 			sigma_tau_ch := pp.sigmaPowerPolyNTT(chj, tau)
@@ -690,67 +698,184 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 
 	return true
 }
+func (pp *PublicParameter) generateMatrix(seed []byte, rowLength int, colLength int) ([]*PolyVec, error) {
+	var err error
+	// check the length of seed
+	res := make([]*PolyVec, rowLength)
+	buf := make([]byte, colLength*pp.paramD*4)
+	XOF := sha3.NewShake128()
+	for i := 0; i < rowLength; i++ {
+		res[i] = NewPolyVec(colLength, pp.paramD)
+		for j := 0; j < colLength; j++ {
+			XOF.Reset()
+			_, err = XOF.Write(append(seed, byte(i), byte(j)))
+			if err != nil {
+				return nil, err
+			}
+			_, err = XOF.Read(buf)
+			if err != nil {
+				return nil, err
+			}
+			got := pp.rejectionUniformWithZq(buf, pp.paramD)
+			if len(got) < pp.paramLc {
+				newBuf := make([]byte, pp.paramD*4)
+				_, err = XOF.Read(newBuf)
+				if err != nil {
+					return nil, err
+				}
+				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+			}
+			for k := 0; k < pp.paramD; k++ {
+				res[i].polys[j].coeffs[k] = got[k]
+			}
+		}
+	}
+	return res, nil
+}
+
+func (pp *PublicParameter) generateNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyNTTVec, error) {
+	var err error
+	// check the length of seed
+	res := make([]*PolyNTTVec, rowLength)
+	buf := make([]byte, colLength*pp.paramD*4)
+	XOF := sha3.NewShake128()
+	for i := 0; i < rowLength; i++ {
+		res[i] = NewPolyNTTVec(colLength, pp.paramD)
+		for j := 0; j < colLength; j++ {
+			XOF.Reset()
+			_, err = XOF.Write(append(seed, byte(i), byte(j)))
+			if err != nil {
+				return nil, err
+			}
+			_, err = XOF.Read(buf)
+			if err != nil {
+				return nil, err
+			}
+			got := pp.rejectionUniformWithZq(buf, pp.paramD)
+			if len(got) < pp.paramLc {
+				newBuf := make([]byte, pp.paramD*4)
+				_, err = XOF.Read(newBuf)
+				if err != nil {
+					return nil, err
+				}
+				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+			}
+			for k := 0; k < pp.paramD; k++ {
+				res[i].polyNTTs[j].coeffs[k] = got[k]
+			}
+		}
+	}
+	return res, nil
+}
+func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []byte, length int) (*PolyVec, error) {
+	var err error
+	// check the length of seed
+	res := NewPolyVec(length, pp.paramD)
+	buf := make([]byte, pp.paramD*4)
+	XOF := sha3.NewShake128()
+	for i := 0; i < length; i++ {
+		XOF.Reset()
+		_, err = XOF.Write(append(seed, byte(i)))
+		if err != nil {
+			return nil, err
+		}
+		_, err = XOF.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		got, err := randomnessFromProbabilityDistributions(buf, pp.paramD)
+		if len(got) < pp.paramLc {
+			newBuf := make([]byte, pp.paramD)
+			_, err = XOF.Read(newBuf)
+			if err != nil {
+				return nil, err
+			}
+			newGot, err := randomnessFromProbabilityDistributions(newBuf, pp.paramD-len(got))
+			if err != nil {
+				return nil, err
+			}
+			got = append(got, newGot...)
+		}
+		for k := 0; k < pp.paramD; k++ {
+			res.polys[i].coeffs[k] = got[k]
+		}
+	}
+	return res, nil
+}
+
+//TODO: uniform sample a element in Z_q from buf as many as possible
+func (pp *PublicParameter) rejectionUniformWithZq(buf []byte, length int) []int32 {
+	res := make([]int32, 0, length)
+	var pos int
+	var t uint32
+	//q=1111_1111_1111_1111_1110_1110_0000_0001
+	for pos < len(buf) {
+		// 从buf中读取32个bit（4byte）
+		t = uint32(buf[pos])
+		t |= uint32(buf[pos+1]) << 8
+		t |= uint32(buf[pos+2]) << 16
+		t |= uint32(buf[pos+3]) << 24
+		if t < pp.paramQ {
+			res = append(res, int32(t-pp.paramQ))
+		}
+	}
+	return res
+}
 
 /**
 todo: generate MatrixA from pp.Cstr
 */
-func (pp *PublicParameter) expandPubMatrixA() (matrixA []*PolyNTTVec) {
-	matrix := make([]*PolyNTTVec, pp.paramKa)
-
-	for i := 0; i < pp.paramKa; i++ {
-		matrix[i].polyNTTs = make([]*PolyNTT, pp.paramLa)
-		// todo
+func (pp *PublicParameter) expandPubMatrixA(seed []byte, i byte, j byte) (matrixA []*PolyNTTVec, err error) {
+	matrix, err := pp.generateNTTMatrix(append(seed, i, j), pp.paramKa, pp.paramLa)
+	if err != nil {
+		return nil, err
 	}
-
-	return matrixA
+	return matrix, nil
 }
 
 /**
 todo: generate MatrixB from pp.Cstr
 todo: store the matrices in PP or generate them each time they are generated
 */
-func (pp *PublicParameter) expandPubMatrixB() (matrixB []*PolyNTTVec) {
-	matrix := make([]*PolyNTTVec, pp.paramKc)
-
-	for i := 0; i < pp.paramKa; i++ {
-		matrix[i].polyNTTs = make([]*PolyNTT, pp.paramLc)
-		// todo
+func (pp *PublicParameter) expandPubMatrixB(seed []byte, i byte, j byte) (matrixB []*PolyNTTVec, err error) {
+	matrix, err := pp.generateNTTMatrix(append(seed, i, j), pp.paramKc, pp.paramLc)
+	if err != nil {
+		return nil, err
 	}
-
-	return matrix
+	return matrix, nil
 }
 
-func (pp *PublicParameter) expandPubMatrixC() (matrixC []*PolyNTTVec) {
-	matrix := make([]*PolyNTTVec, pp.paramI+pp.paramJ+7)
-
-	for i := 0; i < pp.paramI+pp.paramJ+7; i++ {
-		matrix[i].polyNTTs = make([]*PolyNTT, pp.paramLc)
-		// todo
+func (pp *PublicParameter) expandPubMatrixC(seed []byte, i byte, j byte) (matrixC []*PolyNTTVec, err error) {
+	matrix, err := pp.generateNTTMatrix(append(seed, i, j), pp.paramI+pp.paramJ+7, pp.paramLc)
+	if err != nil {
+		return nil, err
 	}
-
-	return matrix
+	return matrix, nil
 }
 
-func (pp PublicParameter) expandKeyImgMatrix(t *PolyNTTVec) (matrixH []*PolyNTTVec) {
-	matrix := make([]*PolyNTTVec, pp.paramMa)
-	// todo
-
-	return matrix
+// TODO:Why is input a poltNTTVec?
+//func (pp PublicParameter) expandKeyImgMatrix(t *PolyNTTVec) (matrixH []*PolyNTTVec) {
+func (pp PublicParameter) expandKeyImgMatrix(seed []byte, i byte, j byte) (matrixH []*PolyNTTVec, err error) {
+	matrix, err := pp.generateNTTMatrix(append(seed, i, j), pp.paramMa, pp.paramLa)
+	if err != nil {
+		return nil, err
+	}
+	return matrix, nil
 }
 
 func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec) {
 	// why la?
 	//polys := make([]*Poly, pp.paramLa)
-	min := -int64((pp.paramQ-1)/2)
-	max := int64((pp.paramQ-1)/2)
+	min := -int64((pp.paramQ - 1) / 2)
+	max := int64((pp.paramQ - 1) / 2)
 
 	polys := make([]*Poly, pp.paramKa)
-	for i := 0 ; i < pp.paramKa ; i++ {
+	for i := 0; i < pp.paramKa; i++ {
 		tmp := make([]int32, pp.paramLa)
-		for j := 0 ; j < pp.paramLa ; j++ {
+		for j := 0; j < pp.paramLa; j++ {
 			tmp[j] = int32(randomIntFromInterval(min, max))
 		}
-		polys[i] = &Poly{coeffs:tmp}
+		polys[i] = &Poly{coeffs: tmp}
 	}
 
 	retr := &PolyVec{
@@ -762,14 +887,12 @@ func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec) {
 /*
 todo: expand a seed to a PolyVec with length l_a from (S_r)^d
 */
-func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec) {
-
-	polys := make([]*Poly, pp.paramLa)
-	//	todo
-	retr := &PolyVec{
-		polys: polys,
+func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec, err error) {
+	r, err = pp.generatePolyVecWithProbabilityDistributions(seed, pp.paramLa)
+	if err != nil {
+		return nil, err
 	}
-	return retr
+	return r, nil
 }
 
 func (pp *PublicParameter) sampleRandomnessC() (r *PolyVec) {
@@ -781,14 +904,12 @@ func (pp *PublicParameter) sampleRandomnessC() (r *PolyVec) {
 	return rst
 }
 
-func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec) {
-
-	polys := make([]*Poly, pp.paramLc)
-	//	todo
-	rst := &PolyVec{
-		polys: polys,
+func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec, err error) {
+	r, err = pp.generatePolyVecWithProbabilityDistributions(seed, pp.paramLc)
+	if err != nil {
+		return nil, err
 	}
-	return rst
+	return r, nil
 }
 
 func (pp PublicParameter) sampleMaskA() (r *PolyVec) {

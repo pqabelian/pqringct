@@ -111,7 +111,7 @@ type PublicParameter struct {
 	paramKa int
 
 	/*
-		As we need to loop k_a, we define it with 'int' type
+		As we need to loop l_a, we define it with 'int' type
 	*/
 	paramLa int
 
@@ -206,32 +206,7 @@ func (p *PublicParameter) TransferTXVerify(tx *TransferTx) bool {
 	panic("implement me")
 }*/
 
-var DefaultPP *PublicParameter = NewPublicParameter(
-	51,
-	5,
-	5,
-
-	128,
-	4294962689,
-	27080629,
-	4,
-
-	10,
-	10,
-	1024-1,
-	2,
-
-	10,
-	10,
-	1024-1,
-	2,
-
-	1024-1,
-	2,
-
-	1,
-	1024-1,
-)
+var DefaultPP *PublicParameter
 
 // PQRingCT TODO_DONE: optimize the interface using array?  not
 // TODO: efficiency of interface...
@@ -269,4 +244,33 @@ func (pp *PublicParameter) reduce(a int64) int32 {
 	}
 
 	return int32(rst)
+}
+
+func init() {
+	DefaultPP = NewPublicParameter(
+		51,
+		5,
+		5,
+
+		128,
+		4294962689,
+		27080629,
+		4,
+
+		10,
+		10,
+		1024-1,
+		2,
+
+		10,
+		10,
+		1024-1,
+		2,
+
+		1024-1,
+		2,
+
+		1,
+		1024-1,
+	)
 }

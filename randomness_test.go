@@ -39,3 +39,38 @@ func Test_randomnessFromProbabilityDistributions(t *testing.T) {
 		})
 	}
 }
+
+func Test_randomnessFromChallengeSpace(t *testing.T) {
+	type args struct {
+		seed   []byte
+		length int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []int32
+		wantErr bool
+	}{
+		{
+			name: "test",
+			args: args{
+				seed:   []byte{0b00_01_10_11},
+				length: 4,
+			},
+			want:    []int32{0, -1, 1, 0},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := randomnessFromChallengeSpace(tt.args.seed, tt.args.length)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("randomnessFromChallengeSpace() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("randomnessFromChallengeSpace() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

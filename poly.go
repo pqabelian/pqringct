@@ -8,11 +8,21 @@ type Poly struct {
 	coeffs []int32
 }
 
+func NewPoly(length int) *Poly {
+	res := make([]int32, length)
+	return &Poly{coeffs: res}
+}
+
 /*
 The NTT-form poly in a fully-splitting ring
 */
 type PolyNTT struct {
 	coeffs []int32
+}
+
+func NewPolyNTT(length int) *PolyNTT {
+	res := make([]int32, length)
+	return &PolyNTT{coeffs: res}
 }
 
 // NewPoly create a struct with coeffs and if the length of coeffs must be more than parameter D of Public Parameter
