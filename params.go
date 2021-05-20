@@ -1,5 +1,10 @@
 package pqringct
 
+import (
+	"github.com/cryptosuite/kyber-go/kyber"
+	"log"
+)
+
 const (
 	PP_N = 51 //	N defines the value of V by V=2^N - 1
 	PP_I = 5  //	PP_I defines the maximum number of consumed coins of a transfer transaction
@@ -169,14 +174,40 @@ type PublicParameter struct {
 	*/
 	paramMatrixC []*PolyNTTVec
 
-	/**
+	/*
 	paramMu defines the const mu, which is determined by the value of N and d
 	*/
 	paramMu []int32
+
+	/*
+		paramKem defines the key encapsulate mechanism
+	*/
+	paramKem *kyber.ParameterSet
 }
 
-func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32) *PublicParameter {
-	return &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF}
+func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32,paramKem *kyber.ParameterSet) (*PublicParameter,error) {
+	res:=&PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF,paramKem: paramKem}
+	seed, err := H(res.paramCStr)
+	if err!=nil{
+		return nil,err
+	}
+	res.paramMatrixA, err =res.expandPubMatrixA(seed,0,0)
+	if err!=nil{
+		return nil, err
+	}
+	res.paramMatrixB,err=res.expandPubMatrixB(seed,0,1)
+	if err!=nil{
+		return nil, err
+	}
+	res.paramMatrixC,err=res.expandPubMatrixC(seed,0,2)
+	if err!=nil{
+		return nil, err
+	}
+	res.paramMu=make([]int32,res.paramD)
+	for i := 0; i < res.paramN; i++ {
+		res.paramMu[i]=1
+	}
+	return res,nil
 }
 
 /*
@@ -247,7 +278,8 @@ func (pp *PublicParameter) reduce(a int64) int32 {
 }
 
 func init() {
-	DefaultPP = NewPublicParameter(
+	var err error
+	DefaultPP, err = NewPublicParameter(
 		51,
 		5,
 		5,
@@ -272,5 +304,9 @@ func init() {
 
 		1,
 		1024-1,
+		kyber.Kyber512,
 	)
+	if err!=nil{
+		log.Fatalln("init error")
+	}
 }

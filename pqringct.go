@@ -91,8 +91,8 @@ type TransferTx struct {
 }
 
 type DerivedPubKey struct {
-	//	ckem // todo
-	t *PolyNTTVec
+	ckem []byte //TODO: whether using struct replace?
+	t    *PolyNTTVec
 }
 
 type Commitment struct {
@@ -189,6 +189,7 @@ func TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, mssk *MasterSecre
 	panic("implement me")
 }*/
 
+// MasterKeyGen generate the master key pair for qpringct
 func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
 	/*	mpk := MasterPubKey{}
 		msvk := MasterSecretViewKey{}
@@ -197,25 +198,42 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *M
 		return &mpk, &msvk, &mssk, nil*/
 
 	//	kappa := []byte
+	// TODO
+	kem := pp.paramKem
+	// TODO:generate a independent seed or slice the input seed?
+	kemSeed := randomBytes(2 * kyber.SymBytes)
+	PKKem, SKKem, err := kem.CryptoKemKeyPair(kemSeed)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	//  choose a random vector from (S_r^d)^la
 	var s *PolyNTTVec
+	var tmp *PolyVec
 	if seed != nil {
 		//	todo:
 		//	todo: check the validity of seed
-		s = pp.NTTVec(pp.expandRandomnessA(seed))
+		tmp, err = pp.expandRandomnessA(seed)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 	} else {
-		s = pp.NTTVec(pp.sampleRandomnessA())
+		tmp, err = pp.sampleRandomnessA()
+		if err != nil {
+			return nil, nil, nil, err
+		}
 	}
+	s = pp.NTTVec(tmp)
 	//len(s.polys) != pp.paramLa
 
 	t := pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKa, pp.paramLa)
 
 	rstmpk := &MasterPubKey{
-		nil, // todo
+		PKKem, // todo
 		t,
 	}
 
 	rstmsvk := &MasterSecretViewKey{
-		skkem: nil,
+		skkem: SKKem,
 	}
 
 	rstmssk := &MasterSecretSignKey{
@@ -1000,32 +1018,53 @@ func (pp *PublicParameter) TransferTXVerify(trTx *TransferTx) bool {
 
 func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *PolyNTTVec, err error) {
 	//	(C, kappa)
-	kappa := []byte{} // todo
-
-	s_p := pp.NTTVec(pp.expandRandomnessA(kappa))
-
+	C, kappa, err := mpk.pkkem.CryptoKemEnc()
+	s_prime, err := pp.expandRandomnessA(kappa)
+	s_p := pp.NTTVec(s_prime)
+	t_prime := pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa)
+	t := pp.PolyNTTVecAdd(mpk.t, t_prime, pp.paramKa)
 	//	(C, t)
-	dpk := &DerivedPubKey{}
-	// todo : dpk.c
-	dpk.t = pp.PolyNTTVecAdd(
-		mpk.t,
-		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa),
-		pp.paramKa)
+	dpk := &DerivedPubKey{
+		ckem: C,
+		t:    t,
+	}
+	//// todo_DONE : dpk.c
+	//dpk.t = pp.PolyNTTVecAdd(
+	//	mpk.t,
+	//	pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa),
+	//	pp.paramKa)
 
 	//	cmt
-	cmtr := pp.NTTVec(pp.expandRandomnessC(kappa))
+	rtmp, err := pp.expandRandomnessC(kappa)
+	if err != nil {
+		return nil, nil, err
+	}
+	cmtr := pp.NTTVec(rtmp)
+
+	mtmp:=intToBinary(vin, pp.paramD)
+	m := pp.NTT(&Poly{coeffs: mtmp})
 
 	cmt := &Commitment{}
 	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmtr, pp.paramKc, pp.paramLc)
-	cmt.c = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cmtr, pp.paramLc)
+	cmt.c = pp.PolyNTTAdd(
+		pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cmtr, pp.paramLc),
+		m,
+		)
 
 	//	vc
 	//	todo
-
+	sk,err:=pp.expandRandomBitsV(kappa)
+	if err!=nil{
+		return nil, nil, err
+	}
+	vc := make([]byte, pp.paramD)
+	for i := 0; i <  pp.paramD; i++ {
+		vc[i]=sk[i]^byte(mtmp[i])
+	}
 	rettxo := &TXO{
 		dpk,
 		cmt,
-		nil, // todo
+		vc, // todo_DONE
 	}
 
 	return rettxo, cmtr, nil
