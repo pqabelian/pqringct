@@ -39,11 +39,19 @@ rpUlpProveRestart:
 		cmt_ys[t] = make([]*PolyNTTVec, n)
 		cmt_ws[t] = make([]*PolyNTTVec, n)
 		for i := 0; i < n; i++ {
-			cmt_ys[t][i] = pp.NTTVec(pp.sampleMaskC())
+			maskC, err := pp.sampleMaskC()
+			if err != nil {
+				return nil, err
+			}
+			cmt_ys[t][i] = pp.NTTVec(maskC)
 			cmt_ws[t][i] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_ys[t][i], pp.paramKc, pp.paramLc)
 		}
 
-		ys[t] = pp.NTTVec(pp.sampleMaskC())
+		maskC, err := pp.sampleMaskC()
+		if err != nil {
+			return nil, err
+		}
+		ys[t] = pp.NTTVec(maskC)
 		ws[t] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKc, pp.paramLc)
 	}
 
@@ -526,7 +534,11 @@ func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg [
 elrsSignRestart:
 
 	for tau := 0; tau < pp.paramK; tau++ {
-		y_as[tau] = pp.NTTVec(pp.sampleMaskA())
+		maskA, err := pp.sampleMaskA()
+		if err != nil {
+			return nil, err
+		}
+		y_as[tau] = pp.NTTVec(maskA)
 		y_cs[tau] = pp.NTTVec(pp.sampleMaskC2())
 
 		w_as[tau] = pp.PolyNTTMatrixMulVector(pp.paramMatrixA, y_as[tau], pp.paramKa, pp.paramLa)
@@ -890,13 +902,20 @@ func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec, err error
 	return r, nil
 }
 
-func (pp *PublicParameter) sampleRandomnessC() (r *PolyVec) {
+func (pp *PublicParameter) sampleRandomnessC() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
-	//	todo
+
+	for i := 0; i < pp.paramLc; i++ {
+		tmp, err := randomnessFromProbabilityDistributions(nil, pp.paramD)
+		if err != nil {
+			return nil, err
+		}
+		polys[i] = &Poly{coeffs: tmp}
+	}
 	rst := &PolyVec{
 		polys: polys,
 	}
-	return rst
+	return rst, nil
 }
 
 func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec, err error) {
@@ -907,22 +926,36 @@ func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec, err error
 	return r, nil
 }
 
-func (pp PublicParameter) sampleMaskA() (r *PolyVec) {
+func (pp PublicParameter) sampleMaskA() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLa)
-	//	todo
+
+	for i := 0; i < pp.paramLa; i++ {
+		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		if err != nil {
+			return nil, err
+		}
+		polys[i] = &Poly{coeffs: tmp}
+	}
 	rst := &PolyVec{
 		polys: polys,
 	}
-	return rst
+	return rst, nil
 }
 
-func (pp PublicParameter) sampleMaskC() (r *PolyVec) {
+func (pp PublicParameter) sampleMaskC() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
-	//	todo
+
+	for i := 0; i < pp.paramLc; i++ {
+		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		if err != nil {
+			return nil, err
+		}
+		polys[i] = &Poly{coeffs: tmp}
+	}
 	rst := &PolyVec{
 		polys: polys,
 	}
-	return rst
+	return rst, nil
 }
 
 func (pp PublicParameter) sampleMaskC2() (r *PolyVec) {

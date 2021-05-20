@@ -201,9 +201,17 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *M
 	if seed != nil {
 		//	todo:
 		//	todo: check the validity of seed
-		s = pp.NTTVec(pp.expandRandomnessA(seed))
+		randomnessA, err := pp.expandRandomnessA(seed)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		s = pp.NTTVec(randomnessA)
 	} else {
-		s = pp.NTTVec(pp.sampleRandomnessA())
+		randomnessA, err := pp.sampleRandomnessA()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		s = pp.NTTVec(randomnessA)
 	}
 	//len(s.polys) != pp.paramLa
 
@@ -322,7 +330,11 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		e := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
 		msg_hats[J+1] = e
 
-		r_hat := pp.NTTVec(pp.sampleRandomnessC())
+		randomnessC, err := pp.sampleRandomnessC()
+		if err != nil {
+			return nil, err
+		}
+		r_hat := pp.NTTVec(randomnessC)
 
 		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKc, pp.paramLc)
 
