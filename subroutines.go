@@ -779,6 +779,8 @@ func (pp *PublicParameter) generateNTTMatrix(seed []byte, rowLength int, colLeng
 	}
 	return res, nil
 }
+
+// generatePolyVecWithProbabilityDistributions generate a poly whose coefficient is in S_r named Probability Distribution
 func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []byte, length int) (*PolyVec, error) {
 	var err error
 	// check the length of seed
@@ -813,6 +815,33 @@ func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []by
 		}
 	}
 	return res, nil
+}
+func (pp *PublicParameter) generateBits(seed []byte, length int) ([]byte, error) {
+	var err error
+	// check the length of seed
+	res := make([]byte, (length+7)/8*8)
+	buf := make([]byte, 8)
+	XOF := sha3.NewShake128()
+	for i := 0; i < (length+7)/8; i++ {
+		XOF.Reset()
+		_, err = XOF.Write(append(seed, byte(i)))
+		if err != nil {
+			return nil, err
+		}
+		_, err = XOF.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		res[8*i+0] = buf[i] & (1 << 0) >> 0
+		res[8*i+1] = buf[i] & (1 << 1) >> 1
+		res[8*i+2] = buf[i] & (1 << 2) >> 2
+		res[8*i+3] = buf[i] & (1 << 3) >> 3
+		res[8*i+4] = buf[i] & (1 << 4) >> 4
+		res[8*i+5] = buf[i] & (1 << 5) >> 5
+		res[8*i+6] = buf[i] & (1 << 6) >> 6
+		res[8*i+7] = buf[i] & (1 << 7) >> 7
+	}
+	return res[:length], nil
 }
 
 //TODO: uniform sample a element in Z_q from buf as many as possible
@@ -895,6 +924,10 @@ func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec, err error) {
 todo: expand a seed to a PolyVec with length l_a from (S_r)^d
 */
 func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec, err error) {
+	if len(seed) == 0 {
+		return nil, ErrLength
+	}
+	seed = append(seed, 'A')
 	r, err = pp.generatePolyVecWithProbabilityDistributions(seed, pp.paramLa)
 	if err != nil {
 		return nil, err
@@ -919,6 +952,10 @@ func (pp *PublicParameter) sampleRandomnessC() (r *PolyVec, err error) {
 }
 
 func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec, err error) {
+	if len(seed) == 0 {
+		return nil, ErrLength
+	}
+	seed = append(seed, 'C')
 	r, err = pp.generatePolyVecWithProbabilityDistributions(seed, pp.paramLc)
 	if err != nil {
 		return nil, err
@@ -994,10 +1031,16 @@ func (pp PublicParameter) sampleZetaC2() (r *PolyVec) {
 	return rst
 }
 
-func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte) {
-
-	// todo
-	return
+func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte, err error) {
+	if len(seed) == 0 {
+		return nil, ErrLength
+	}
+	seed = append(seed, 'V')
+	r, err = pp.generateBits(seed, pp.paramD)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 func (pp PublicParameter) sampleUniformPloyWithLowZeros() (r *Poly) {
