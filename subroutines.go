@@ -863,17 +863,12 @@ func (pp PublicParameter) expandKeyImgMatrix(seed []byte, i byte, j byte) (matri
 	return matrix, nil
 }
 
-func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec) {
-	// why la?
-	//polys := make([]*Poly, pp.paramLa)
-	min := -int64((pp.paramQ - 1) / 2)
-	max := int64((pp.paramQ - 1) / 2)
-
-	polys := make([]*Poly, pp.paramKa)
-	for i := 0; i < pp.paramKa; i++ {
-		tmp := make([]int32, pp.paramLa)
-		for j := 0; j < pp.paramLa; j++ {
-			tmp[j] = int32(randomIntFromInterval(min, max))
+func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec, err error) {
+	polys := make([]*Poly, pp.paramLa)
+	for i := 0; i < pp.paramLa; i++ {
+		tmp, err := randomnessFromProbabilityDistributions(nil, pp.paramD)
+		if err != nil {
+			return nil, err
 		}
 		polys[i] = &Poly{coeffs: tmp}
 	}
@@ -881,7 +876,7 @@ func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec) {
 	retr := &PolyVec{
 		polys: polys,
 	}
-	return retr
+	return retr, nil
 }
 
 /*
