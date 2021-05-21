@@ -539,7 +539,11 @@ elrsSignRestart:
 			return nil, err
 		}
 		y_as[tau] = pp.NTTVec(maskA)
-		y_cs[tau] = pp.NTTVec(pp.sampleMaskC2())
+		maskC2, err := pp.sampleMaskC2()
+		if err != nil {
+			return nil, err
+		}
+		y_cs[tau] = pp.NTTVec(maskC2)
 
 		w_as[tau] = pp.PolyNTTMatrixMulVector(pp.paramMatrixA, y_as[tau], pp.paramKa, pp.paramLa)
 		w_cs[tau] = pp.PolyNTTMatrixMulVector(matrixBExt, y_cs[tau], pp.paramKc+1, pp.paramLc)
@@ -555,8 +559,16 @@ elrsSignRestart:
 		chj = pp.NTT(pp.expandChallenge(seedj))
 
 		for tau := 0; tau < pp.paramK; tau++ {
-			retz_as[tau][j] = pp.NTTVec(pp.sampleZetaA())
-			retz_cs[tau][j] = pp.NTTVec(pp.sampleZetaC2())
+			zetaA, err := pp.sampleZetaA()
+			if err != nil {
+				return nil, err
+			}
+			retz_as[tau][j] = pp.NTTVec(zetaA)
+			zetaC2, err := pp.sampleZetaC2()
+			if err != nil {
+				return nil, err
+			}
+			retz_cs[tau][j] = pp.NTTVec(zetaC2)
 
 			sigma_tau_ch = pp.sigmaPowerPolyNTT(chj, tau)
 
@@ -995,40 +1007,68 @@ func (pp PublicParameter) sampleMaskC() (r *PolyVec, err error) {
 	return rst, nil
 }
 
-func (pp PublicParameter) sampleMaskC2() (r *PolyVec) {
+func (pp PublicParameter) sampleMaskC2() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
-	//	todo
+
+	for i := 0; i < pp.paramLc; i++ {
+		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		if err != nil {
+			return nil, err
+		}
+		polys[i] = &Poly{coeffs: tmp}
+	}
 	rst := &PolyVec{
 		polys: polys,
 	}
-	return rst
+	return rst, nil
 }
 
-func (pp PublicParameter) sampleZetaA() (r *PolyVec) {
+func (pp PublicParameter) sampleZetaA() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLa)
-	//	todo
+
+	for i := 0; i < pp.paramLa; i++ {
+		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		if err != nil {
+			return nil, err
+		}
+		polys[i] = &Poly{coeffs: tmp}
+	}
 	rst := &PolyVec{
 		polys: polys,
 	}
-	return rst
+	return rst, nil
 }
 
-func (pp PublicParameter) sampleZetaC() (r *PolyVec) {
+func (pp PublicParameter) sampleZetaC() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
-	//	todo
+
+	for i := 0; i < pp.paramLc; i++ {
+		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		if err != nil {
+			return nil, err
+		}
+		polys[i] = &Poly{coeffs: tmp}
+	}
 	rst := &PolyVec{
 		polys: polys,
 	}
-	return rst
+	return rst, nil
 }
 
-func (pp PublicParameter) sampleZetaC2() (r *PolyVec) {
+func (pp PublicParameter) sampleZetaC2() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
-	//	todo
+
+	for i := 0; i < pp.paramLc; i++ {
+		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		if err != nil {
+			return nil, err
+		}
+		polys[i] = &Poly{coeffs: tmp}
+	}
 	rst := &PolyVec{
 		polys: polys,
 	}
-	return rst
+	return rst, nil
 }
 
 func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte, err error) {

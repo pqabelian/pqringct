@@ -32,7 +32,10 @@ func TestSampleRandomnessA(t *testing.T) {
 	pp.paramLa = 8
 	pp.paramQ = 4294962689
 
-	A := pp.sampleRandomnessA()
+	A, err := pp.sampleRandomnessA()
+	if err != nil {
+		t.Error(err)
+	}
 	for i := 0 ; i < pp.paramKa ; i++ {
 		for j := 0 ; j < pp.paramLa ; j++ {
 			fmt.Print(A.polys[i].coeffs[j])
