@@ -120,6 +120,14 @@ type elrsSignature struct {
 type Image struct {
 }
 
+func (pp *PublicParameter) GetMasterPublicKeyByteLen() int {
+	return 1 // todo
+}
+
+func (pp *PublicParameter) GetTxoByteLen() int {
+	return 1 // todo
+}
+
 /*type ValueCommitment struct {
 
 }
