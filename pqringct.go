@@ -282,7 +282,11 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 
 	cbTxGenJ1Restart:
 		for t := 0; t < pp.paramK; t++ {
-			ys[t] = pp.NTTVec(pp.sampleMaskC())
+			maskC, err := pp.sampleMaskC()
+			if err != nil {
+				return nil, err
+			}
+			ys[t] = pp.NTTVec(maskC)
 
 			ws[t] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKc, pp.paramLc)
 			deltas[t] = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], ys[t], pp.paramLc)
@@ -685,7 +689,11 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 			pp.NTTVec(pp.expandRandomnessA(kappa)),
 			pp.paramKa)
 
-		cmt_rs[i] = pp.NTTVec(pp.sampleRandomnessC())
+		randomnessC, err := pp.sampleRandomnessC()
+		if err != nil {
+			return nil, err
+		}
+		cmt_rs[i] = pp.NTTVec(randomnessC)
 		cmtps[i] = &Commitment{}
 		cmtps[i].b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_rs[i], pp.paramKc, pp.paramLc)
 		cmtps[i].c = pp.PolyNTTAdd(
@@ -733,7 +741,11 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 		e := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
 		msg_hats[n+1] = e
 
-		r_hat := pp.NTTVec(pp.sampleRandomnessC())
+		randomnessC, err := pp.sampleRandomnessC()
+		if err != nil {
+			return nil, err
+		}
+		r_hat := pp.NTTVec(randomnessC)
 		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKc, pp.paramLc)
 		for i := 0; i < n2; i++ { // n2 = I+J+4 = n+4
 			c_hats[i] = pp.PolyNTTAdd(
@@ -801,7 +813,11 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 		e := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
 		msg_hats[n+3] = e
 
-		r_hat := pp.NTTVec(pp.sampleRandomnessC())
+		randomnessC, err := pp.sampleRandomnessC()
+		if err != nil {
+			return nil, err
+		}
+		r_hat := pp.NTTVec(randomnessC)
 
 		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKc, pp.paramLc)
 
