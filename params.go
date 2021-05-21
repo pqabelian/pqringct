@@ -195,15 +195,15 @@ func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramQ u
 	if err!=nil{
 		return nil,err
 	}
-	res.paramMatrixA, err =res.expandPubMatrixA(seed,0,0)
+	res.paramMatrixA, err =res.expandPubMatrixA(append(seed,'M','A'))
 	if err!=nil{
 		return nil, err
 	}
-	res.paramMatrixB,err=res.expandPubMatrixB(seed,0,1)
+	res.paramMatrixB,err=res.expandPubMatrixB(append(seed,'M','B'))
 	if err!=nil{
 		return nil, err
 	}
-	res.paramMatrixC,err=res.expandPubMatrixC(seed,0,2)
+	res.paramMatrixC,err=res.expandPubMatrixC(append(seed,'M','C'))
 	if err!=nil{
 		return nil, err
 	}

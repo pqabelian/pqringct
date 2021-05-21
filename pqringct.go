@@ -1087,7 +1087,16 @@ func (pp *PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPub
 	}
 
 	//keyImgMatrix,err := pp.expandKeyImgMatrix(dpk.t)
-	keyImgMatrix, err := pp.expandKeyImgMatrix(dpk.t)
+	tmp:=make([]byte,0,pp.paramKa*pp.paramD*4)
+	for ii := 0; ii < pp.paramKa; ii++ {
+		for jj := 0; jj < pp.paramD; jj++ {
+			tmp=append(tmp,byte(dpk.t.polyNTTs[ii].coeffs[jj]>>0))
+			tmp=append(tmp,byte(dpk.t.polyNTTs[ii].coeffs[jj]>>8))
+			tmp=append(tmp,byte(dpk.t.polyNTTs[ii].coeffs[jj]>>16))
+			tmp=append(tmp,byte(dpk.t.polyNTTs[ii].coeffs[jj]>>24))
+		}
+	}
+	keyImgMatrix, err := pp.expandKeyImgMatrix(tmp)
 	if err != nil {
 		// TODO: define Const Error Variable
 		return nil

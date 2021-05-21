@@ -609,7 +609,16 @@ func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg [
 	//	keyImgMatrices
 	imgMatrixs := make([][]*PolyNTTVec, ringSize)
 	for j := 0; j < ringSize; j++ {
-		imgMatrixs[j], err = pp.expandKeyImgMatrix(t_as[j])
+		tmp:=make([]byte,0,pp.paramKa*pp.paramD*4)
+		for ii := 0; ii < pp.paramKa; ii++ {
+			for jj := 0; jj < pp.paramD; jj++ {
+				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>0))
+				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>8))
+				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>16))
+				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>24))
+			}
+		}
+		imgMatrixs[j], err = pp.expandKeyImgMatrix(tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -794,7 +803,16 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 		chtmp,_:=pp.expandChallenge(seedj) //TODO:handle the err
 		chj := pp.NTT(chtmp)
 
-		imgMatrix, err := pp.expandKeyImgMatrix(t_as[j])
+		tmp:=make([]byte,0,pp.paramKa*pp.paramD*4)
+		for ii := 0; ii < pp.paramKa; ii++ {
+			for jj := 0; jj < pp.paramD; jj++ {
+				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>0))
+				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>8))
+				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>16))
+				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>24))
+			}
+		}
+		imgMatrix, err := pp.expandKeyImgMatrix(tmp)
 		if err != nil {
 			// TODO: define Const Error Variable
 			return false
@@ -983,8 +1001,8 @@ func (pp *PublicParameter) rejectionUniformWithZq(buf []byte, length int) []int3
 /**
 todo: generate MatrixA from pp.Cstr
 */
-func (pp *PublicParameter) expandPubMatrixA(seed []byte, i byte, j byte) (matrixA []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(append(seed, i, j), pp.paramKa, pp.paramLa)
+func (pp *PublicParameter) expandPubMatrixA(seed []byte) (matrixA []*PolyNTTVec, err error) {
+	matrix, err := pp.generateNTTMatrix(append(seed), pp.paramKa, pp.paramLa)
 	if err != nil {
 		return nil, err
 	}
@@ -995,16 +1013,16 @@ func (pp *PublicParameter) expandPubMatrixA(seed []byte, i byte, j byte) (matrix
 todo: generate MatrixB from pp.Cstr
 todo: store the matrices in PP or generate them each time they are generated
 */
-func (pp *PublicParameter) expandPubMatrixB(seed []byte, i byte, j byte) (matrixB []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(append(seed, i, j), pp.paramKc, pp.paramLc)
+func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyNTTVec, err error) {
+	matrix, err := pp.generateNTTMatrix(append(seed), pp.paramKc, pp.paramLc)
 	if err != nil {
 		return nil, err
 	}
 	return matrix, nil
 }
 
-func (pp *PublicParameter) expandPubMatrixC(seed []byte, i byte, j byte) (matrixC []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(append(seed, i, j), pp.paramI+pp.paramJ+7, pp.paramLc)
+func (pp *PublicParameter) expandPubMatrixC(seed []byte) (matrixC []*PolyNTTVec, err error) {
+	matrix, err := pp.generateNTTMatrix(append(seed), pp.paramI+pp.paramJ+7, pp.paramLc)
 	if err != nil {
 		return nil, err
 	}
@@ -1013,8 +1031,8 @@ func (pp *PublicParameter) expandPubMatrixC(seed []byte, i byte, j byte) (matrix
 
 // TODO:Why is input a poltNTTVec?
 //func (pp PublicParameter) expandKeyImgMatrix(t *PolyNTTVec) (matrixH []*PolyNTTVec) {
-func (pp PublicParameter) expandKeyImgMatrix(seed []byte, i byte, j byte) (matrixH []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(append(seed, i, j), pp.paramMa, pp.paramLa)
+func (pp PublicParameter) expandKeyImgMatrix(seed []byte) (matrixH []*PolyNTTVec, err error) {
+	matrix, err := pp.generateNTTMatrix(append(seed, 'I', 'M'), pp.paramMa, pp.paramLa)
 	if err != nil {
 		return nil, err
 	}
