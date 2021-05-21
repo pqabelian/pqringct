@@ -183,6 +183,10 @@ type PublicParameter struct {
 		paramKem defines the key encapsulate mechanism
 	*/
 	paramKem *kyber.ParameterSet
+	/*
+		paramSysBytes defines the length of system parameters
+	*/
+	paramSysBytes int
 }
 
 func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32,paramKem *kyber.ParameterSet) (*PublicParameter,error) {

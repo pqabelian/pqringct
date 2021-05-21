@@ -58,8 +58,77 @@ rpUlpProveRestart:
 	g := pp.NTT(pp.sampleUniformPloyWithLowZeros())
 	c_hat_g := pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], r_hat, pp.paramLc), g)
 
-	seed_rand := []byte{} // todo
-	alphas, betas, gammas := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m)
+	// splicing the data to be processed
+	tmp := make([]byte, 0,
+		(pp.paramKc*pp.paramD*4+pp.paramD*4)*n+pp.paramKc*pp.paramD*4+pp.paramD*4*n2+4+m*pp.paramD*n2*pp.paramD*4+m*pp.paramD*4+pp.paramD*4*n+(pp.paramKc*pp.paramD*4)*n*pp.paramK+(pp.paramKc*pp.paramD*4)*pp.paramK+pp.paramD*4+
+			pp.paramD*4*(n*pp.paramK*2+3+pp.paramK))
+	appendPolyNTTToBytes := func(a *PolyNTT) {
+		for k := 0; k < pp.paramD; k++ {
+			tmp = append(tmp, byte(a.coeffs[k]>>0))
+			tmp = append(tmp, byte(a.coeffs[k]>>8))
+			tmp = append(tmp, byte(a.coeffs[k]>>16))
+			tmp = append(tmp, byte(a.coeffs[k]>>24))
+		}
+	}
+	appendInt32ToBytes := func(a int32) {
+		tmp = append(tmp, byte(a>>0))
+		tmp = append(tmp, byte(a>>8))
+		tmp = append(tmp, byte(a>>16))
+		tmp = append(tmp, byte(a>>24))
+	}
+	// b_i_arrow , c_i
+	for i := 0; i < len(cmts); i++ {
+		for j := 0; j < len(cmts[i].b.polyNTTs); j++ {
+			appendPolyNTTToBytes(cmts[i].b.polyNTTs[j])
+		}
+		appendPolyNTTToBytes(cmts[i].c)
+	}
+	// b_hat
+	for i := 0; i < pp.paramKc; i++ {
+		appendPolyNTTToBytes(b_hat.polyNTTs[i])
+	}
+	// c_i_hat
+	for i := 0; i < n2; i++ {
+		appendPolyNTTToBytes(c_hats[i])
+	}
+	// n1
+	appendInt32ToBytes(int32(n1))
+	//TODO:A
+	//u_hats
+	for i := 0; i < len(u_hats); i++ {
+		for j := 0; j < len(u_hats[i]); j++ {
+			appendInt32ToBytes(u_hats[i][j])
+		}
+	}
+	//c_waves
+	for i := 0; i < len(c_waves); i++ {
+		appendPolyNTTToBytes(c_waves[i])
+	}
+	// omega_i^j
+	for i := 0; i < len(cmt_ws); i++ {
+		for j := 0; j < len(cmt_ws[i]); j++ {
+			for k := 0; k < len(cmt_ws[i][j].polyNTTs); k++ {
+				appendPolyNTTToBytes(cmt_ws[i][j].polyNTTs[k])
+			}
+		}
+	}
+	// omega^i
+	for i := 0; i < len(ws); i++ {
+		for j := 0; j < len(ws[i].polyNTTs); j++ {
+			appendPolyNTTToBytes(ws[i].polyNTTs[j])
+		}
+	}
+	//c_hat[n2+1]
+	appendPolyNTTToBytes(c_hats[n2+1])
+
+	seed_rand, err := H(tmp[:]) // todo
+	if err != nil {
+		return nil, err
+	}
+	alphas, betas, gammas, err := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m)
+	if err != nil {
+		return nil, err
+	}
 
 	//	\tilde{\delta}^(t)_i, \hat{\delta}^(t)_i,
 	delta_waves := make([][]*PolyNTT, pp.paramK)
@@ -173,8 +242,41 @@ rpUlpProveRestart:
 	}
 
 	//	seed_ch and ch
-	chseed := []byte{} // todo
-	ch := pp.NTT(pp.expandChallenge(chseed))
+	// delta_waves_i^j
+	for i := 0; i < len(delta_waves); i++ {
+		for j := 0; j < len(delta_waves[i]); j++ {
+			appendPolyNTTToBytes(delta_waves[i][j])
+		}
+	}
+	// delta_hat_i^j
+	for i := 0; i < len(delta_hats); i++ {
+		for j := 0; j < len(delta_hats[i]); j++ {
+			appendPolyNTTToBytes(delta_hats[i][j])
+
+		}
+	}
+	// psi
+	appendPolyNTTToBytes(psi)
+
+	// psip
+	appendPolyNTTToBytes(psip)
+
+	// phi
+	appendPolyNTTToBytes(phi)
+	// phips
+	for i := 0; i < len(phips); i++ {
+		appendPolyNTTToBytes(phips[i])
+	}
+
+	chseed, err := H(tmp) // todo
+	if err != nil {
+		return nil, err
+	}
+	ctmp, err := pp.expandChallenge(chseed)
+	if err != nil {
+		return nil, err
+	}
+	ch := pp.NTT(ctmp)
 
 	// z
 	cmt_zs := make([][]*PolyNTTVec, pp.paramK)
@@ -281,8 +383,8 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 		}
 
 	}
-
-	ch := pp.NTT(pp.expandChallenge(rpulppi.chseed))
+	chmp, _ := pp.expandChallenge(rpulppi.chseed) // TODO:hanle the err
+	ch := pp.NTT(chmp)
 
 	sigma_chs := make([]*PolyNTT, pp.paramK)
 	//	w^t_i, w_t
@@ -305,7 +407,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	}
 
 	seed_rand := []byte{} // todo
-	alphas, betas, gammas := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m)
+	alphas, betas, gammas,_ := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m) //TODO:handle the err
 
 	//	\tilde{\delta}^(t)_i, \hat{\delta}^(t)_i,
 	delta_waves := make([][]*PolyNTT, pp.paramK)
@@ -556,7 +658,8 @@ elrsSignRestart:
 
 	for j := (sidx + 1) % ringSize; ; {
 		seedj = []byte{} // todo
-		chj = pp.NTT(pp.expandChallenge(seedj))
+		chtmm,_:=pp.expandChallenge(seedj) //TODO:handle the err
+		chj = pp.NTT(chtmm)
 
 		for tau := 0; tau < pp.paramK; tau++ {
 			zetaA, err := pp.sampleZetaA()
@@ -599,7 +702,8 @@ elrsSignRestart:
 	}
 
 	seedj = []byte{} // todo
-	chj = pp.NTT(pp.expandChallenge(seedj))
+	chtmp, _ := pp.expandChallenge(seedj)// TODO:handle the err
+	chj = pp.NTT(chtmp)
 
 	for tau := 0; tau < pp.paramK; tau++ {
 		sigma_tau_ch = pp.sigmaPowerPolyNTT(chj, tau)
@@ -687,7 +791,8 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 	seedj := elrssig.chseed
 
 	for j := 0; j < ringSize; j++ {
-		chj := pp.NTT(pp.expandChallenge(seedj))
+		chtmp,_:=pp.expandChallenge(seedj) //TODO:handle the err
+		chj := pp.NTT(chtmp)
 
 		imgMatrix, err := pp.expandKeyImgMatrix(t_as[j])
 		if err != nil {
@@ -1084,21 +1189,125 @@ func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte, err error) 
 }
 
 func (pp PublicParameter) sampleUniformPloyWithLowZeros() (r *Poly) {
-	rst := &Poly{} // todo
-
-	return rst
+	res := NewPoly(pp.paramD)
+	seed := randomBytes(pp.paramSysBytes)
+	tmp := pp.rejectionUniformWithZq(seed, pp.paramD-pp.paramK)
+	for i := pp.paramK; i < pp.paramD; i++ {
+		res.coeffs[i] = tmp[i]
+	}
+	return res
 }
 
-func (pp PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m int) (alphas []*PolyNTT, betas []*PolyNTT, gammas [][][]int32) {
-	//	todo
-	return
+func (pp PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m int) (alphas []*PolyNTT, betas []*PolyNTT, gammas [][][]int32, err error) {
+	alphas = make([]*PolyNTT, n1)
+	betas = make([]*PolyNTT, pp.paramK)
+	gammas = make([][][]int32, pp.paramK)
+	// check the length of seed
+
+	XOF := sha3.NewShake128()
+	// alpha
+	XOF.Reset()
+	_, err = XOF.Write(append(seed, 0))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	buf := make([]byte, n1*pp.paramD*4)
+	for i := 0; i < n1; i++ {
+		alphas[i] = NewPolyNTT(pp.paramD)
+		_, err = XOF.Read(buf)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		got := pp.rejectionUniformWithZq(buf, pp.paramD)
+		if len(got) < pp.paramLc {
+			newBuf := make([]byte, pp.paramD*4)
+			_, err = XOF.Read(newBuf)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+		}
+		for k := 0; k < pp.paramD; k++ {
+			alphas[i].coeffs[k] = got[k]
+		}
+	}
+	// betas
+	XOF.Reset()
+	_, err = XOF.Write(append(seed, 1))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	buf = make([]byte, pp.paramK*pp.paramD*4)
+	for i := 0; i < pp.paramK; i++ {
+		betas[i] = NewPolyNTT(pp.paramD)
+		_, err = XOF.Read(buf)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		got := pp.rejectionUniformWithZq(buf, pp.paramD)
+		if len(got) < pp.paramLc {
+			newBuf := make([]byte, pp.paramD*4)
+			_, err = XOF.Read(newBuf)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+		}
+		for k := 0; k < pp.paramD; k++ {
+			betas[i].coeffs[k] = got[k]
+		}
+	}
+	// gammas
+	XOF.Reset()
+	_, err = XOF.Write(append(seed, 2))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	buf = make([]byte, m*pp.paramD*4)
+	for i := 0; i < pp.paramK; i++ {
+		gammas[i] = make([][]int32, m)
+		_, err = XOF.Read(buf)
+		for j := 0; j < m; j++ {
+			gammas[i][j] = make([]int32, m)
+			got := pp.rejectionUniformWithZq(buf, pp.paramD)
+			if len(got) < pp.paramLc {
+				newBuf := make([]byte, pp.paramD*4)
+				_, err = XOF.Read(newBuf)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+			}
+			for k := 0; k < pp.paramD; k++ {
+				gammas[i][j][k] = got[k]
+			}
+		}
+	}
+	return alphas, betas, gammas, nil
 }
 
 /*
 todo:
 */
-func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly) {
-	return
+func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
+	// extend seed via sha3.Shake128
+	res := NewPoly(pp.paramD)
+	buf := make([]byte, pp.paramD/4)
+	XOF := sha3.NewShake128()
+	XOF.Reset()
+	_, err = XOF.Write(append(seed, byte('C'), byte('h')))
+	if err != nil {
+		return nil, err
+	}
+	_, err = XOF.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	got, err := randomnessFromChallengeSpace(seed, pp.paramD)
+	for i := 0; i < pp.paramD; i++ {
+		res.coeffs[i] = got[i]
+	}
+	return res, nil
 }
 
 /*

@@ -293,7 +293,8 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		}
 
 		chseed := []byte{} // todo
-		ch := pp.NTT(pp.expandChallenge(chseed))
+		chtmp,_:=pp.expandChallenge(chseed) // TODO handle the err
+		ch := pp.NTT(chtmp)
 
 		for t := 0; t < pp.paramK; t++ {
 			zs[t] = pp.PolyNTTVecAdd(
@@ -452,7 +453,8 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 		ws := make([]*PolyNTTVec, pp.paramK)
 		deltas := make([]*PolyNTT, pp.paramK)
 
-		ch := pp.NTT(pp.expandChallenge(cbTx.TxWitness.rpulpproof.chseed))
+		chtmp,_:=pp.expandChallenge(cbTx.TxWitness.rpulpproof.chseed) //TODO handle the err
+		ch := pp.NTT(chtmp)
 		msg := intToBinary(cbTx.Vin, pp.paramD)
 		for t := 0; t < pp.paramK; t++ {
 			sigma_t_ch := pp.sigmaPowerPolyNTT(ch, t)
@@ -531,7 +533,8 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *Mas
 
 	// todo: decaps and obtain kappa
 	kappa := []byte{} // todo
-	s_p := pp.NTTVec(pp.expandRandomnessA(kappa))
+	sptmp,_:=pp.expandRandomnessA(kappa) // TODO handle the err
+	s_p := pp.NTTVec(sptmp)
 	t_hat_p := pp.PolyNTTVecAdd(
 		mpk.t,
 		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa),
@@ -545,7 +548,8 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *Mas
 	// todo: check v
 
 	m := intToBinary(v, pp.paramD)
-	cmt_r := pp.NTTVec(pp.expandRandomnessC(kappa))
+	cmtrtmp,_:=pp.expandRandomnessC(kappa) // TODO handle the err
+	cmt_r := pp.NTTVec(cmtrtmp)
 	cmt := &Commitment{}
 	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_r, pp.paramKc, pp.paramLc)
 	cmt.c = pp.PolyNTTAdd(
@@ -684,9 +688,10 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 		//	dpk = inputDescs[i].txoList[inputDescs[i].sidx].dpk = (C, t)
 		kappa := []byte{}
 
+		satmp,_:=pp.expandRandomnessA(kappa) //TODO:handle the err
 		s_a := pp.PolyNTTVecAdd(
 			inputDescs[i].mssk.s,
-			pp.NTTVec(pp.expandRandomnessA(kappa)),
+			pp.NTTVec(satmp),
 			pp.paramKa)
 
 		randomnessC, err := pp.sampleRandomnessC()
@@ -701,9 +706,9 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 			&PolyNTT{msg_hats[i]})
 
 		cmts[i] = cmtps[i]
-
+		sctmp,_:=pp.expandRandomnessC(kappa) //TODO:handle the err
 		s_c := pp.PolyNTTVecSub(
-			pp.NTTVec(pp.expandRandomnessC(kappa)),
+			pp.NTTVec(sctmp),
 			cmt_rs[i],
 			pp.paramLc)
 
@@ -1029,8 +1034,8 @@ func (pp *PublicParameter) TransferTXVerify(trTx *TransferTx) bool {
 func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *PolyNTTVec, err error) {
 	//	(C, kappa)
 	kappa := []byte{} // todo
-
-	s_p := pp.NTTVec(pp.expandRandomnessA(kappa))
+	sptmp,_:=pp.expandRandomnessA(kappa) //TODO:handle the err
+	s_p := pp.NTTVec(sptmp)
 
 	//	(C, t)
 	dpk := &DerivedPubKey{}
@@ -1041,7 +1046,8 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 		pp.paramKa)
 
 	//	cmt
-	cmtr := pp.NTTVec(pp.expandRandomnessC(kappa))
+	sctmp,_:=pp.expandRandomnessC(kappa) //TODO:handle the err
+	cmtr := pp.NTTVec(sctmp)
 
 	cmt := &Commitment{}
 	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmtr, pp.paramKc, pp.paramLc)
@@ -1069,7 +1075,8 @@ func (pp *PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPub
 
 	// todo: decaps and obtain kappa
 	kappa := []byte{} // todo
-	sp := pp.NTTVec(pp.expandRandomnessA(kappa))
+	sptmp,_:=pp.expandRandomnessA(kappa) //TODO:handle the err
+	sp := pp.NTTVec(sptmp)
 	t_hat_p := pp.PolyNTTVecAdd(
 		mpk.t,
 		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, sp, pp.paramKa, pp.paramLa),
