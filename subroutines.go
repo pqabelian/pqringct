@@ -93,7 +93,7 @@ rpUlpProveRestart:
 	}
 	// n1
 	appendInt32ToBytes(int32(n1))
-	//TODO:A
+	//TODO:A = ulpType B I J
 	//u_hats
 	for i := 0; i < len(u_hats); i++ {
 		for j := 0; j < len(u_hats[i]); j++ {
@@ -406,8 +406,8 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 			pp.paramKc)
 	}
 
-	seed_rand := []byte{} // todo
-	alphas, betas, gammas,_ := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m) //TODO:handle the err
+	seed_rand := []byte{}                                                          // todo
+	alphas, betas, gammas, _ := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m) //TODO:handle the err
 
 	//	\tilde{\delta}^(t)_i, \hat{\delta}^(t)_i,
 	delta_waves := make([][]*PolyNTT, pp.paramK)
@@ -609,13 +609,13 @@ func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg [
 	//	keyImgMatrices
 	imgMatrixs := make([][]*PolyNTTVec, ringSize)
 	for j := 0; j < ringSize; j++ {
-		tmp:=make([]byte,0,pp.paramKa*pp.paramD*4)
+		tmp := make([]byte, 0, pp.paramKa*pp.paramD*4)
 		for ii := 0; ii < pp.paramKa; ii++ {
 			for jj := 0; jj < pp.paramD; jj++ {
-				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>0))
-				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>8))
-				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>16))
-				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>24))
+				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>0))
+				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>8))
+				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>16))
+				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>24))
 			}
 		}
 		imgMatrixs[j], err = pp.expandKeyImgMatrix(tmp)
@@ -666,8 +666,8 @@ elrsSignRestart:
 	var sigma_tau_ch *PolyNTT
 
 	for j := (sidx + 1) % ringSize; ; {
-		seedj = []byte{} // todo
-		chtmm,_:=pp.expandChallenge(seedj) //TODO:handle the err
+		seedj = []byte{}                      // todo
+		chtmm, _ := pp.expandChallenge(seedj) //TODO:handle the err
 		chj = pp.NTT(chtmm)
 
 		for tau := 0; tau < pp.paramK; tau++ {
@@ -710,8 +710,8 @@ elrsSignRestart:
 		}
 	}
 
-	seedj = []byte{} // todo
-	chtmp, _ := pp.expandChallenge(seedj)// TODO:handle the err
+	seedj = []byte{}                      // todo
+	chtmp, _ := pp.expandChallenge(seedj) // TODO:handle the err
 	chj = pp.NTT(chtmp)
 
 	for tau := 0; tau < pp.paramK; tau++ {
@@ -800,16 +800,16 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 	seedj := elrssig.chseed
 
 	for j := 0; j < ringSize; j++ {
-		chtmp,_:=pp.expandChallenge(seedj) //TODO:handle the err
+		chtmp, _ := pp.expandChallenge(seedj) //TODO:handle the err
 		chj := pp.NTT(chtmp)
 
-		tmp:=make([]byte,0,pp.paramKa*pp.paramD*4)
+		tmp := make([]byte, 0, pp.paramKa*pp.paramD*4)
 		for ii := 0; ii < pp.paramKa; ii++ {
 			for jj := 0; jj < pp.paramD; jj++ {
-				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>0))
-				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>8))
-				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>16))
-				tmp=append(tmp,byte(t_as[j].polyNTTs[ii].coeffs[jj]>>24))
+				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>0))
+				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>8))
+				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>16))
+				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>24))
 			}
 		}
 		imgMatrix, err := pp.expandKeyImgMatrix(tmp)
@@ -994,6 +994,7 @@ func (pp *PublicParameter) rejectionUniformWithZq(buf []byte, length int) []int3
 		if t < pp.paramQ {
 			res = append(res, int32(t-pp.paramQ))
 		}
+		pos += 4
 	}
 	return res
 }
