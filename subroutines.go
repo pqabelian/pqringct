@@ -1211,7 +1211,7 @@ func (pp PublicParameter) sampleUniformPloyWithLowZeros() (r *Poly) {
 	seed := randomBytes(pp.paramSysBytes)
 	tmp := pp.rejectionUniformWithZq(seed, pp.paramD-pp.paramK)
 	for i := pp.paramK; i < pp.paramD; i++ {
-		res.coeffs[i] = tmp[i]
+		res.coeffs[i] = tmp[i-pp.paramK]
 	}
 	return res
 }
