@@ -29,7 +29,7 @@ var Sr Distribution = Distribution{
 
 // randomBytes returns a byte array with given length from crypto/rand.Reader
 func randomBytes(length int) []byte {
-	res := make([]byte, length)
+	res := make([]byte, 0, length)
 	for length > 0 {
 		tmp := make([]byte, length)
 		n, err := rand.Read(tmp)

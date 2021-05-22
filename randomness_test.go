@@ -1,6 +1,7 @@
 package pqringct
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -70,6 +71,32 @@ func Test_randomnessFromChallengeSpace(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("randomnessFromChallengeSpace() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_randomBytes(t *testing.T) {
+	type args struct {
+		length int
+	}
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			name: "1",
+			args: args{length: 32},
+			want: []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := randomBytes(tt.args.length)
+			fmt.Println(got)
+			if reflect.DeepEqual(got, tt.want) {
+				t.Errorf("randomBytes() = %v, want %v", got, tt.want)
 			}
 		})
 	}
