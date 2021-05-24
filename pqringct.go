@@ -72,7 +72,7 @@ func (cbTxWitness *CbTxWitness) Deserialize(serializedTxWitness []byte) error {
 }
 
 type CoinbaseTx struct {
-	Version uint32
+//	Version uint32
 
 	Vin        uint64
 	OutputTxos []*TXO
@@ -96,7 +96,7 @@ type TrTxWitness struct {
 }
 
 type TransferTx struct {
-	Version uint32
+//	Version uint32
 
 	Inputs     []*TrTxInput
 	OutputTxos []*TXO
@@ -303,7 +303,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 	J := len(txOutputDescs)
 
 	retcbTx := &CoinbaseTx{}
-	retcbTx.Version = 0 // todo: how to set and how to use the version? The bpf just care the content of cbTx?
+//	retcbTx.Version = 0 // todo: how to set and how to use the version? The bpf just care the content of cbTx?
 	retcbTx.Vin = vin
 	retcbTx.OutputTxos = make([]*TXO, J)
 
