@@ -175,7 +175,7 @@ type PublicParameter struct {
 	paramMatrixC []*PolyNTTVec
 
 	/*
-	paramMu defines the const mu, which is determined by the value of N and d
+		paramMu defines the const mu, which is determined by the value of N and d
 	*/
 	paramMu []int32
 
@@ -189,33 +189,33 @@ type PublicParameter struct {
 	paramSysBytes int
 }
 
-func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32,paramKem *kyber.ParameterSet) (*PublicParameter,error) {
-	res:=&PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF,paramKem: paramKem}
+func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32, paramKem *kyber.ParameterSet) (*PublicParameter, error) {
+	res := &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF, paramKem: paramKem}
 	seed, err := H(res.paramCStr)
-	if err!=nil{
-		return nil,err
-	}
-	res.paramMatrixA, err =res.expandPubMatrixA(append(seed,'M','A'))
-	if err!=nil{
+	if err != nil {
 		return nil, err
 	}
-	res.paramMatrixB,err=res.expandPubMatrixB(append(seed,'M','B'))
-	if err!=nil{
+	res.paramMatrixA, err = res.expandPubMatrixA(append(seed, 'M', 'A'))
+	if err != nil {
 		return nil, err
 	}
-	res.paramMatrixC,err=res.expandPubMatrixC(append(seed,'M','C'))
-	if err!=nil{
+	res.paramMatrixB, err = res.expandPubMatrixB(append(seed, 'M', 'B'))
+	if err != nil {
 		return nil, err
 	}
-	res.paramMu=make([]int32,res.paramD)
+	res.paramMatrixC, err = res.expandPubMatrixC(append(seed, 'M', 'C'))
+	if err != nil {
+		return nil, err
+	}
+	res.paramMu = make([]int32, res.paramD)
 	for i := 0; i < res.paramN; i++ {
-		res.paramMu[i]=1
+		res.paramMu[i] = 1
 	}
-	return res,nil
+	return res, nil
 }
 
 /*
-func (p *PublicParameter) MasterKeyGen(seed []byte) (*MasterPubKey, *MasterSecretViewKey, *MasterSecretSignKey) {
+func (p *PublicParameter) MasterKeyGen(seed []byte) (*MasterPublicKey, *MasterSecretViewKey, *MasterSecretSignKey) {
 	panic("implement me")
 	//b=reduce(a,q)
 	//return masterKeyGen(pp Param,seed)
@@ -229,7 +229,7 @@ func (p *PublicParameter) CoinbaseTxVerify(tx *CoinbaseTx) bool {
 	panic("implement me")
 }
 
-func (p *PublicParameter) TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, mpk *MasterPubKey, key *MasterSecretViewKey) (bool, int32) {
+func (p *PublicParameter) TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, mpk *MasterPublicKey, key *MasterSecretViewKey) (bool, int32) {
 	panic("implement me")
 }
 
@@ -246,10 +246,10 @@ var DefaultPP *PublicParameter
 // PQRingCT TODO_DONE: optimize the interface using array?  not
 //
 //type PQRingCT interface {
-//	MasterKeyGen(seed []byte) (*MasterPubKey, *MasterSecretViewKey, *MasterSecretSignKey)
+//	MasterKeyGen(seed []byte) (*MasterPublicKey, *MasterSecretViewKey, *MasterSecretSignKey)
 //	CoinbaseTxGen(vin int32, txos []*TxOutputDesc) *CoinbaseTx //(dpk *DerivedPubKey,commit []byte,vc []byte)
 //	CoinbaseTxVerify(tx *CoinbaseTx) bool
-//	TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, mpk *MasterPubKey, key *MasterSecretViewKey) (bool, int32)
+//	TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, mpk *MasterPublicKey, key *MasterSecretViewKey) (bool, int32)
 //	TransferTXGen([]*TxInputDesc, []*TxOutputDesc) *TransferTx
 //	TransferTXVerify(tx *TransferTx) bool
 //}
@@ -310,7 +310,7 @@ func init() {
 		1024-1,
 		kyber.Kyber512,
 	)
-	if err!=nil{
+	if err != nil {
 		log.Fatalln("init error")
 	}
 }
