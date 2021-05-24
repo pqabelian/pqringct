@@ -174,6 +174,21 @@ type TXO struct {
 	vc  []byte
 }
 
+func (txo *TXO) SerializeSize() uint32 {
+	// todo
+	return 1
+}
+
+func (txo *TXO) Serialize() []byte {
+	// todo
+	return nil
+}
+
+func (txo *TXO) Deserialize(serializedTxo []byte) error {
+	// todo
+	return nil
+}
+
 //	public fun	begin
 func Setup() (pp *PublicParameter) {
 	// todo
@@ -1374,9 +1389,9 @@ func (mpk *MasterPublicKey) SerializeSize() uint32 {
 	return 1
 }
 
-func (mpk *MasterPublicKey) Serialize() ([]byte, error) {
+func (mpk *MasterPublicKey) Serialize() []byte {
 	//	todo
-	return nil, nil
+	return nil
 }
 
 func (mpk *MasterPublicKey) Deserialize(mpkSer []byte) error {
@@ -1388,9 +1403,9 @@ func (msvk *MasterSecretViewKey) SerializeSize() uint32 {
 	return 1
 }
 
-func (msvk *MasterSecretViewKey) Serialize() ([]byte, error) {
+func (msvk *MasterSecretViewKey) Serialize() []byte {
 	//	todo
-	return nil, nil
+	return nil
 }
 
 func (msvk *MasterSecretViewKey) Deserialize(msvkSer []byte) error {
@@ -1402,9 +1417,9 @@ func (mssk *MasterSecretSignKey) SerializeSize() uint32 {
 	return 1
 }
 
-func (mssk *MasterSecretSignKey) Serialize() ([]byte, error) {
+func (mssk *MasterSecretSignKey) Serialize() []byte {
 	//	todo
-	return nil, nil
+	return nil
 }
 
 func (mssk *MasterSecretSignKey) Deserialize(msskSer []byte) error {
