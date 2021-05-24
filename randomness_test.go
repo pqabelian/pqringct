@@ -31,11 +31,11 @@ func Test_randomnessFromProbabilityDistributions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := randomnessFromProbabilityDistributions(tt.args.seed, tt.args.length)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("randomnessFromProbabilityDistributions() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("randomnessFromProbabilityDistributions() error = %value, wantErr %value", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("randomnessFromProbabilityDistributions() got = %v, want %v", got, tt.want)
+				t.Errorf("randomnessFromProbabilityDistributions() got = %value, want %value", got, tt.want)
 			}
 		})
 	}
@@ -66,11 +66,11 @@ func Test_randomnessFromChallengeSpace(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := randomnessFromChallengeSpace(tt.args.seed, tt.args.length)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("randomnessFromChallengeSpace() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("randomnessFromChallengeSpace() error = %value, wantErr %value", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("randomnessFromChallengeSpace() got = %v, want %v", got, tt.want)
+				t.Errorf("randomnessFromChallengeSpace() got = %value, want %value", got, tt.want)
 			}
 		})
 	}
@@ -96,7 +96,7 @@ func Test_randomBytes(t *testing.T) {
 			got := randomBytes(tt.args.length)
 			fmt.Println(got)
 			if reflect.DeepEqual(got, tt.want) {
-				t.Errorf("randomBytes() = %v, want %v", got, tt.want)
+				t.Errorf("randomBytes() = %value, want %value", got, tt.want)
 			}
 		})
 	}

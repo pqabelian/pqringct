@@ -36,7 +36,7 @@ func NewPolyNTTVec(rowlength int, colLength int) *PolyNTTVec {
 This file defines all public constants and interfaces of PQRingCT.
 */
 
-type MasterPubKey struct {
+type MasterPublicKey struct {
 	pkkem *kyber.PublicKey
 	t     *PolyNTTVec // directly in NTT form
 }
@@ -139,15 +139,15 @@ type ValueCiphertext struct {
 type TxInputDesc struct {
 	txoList []*TXO
 	sidx    int
-	mpk     *MasterPubKey
+	mpk     *MasterPublicKey
 	msvk    *MasterSecretViewKey
 	mssk    *MasterSecretSignKey
-	v       uint64
+	value   uint64
 }
 
 type TxOutputDesc struct {
-	mpk *MasterPubKey
-	v   uint64
+	mpk   *MasterPublicKey
+	value uint64
 }
 
 type TXO struct {
@@ -163,7 +163,7 @@ func Setup() (pp *PublicParameter) {
 }
 
 /*
-func MasterKeyGen(masterSeed []byte, parameter *PublicParameter) (mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, mseed []byte, err error) {
+func MasterKeyGen(masterSeed []byte, parameter *PublicParameter) (mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, mseed []byte, err error) {
 	// to do
 	return nil, nil, nil, nil, nil
 }
@@ -178,7 +178,7 @@ func CoinbaseTxVerify(cbTx *CoinbaseTx) (valid bool) {
 	return false
 }
 
-func TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *MasterSecretViewKey) (valid bool, v int64, err error) {
+func TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *MasterSecretViewKey) (valid bool, value int64, err error) {
 	//	to do
 	return false, 0, nil
 }
@@ -193,12 +193,12 @@ func TransferTxVerify(trTx *TransferTx) (valid bool) {
 	return false
 }
 
-func TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, mssk *MasterSecretSignKey, msvk *MasterSecretViewKey) (snMa []Poly) {
+func TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPublicKey, mssk *MasterSecretSignKey, msvk *MasterSecretViewKey) (snMa []Poly) {
 	panic("implement me")
 }*/
 
-func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
-	/*	mpk := MasterPubKey{}
+func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
+	/*	mpk := MasterPublicKey{}
 		msvk := MasterSecretViewKey{}
 		mssk := MasterSecretSignKey{}
 
@@ -225,7 +225,7 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPubKey, msvk *M
 
 	t := pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKa, pp.paramLa)
 
-	rstmpk := &MasterPubKey{
+	rstmpk := &MasterPublicKey{
 		nil, // todo
 		t,
 	}
@@ -264,15 +264,15 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 
 	vout := uint64(0)
 	for j, txOutputDesc := range txOutputDescs {
-		if txOutputDesc.v > V {
-			return nil, errors.New("v is not in [0, V]") // todo: more accurate info, including the i
+		if txOutputDesc.value > V {
+			return nil, errors.New("value is not in [0, V]") // todo: more accurate info, including the i
 		}
-		vout += txOutputDesc.v
+		vout += txOutputDesc.value
 		if vout > V {
 			return nil, errors.New("the output value is not in [0, V]") // todo: more accurate info, including the i
 		}
 
-		retcbTx.OutputTxos[j], cmt_rs[j], err = pp.txoGen(txOutputDesc.mpk, txOutputDesc.v)
+		retcbTx.OutputTxos[j], cmt_rs[j], err = pp.txoGen(txOutputDesc.mpk, txOutputDesc.value)
 		if err != nil {
 			return nil, err
 		}
@@ -370,7 +370,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		u_hats[0] = intToBinary(vin, pp.paramD)
 
 		for j := 0; j < J; j++ {
-			msg_hats[j] = intToBinary(txOutputDescs[j].v, pp.paramD)
+			msg_hats[j] = intToBinary(txOutputDescs[j].value, pp.paramD)
 		}
 
 		f := make([]int32, pp.paramD) // todo_DONE: compute the carry vector f
@@ -614,7 +614,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) (bool, error) {
 	return true, nil
 }
 
-func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *MasterSecretViewKey) (valid bool, coinvale uint64) {
+func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *MasterSecretViewKey) (valid bool, coinvale uint64) {
 	if txo == nil || mpk == nil || msvk == nil {
 		return false, 0
 	}
@@ -635,8 +635,8 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *Mas
 		return false, 0
 	}
 
-	v := uint64(0) // todo: recover v from txo.vc
-	// todo: check v
+	v := uint64(0) // todo: recover value from txo.vc
+	// todo: check value
 
 	m := intToBinary(v, pp.paramD)
 	cmtrtmp, _ := pp.expandRandomnessC(kappa) // TODO handle the err
@@ -680,10 +680,10 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 	//	check on the outputDesc is simple, so check it first
 	outputTotal := fee
 	for _, outputDescItem := range outputDescs {
-		if outputDescItem.v > V {
+		if outputDescItem.value > V {
 			return nil, err // todo: err info
 		}
-		outputTotal = outputTotal + outputDescItem.v
+		outputTotal = outputTotal + outputDescItem.value
 		if outputTotal > V {
 			return nil, err // todo: err info
 		}
@@ -698,10 +698,10 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 
 	inputTotal := uint64(0)
 	for _, inputDescItem := range inputDescs {
-		if inputDescItem.v > V {
+		if inputDescItem.value > V {
 			return nil, err // todo: err info
 		}
-		inputTotal = inputTotal + inputDescItem.v
+		inputTotal = inputTotal + inputDescItem.value
 		if inputTotal > V {
 			return nil, err // todo: err info
 		}
@@ -721,7 +721,7 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 
 		b, v := pp.TxoCoinReceive(inputDescItem.txoList[inputDescItem.sidx], inputDescItem.mpk, inputDescItem.msvk)
-		if b == false || v != inputDescItem.v {
+		if b == false || v != inputDescItem.value {
 			return nil, err // todo: err info
 		}
 
@@ -754,13 +754,13 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 
 	rettrTx.fee = fee
 	for j := 0; j < J; j++ {
-		rettrTx.OutputTxos[j], cmt_rs[I+j], err = pp.txoGen(outputDescs[j].mpk, outputDescs[j].v)
+		rettrTx.OutputTxos[j], cmt_rs[I+j], err = pp.txoGen(outputDescs[j].mpk, outputDescs[j].value)
 		if err != nil {
 			return nil, err // todo
 		}
 
 		cmts[I+j] = rettrTx.OutputTxos[j].cmt
-		msg_hats[I+j] = intToBinary(outputDescs[j].v, pp.paramD)
+		msg_hats[I+j] = intToBinary(outputDescs[j].value, pp.paramD)
 	}
 
 	for i := 0; i < I; i++ {
@@ -774,7 +774,7 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 	cmtps := make([]*Commitment, I)
 
 	for i := 0; i < I; i++ {
-		msg_hats[i] = intToBinary(inputDescs[i].v, pp.paramD)
+		msg_hats[i] = intToBinary(inputDescs[i].value, pp.paramD)
 
 		//	dpk = inputDescs[i].txoList[inputDescs[i].sidx].dpk = (C, t)
 		kappa := []byte{}
@@ -1137,7 +1137,7 @@ func (pp *PublicParameter) TransferTXVerify(trTx *TransferTx) (bool, error) {
 
 }
 
-func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *PolyNTTVec, err error) {
+func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r *PolyNTTVec, err error) {
 	//	(C, kappa)
 	kappa := []byte{}                       // todo
 	sptmp, _ := pp.expandRandomnessA(kappa) //TODO:handle the err
@@ -1172,7 +1172,7 @@ func (pp *PublicParameter) txoGen(mpk *MasterPubKey, vin uint64) (txo *TXO, r *P
 }
 
 //	todo: serial number is a hash value
-func (pp *PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPubKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte) {
+func (pp *PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte) {
 	if dpk == nil || mpk == nil || msvk == nil || mssk == nil {
 		return nil
 	}
@@ -1225,7 +1225,7 @@ func keyImgToSerialNumber(keyImg *PolyNTTVec) (sn []byte) {
 //	public fun	end
 
 //	well-from check 	begin
-func (mpk *MasterPubKey) WellformCheck(pp *PublicParameter) bool {
+func (mpk *MasterPublicKey) WellformCheck(pp *PublicParameter) bool {
 	// todo
 	return true
 }
@@ -1243,17 +1243,17 @@ func (mssk *MasterSecretSignKey) WellformCheck(pp *PublicParameter) bool {
 //	well-from check 	end
 
 //	serialize and deSeralize	begin
-func (mpk *MasterPubKey) SerializeSize() uint32 {
+func (mpk *MasterPublicKey) SerializeSize() uint32 {
 	//	todo
 	return 1
 }
 
-func (mpk *MasterPubKey) Serialize() ([]byte, error) {
+func (mpk *MasterPublicKey) Serialize() ([]byte, error) {
 	//	todo
 	return nil, nil
 }
 
-func (mpk *MasterPubKey) Deserialize(mpkSer []byte) error {
+func (mpk *MasterPublicKey) Deserialize(mpkSer []byte) error {
 	return nil
 }
 

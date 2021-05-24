@@ -16,7 +16,7 @@ func TestRandomIntSliceWithProbability(t *testing.T) {
 	zeros := 0
 	minusones := 0
 
-	for i:=0; i < samplingNumber; i++ {
+	for i := 0; i < samplingNumber; i++ {
 		if generateSlice[i] == -1 {
 			minusones++
 		} else if generateSlice[i] == 0 {
@@ -26,9 +26,9 @@ func TestRandomIntSliceWithProbability(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Probability of -1: %v\n", float64(minusones)/float64(samplingNumber))
-	fmt.Printf("Probability of  0: %v\n", float64(zeros)/float64(samplingNumber))
-	fmt.Printf("Probability of  1: %v\n", float64(ones)/float64(samplingNumber))
+	fmt.Printf("Probability of -1: %value\n", float64(minusones)/float64(samplingNumber))
+	fmt.Printf("Probability of  0: %value\n", float64(zeros)/float64(samplingNumber))
+	fmt.Printf("Probability of  1: %value\n", float64(ones)/float64(samplingNumber))
 }
 
 func TestRandomIntSliceWithWeight(t *testing.T) {
@@ -42,7 +42,7 @@ func TestRandomIntSliceWithWeight(t *testing.T) {
 	zeros := 0
 	minusones := 0
 
-	for i:=0; i < samplingNumber; i++ {
+	for i := 0; i < samplingNumber; i++ {
 		if generateSlice[i] == -1 {
 			minusones++
 		} else if generateSlice[i] == 0 {
@@ -52,7 +52,7 @@ func TestRandomIntSliceWithWeight(t *testing.T) {
 		}
 	}
 
-	fmt.Printf("Probability of -1: %v\n", float64(minusones)/float64(samplingNumber))
-	fmt.Printf("Probability of  0: %v\n", float64(zeros)/float64(samplingNumber))
-	fmt.Printf("Probability of  1: %v\n", float64(ones)/float64(samplingNumber))
+	fmt.Printf("Probability of -1: %value\n", float64(minusones)/float64(samplingNumber))
+	fmt.Printf("Probability of  0: %value\n", float64(zeros)/float64(samplingNumber))
+	fmt.Printf("Probability of  1: %value\n", float64(ones)/float64(samplingNumber))
 }

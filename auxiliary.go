@@ -2,7 +2,7 @@ package pqringct
 
 // This file provides auxiliary functions for pqringct.go
 
-//func txoGen(mpk *MasterPubKey, v int64) (txo *TXO, SrDXLc [][]byte) {
+//func txoGen(mpk *MasterPublicKey, value int64) (txo *TXO, SrDXLc [][]byte) {
 //	//	to do
 //	//	var kappa = [32]byte{}
 //	//	var ds = expandKa(kappa)
