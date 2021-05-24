@@ -56,6 +56,21 @@ type CbTxWitness struct {
 	rpulpproof *rpulpProof
 }
 
+func (cbTxWitness *CbTxWitness) SerializeSize() uint32 {
+	// todo
+	return 1
+}
+
+func (cbTxWitness *CbTxWitness) Serialize() []byte {
+	// todo
+	return nil
+}
+
+func (cbTxWitness *CbTxWitness) Deserialize(serializedTxWitness []byte) error {
+	// todo
+	return nil
+}
+
 type CoinbaseTx struct {
 	Version uint32
 
