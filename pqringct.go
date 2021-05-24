@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
+	"io"
 )
 
 type PolyVec struct {
@@ -1110,14 +1111,14 @@ func (pp *PublicParameter) TransferTXVerify(trTx *TransferTx) (bool, error) {
 				infNorm = -infNorm
 			}
 			if infNorm > (pp.paramEtaF - int32(betaF)) {
-				return false,nil
+				return false, nil
 			}
 		}
 
 		seed_binM := []byte{} // todo: compute the seed using hash function on (b_hat, c_hats).
-		binM,err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
-		if err!=nil{
-			return false,err
+		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
+		if err != nil {
+			return false, err
 		}
 
 		u_hats := make([][]int32, 5)
@@ -1127,13 +1128,13 @@ func (pp *PublicParameter) TransferTXVerify(trTx *TransferTx) (bool, error) {
 		u_hats[3] = make([]int32, pp.paramD) // todo: all zero
 		u_hats[4] = trTx.TxWitness.u_p
 
-		flag,err:=pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 5, u_hats, trTx.TxWitness.rpulpproof)
-		if !flag ||err !=nil{
-			return false,err
+		flag, err := pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 5, u_hats, trTx.TxWitness.rpulpproof)
+		if !flag || err != nil {
+			return false, err
 		}
 	}
 
-	return true,nil
+	return true, nil
 
 }
 
@@ -1243,4 +1244,46 @@ func (mssk *MasterSecretSignKey) WellformCheck(pp *PublicParameter) bool {
 //	well-from check 	end
 
 //	serialize and deSeralize	begin
+func (mpk *MasterPubKey) SerializeSize() uint32 {
+	//	todo
+	return 1
+}
+
+func (mpk *MasterPubKey) Serialize(w io.Writer) error {
+	//	todo
+	return nil
+}
+
+func (mpk *MasterPubKey) Deserialize(r io.Reader) error {
+	return nil
+}
+
+func (msvk *MasterSecretViewKey) SerializeSize() uint32 {
+	//	todo
+	return 1
+}
+
+func (msvk *MasterSecretViewKey) Serialize(w io.Writer) error {
+	//	todo
+	return nil
+}
+
+func (msvk *MasterSecretViewKey) Deserialize(r io.Reader) error {
+	return nil
+}
+
+func (mssk *MasterSecretSignKey) SerializeSize() uint32 {
+	//	todo
+	return 1
+}
+
+func (mssk *MasterSecretSignKey) Serialize(w io.Writer) error {
+	//	todo
+	return nil
+}
+
+func (mssk *MasterSecretSignKey) Deserialize(r io.Reader) error {
+	return nil
+}
+
 //	serialize and deSeralize	end
