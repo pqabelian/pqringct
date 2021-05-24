@@ -145,9 +145,27 @@ type TxInputDesc struct {
 	value   uint64
 }
 
+func NewTxInputDesc(txpList []*TXO, sidx int, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, value uint64) *TxInputDesc {
+	return &TxInputDesc{
+		txpList,
+		sidx,
+		mpk,
+		msvk,
+		mssk,
+		value,
+	}
+}
+
 type TxOutputDesc struct {
 	mpk   *MasterPublicKey
 	value uint64
+}
+
+func NewTxOutputDesc(mpk *MasterPublicKey, value uint64) *TxOutputDesc {
+	return &TxOutputDesc{
+		mpk,
+		value,
+	}
 }
 
 type TXO struct {
