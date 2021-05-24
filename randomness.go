@@ -111,7 +111,7 @@ func randomnessFromChallengeSpace(seed []byte, length int) ([]int32, error) {
 }
 
 func randomFromDistribution(seed []byte, dist Distribution, length int) ([]byte, []int) {
-	// TODO: consider add a parameter System Parameter for seed ?
+	// TODO_DONE: consider add a parameter System Parameter for seed ?
 	if seed == nil || len(seed) == 0 {
 		seed = randomBytes(64)
 	}
@@ -139,37 +139,37 @@ func randomFromDistribution(seed []byte, dist Distribution, length int) ([]byte,
 
 }
 
-func sampleRandomness4A() {
-	//	todo: (S_r)^{l_a}
-	panic("implement me")
-
-}
-func sampleRandomness4C() {
-	//	todo: (S_r)^{l_c}
-	panic("implement me")
-}
-func sampleEtaA() {
-	//	todo: (S_{eta_a})^{l_c}
-	panic("implement me")
-}
-
-func sampleEtaC() {
-	//	todo: (S_{eta_c})^{l_c}
-	panic("implement me")
-}
-
-func sampleZetaA() {
-	panic("implement me")
-}
-
-func sampleZetaC() {
-	panic("implement me")
-}
-
-func sampleZetaC2() {
-	panic("implement me")
-}
-
-func generateChallenge() {
-	panic("implement me")
-}
+//func sampleRandomness4A() {
+//
+//	panic("implement me")
+//
+//}
+//func sampleRandomness4C() {
+//
+//	panic("implement me")
+//}
+//func sampleEtaA() {
+//
+//	panic("implement me")
+//}
+//
+//func sampleEtaC() {
+//
+//	panic("implement me")
+//}
+//
+//func sampleZetaA() {
+//	panic("implement me")
+//}
+//
+//func sampleZetaC() {
+//	panic("implement me")
+//}
+//
+//func sampleZetaC2() {
+//	panic("implement me")
+//}
+//
+//func generateChallenge() {
+//	panic("implement me")
+//}

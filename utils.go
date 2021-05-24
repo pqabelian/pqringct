@@ -168,7 +168,8 @@ func reduce(pp *PublicParameter, a int64) int32 {
 }
 
 // H encapsulates a hash function to output a byte stream of arbitrary length
-// TODO: Should be as a parameter not a function,in that way, it can be substitute by other function?
+// TODO_DONE: Should be as a parameter not a function,in that way, it can be substitute by other function?
+// this function can be changed by other hash function than sha3.NewShake256
 func H(data []byte) ([]byte, error) {
 	shake256 := sha3.NewShake256()
 	_, err := shake256.Write(data)

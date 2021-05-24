@@ -35,10 +35,15 @@ func (pp *PublicParameter) NewPoly(coeffs []int32) *Poly {
 }
 
 /*
-	todo: output a Poly with all coefficients are 0.
+	todo_DONE: output a Poly with all coefficients are 0.
 */
+// NewZeroPoly return a Poly with all coefficients are 0.
 func (pp *PublicParameter) NewZeroPoly() (r *Poly) {
-	return
+	tmp := make([]int32, pp.paramD)
+	for i := 0; i < len(tmp); i++ {
+		tmp[i] = 0
+	}
+	return &Poly{coeffs: tmp}
 }
 
 func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
