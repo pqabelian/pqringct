@@ -693,7 +693,10 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPubKey, msvk *Mas
 	// todo: check v
 
 	m := intToBinary(v, pp.paramD)
-	cmtrtmp, _ := pp.expandRandomnessC(kappa) // TODO handle the err
+	cmtrtmp, err := pp.expandRandomnessC(kappa) // TODO_DONE handle the err
+	if err!=nil{
+		return false, 0, err
+	}
 	cmt_r := pp.NTTVec(cmtrtmp)
 	cmt := &Commitment{}
 	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_r, pp.paramKc, pp.paramLc)
@@ -1100,9 +1103,9 @@ func (pp *PublicParameter) TransferTXVerify(trTx *TransferTx) (bool, error) {
 			t_cs[j] = trTx.Inputs[i].TxoList[j].cmt.toPolyNTTVec()
 			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKc+1)
 		}
-
-		if pp.elrsVerify(t_as, t_cs, msgTrTxCon, trTx.TxWitness.elrsSigs[i]) != true {
-			return false, nil
+		valid, err := pp.elrsVerify(t_as, t_cs, msgTrTxCon, trTx.TxWitness.elrsSigs[i])
+		if  !valid || err!=nil {
+			return false, err
 		}
 	}
 

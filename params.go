@@ -16,20 +16,20 @@ const (
 	// PP_l = 128	//	We use fully-splitting ring, namely l=d, thus we only use d
 	PP_k = 4
 
-	PP_k_a    = 10       //	todo:
-	PP_l_a    = 10       //	todo:
-	PP_eta_a  = 1024 - 1 //	todo:
-	PP_beta_a = 2        //	 todo:
+	PP_k_a    = 10
+	PP_l_a    = 10
+	PP_eta_a  = 1024 - 1
+	PP_beta_a = 2
 
-	PP_k_c      = 10       //	todo:
-	PP_l_c      = 10       //	todo:
-	PP_eta_c    = 1024 - 1 //	todo:
-	PP_beta_c   = 2        //	 todo:
-	PP_eta_c_1  = 1024 - 1 //	todo:
-	PP_beta_c_1 = 2        //	 todo:
+	PP_k_c      = 10
+	PP_l_c      = 10
+	PP_eta_c    = 1024 - 1
+	PP_beta_c   = 2
+	PP_eta_c_1  = 1024 - 1
+	PP_beta_c_1 = 2
 
-	PP_m_a   = 1        //	todo:
-	PP_eta_f = 1024 - 1 // todo:
+	PP_m_a   = 1
+	PP_eta_f = 1024 - 1
 )
 
 //TODO_DONE : change the int to intX or uintX
@@ -244,15 +244,15 @@ func (p *PublicParameter) TransferTXVerify(tx *TransferTx) bool {
 var DefaultPP *PublicParameter
 
 // PQRingCT TODO_DONE: optimize the interface using array?  not
-// TODO: efficiency of interface...
-type PQRingCT interface {
-	MasterKeyGen(seed []byte) (*MasterPubKey, *MasterSecretViewKey, *MasterSecretSignKey)
-	CoinbaseTxGen(vin int32, txos []*TxOutputDesc) *CoinbaseTx //(dpk *DerivedPubKey,commit []byte,vc []byte)
-	CoinbaseTxVerify(tx *CoinbaseTx) bool
-	TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, mpk *MasterPubKey, key *MasterSecretViewKey) (bool, int32)
-	TransferTXGen([]*TxInputDesc, []*TxOutputDesc) *TransferTx
-	TransferTXVerify(tx *TransferTx) bool
-}
+//
+//type PQRingCT interface {
+//	MasterKeyGen(seed []byte) (*MasterPubKey, *MasterSecretViewKey, *MasterSecretSignKey)
+//	CoinbaseTxGen(vin int32, txos []*TxOutputDesc) *CoinbaseTx //(dpk *DerivedPubKey,commit []byte,vc []byte)
+//	CoinbaseTxVerify(tx *CoinbaseTx) bool
+//	TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, mpk *MasterPubKey, key *MasterSecretViewKey) (bool, int32)
+//	TransferTXGen([]*TxInputDesc, []*TxOutputDesc) *TransferTx
+//	TransferTXVerify(tx *TransferTx) bool
+//}
 
 type PubParams struct {
 	// the length must be paramLa
