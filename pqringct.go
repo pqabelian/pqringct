@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
-	"io"
 )
 
 type PolyVec struct {
@@ -1249,12 +1248,12 @@ func (mpk *MasterPubKey) SerializeSize() uint32 {
 	return 1
 }
 
-func (mpk *MasterPubKey) Serialize(w io.Writer) error {
+func (mpk *MasterPubKey) Serialize() ([]byte, error) {
 	//	todo
-	return nil
+	return nil, nil
 }
 
-func (mpk *MasterPubKey) Deserialize(r io.Reader) error {
+func (mpk *MasterPubKey) Deserialize(mpkSer []byte) error {
 	return nil
 }
 
@@ -1263,12 +1262,12 @@ func (msvk *MasterSecretViewKey) SerializeSize() uint32 {
 	return 1
 }
 
-func (msvk *MasterSecretViewKey) Serialize(w io.Writer) error {
+func (msvk *MasterSecretViewKey) Serialize() ([]byte, error) {
 	//	todo
-	return nil
+	return nil, nil
 }
 
-func (msvk *MasterSecretViewKey) Deserialize(r io.Reader) error {
+func (msvk *MasterSecretViewKey) Deserialize(msvkSer []byte) error {
 	return nil
 }
 
@@ -1277,12 +1276,12 @@ func (mssk *MasterSecretSignKey) SerializeSize() uint32 {
 	return 1
 }
 
-func (mssk *MasterSecretSignKey) Serialize(w io.Writer) error {
+func (mssk *MasterSecretSignKey) Serialize() ([]byte, error) {
 	//	todo
-	return nil
+	return nil, nil
 }
 
-func (mssk *MasterSecretSignKey) Deserialize(r io.Reader) error {
+func (mssk *MasterSecretSignKey) Deserialize(msskSer []byte) error {
 	return nil
 }
 
