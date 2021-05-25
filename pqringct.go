@@ -762,7 +762,7 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	return true, v, nil
 }
 
-func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64) (trTx *TransferTx, err error) {
+func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64) (trTx *TransferTx, err error) {
 	//	check the well-formness of the inputs and outputs
 	if len(inputDescs) == 0 || len(outputDescs) == 0 {
 		return nil, err // todo: err info
@@ -1093,7 +1093,7 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 	return nil, err
 }
 
-func (pp *PublicParameter) TransferTXVerify(trTx *TransferTx) (bool, error) {
+func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) (bool, error) {
 	var err error
 	if trTx == nil {
 		return false, err
