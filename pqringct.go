@@ -95,6 +95,21 @@ type TrTxWitness struct {
 	elrsSigs   []*elrsSignature
 }
 
+func (trTxWitness *TrTxWitness) SerializeSize() uint32 {
+	// todo
+	return 1
+}
+
+func (trTxWitness *TrTxWitness) Serialize() []byte {
+	// todo
+	return nil
+}
+
+func (trTxWitness *TrTxWitness) Deserialize(serializedTxWitness []byte) error {
+	// todo
+	return nil
+}
+
 type TransferTx struct {
 //	Version uint32
 
