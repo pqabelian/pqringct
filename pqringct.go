@@ -100,7 +100,9 @@ type TransferTx struct {
 
 	Inputs     []*TrTxInput
 	OutputTxos []*TXO
-	fee        uint64
+	Fee        uint64
+
+	TxMemo []byte
 
 	TxWitness *TrTxWitness
 }
@@ -762,7 +764,7 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	return true, v, nil
 }
 
-func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64) (trTx *TransferTx, err error) {
+func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64, txMemo []byte) (trTx *TransferTx, err error) {
 	//	check the well-formness of the inputs and outputs
 	if len(inputDescs) == 0 || len(outputDescs) == 0 {
 		return nil, err // todo: err info
@@ -855,8 +857,9 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 	rettrTx := &TransferTx{}
 	rettrTx.Inputs = make([]*TrTxInput, I)
 	rettrTx.OutputTxos = make([]*TXO, J)
+	rettrTx.Fee = fee
+	rettrTx.TxMemo = txMemo
 
-	rettrTx.fee = fee
 	for j := 0; j < J; j++ {
 		rettrTx.OutputTxos[j], cmt_rs[I+j], err = pp.txoGen(outputDescs[j].mpk, outputDescs[j].value)
 		if err != nil {
@@ -875,7 +878,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 	}
 
-	msgTrTxCon := []byte{} // todo
+	msgTrTxCon := []byte{} // todo: Tx.Inputs, Tx.Outputs, Tx.Fee, Tx.TxMemo
 
 	elrsSigs := make([]*elrsSignature, I)
 	cmtps := make([]*Commitment, I)
@@ -1166,7 +1169,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) (bool, error) {
 		cmts[I+j] = trTx.OutputTxos[j].cmt
 	}
 
-	u := intToBinary(trTx.fee, pp.paramD)
+	u := intToBinary(trTx.Fee, pp.paramD)
 
 	if I == 1 {
 		n2 := n + 2
