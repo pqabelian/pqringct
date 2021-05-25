@@ -1248,6 +1248,7 @@ func (pp *PublicParameter) generateBits(seed []byte, length int) ([]byte, error)
 // rejectionUniformWithZq uniform sample some element in Z_q from buf as many as possible
 func (pp *PublicParameter) rejectionUniformWithZq(buf []byte, length int) []int32 {
 	res := make([]int32, 0, length)
+	var curr int
 	var pos int
 	var t uint32
 	//q=1111_1111_1111_1111_1110_1110_0000_0001
@@ -1259,6 +1260,10 @@ func (pp *PublicParameter) rejectionUniformWithZq(buf []byte, length int) []int3
 		t |= uint32(buf[pos+3]) << 24
 		if t < pp.paramQ {
 			res = append(res, int32(t-pp.paramQ))
+			curr += 1
+			if curr >= length {
+				break
+			}
 		}
 		pos += 4
 	}
