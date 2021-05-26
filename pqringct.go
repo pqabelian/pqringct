@@ -896,7 +896,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 	for i := 0; i < I; i++ {
 		rettrTx.Inputs[i].TxoList = inputDescs[i].txoList
-		rettrTx.Inputs[i].SerialNumber, err = pp.txoSerialNumberGen(inputDescs[i].txoList[inputDescs[i].sidx].dpk, inputDescs[i].mpk, inputDescs[i].msvk, inputDescs[i].mssk)
+		rettrTx.Inputs[i].SerialNumber, err = pp.TxoSerialNumberGen(inputDescs[i].txoList[inputDescs[i].sidx].dpk, inputDescs[i].mpk, inputDescs[i].msvk, inputDescs[i].mssk)
 		if err != nil {
 			return nil, err
 		}
@@ -1364,7 +1364,10 @@ func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r
 }
 
 //	todo: serial number is a hash value
-func (pp *PublicParameter) txoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte, err error) {
+/*
+As wallet may call this algorithm to generate serial numbers for the coins, this method is set to be public.
+*/
+func (pp *PublicParameter) TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte, err error) {
 	if dpk == nil || mpk == nil || msvk == nil || mssk == nil {
 		return nil, errors.New("nil pointer")
 	}
