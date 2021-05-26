@@ -875,7 +875,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		//	dpk = inputDescs[i].txoList[inputDescs[i].sidx].dpk = (C, t)
 		kappa := []byte{}
 
-		satmp, _ := pp.expandRandomnessA(kappa) //TODO:handle the err
+		satmp, err := pp.expandRandomnessA(kappa)
+		if err != nil {
+			return nil, err
+		}
 		s_a := pp.PolyNTTVecAdd(
 			inputDescs[i].mssk.s,
 			pp.NTTVec(satmp),
@@ -893,7 +896,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			&PolyNTT{msg_hats[i]})
 
 		cmts[i] = cmtps[i]
-		sctmp, _ := pp.expandRandomnessC(kappa) //TODO:handle the err
+		sctmp, err := pp.expandRandomnessC(kappa)
+		if err != nil {
+			return nil, err
+		}
 		s_c := pp.PolyNTTVecSub(
 			pp.NTTVec(sctmp),
 			cmt_rs[i],
@@ -942,7 +948,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		msg_hats[n] = f
 
 	trTxGenI1Restart:
-		e := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
+		e, err := pp.sampleUniformWithinEtaF()
+		if err != nil {
+			return nil, err
+		}
 		msg_hats[n+1] = e
 
 		randomnessC, err := pp.sampleRandomnessC()
@@ -1042,7 +1051,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		msg_hats[n+2] = f2
 
 	trTxGenI2Restart:
-		e := make([]int32, pp.paramD) //	todo: sample e from ([-eta_f, eta_f])^d
+		e, err := pp.sampleUniformWithinEtaF()
+		if err != nil {
+			return nil, err
+		}
 		msg_hats[n+3] = e
 
 		randomnessC, err := pp.sampleRandomnessC()
