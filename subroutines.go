@@ -1591,7 +1591,8 @@ func (pp *PublicParameter) sampleUniformWithinEtaF() ([]int32, error) {
 		return nil, err
 	}
 	got := pp.rejectionUniformWithinEtaF(buf, pp.paramD)
-	if len(got) < pp.paramD {
+	// todo
+	if len(got)*11+7 < pp.paramD {
 		newBuf := make([]byte, (pp.paramD-len(got)*11+7)/8)
 		_, err = XOF.Read(newBuf)
 		if err != nil {
@@ -1601,6 +1602,7 @@ func (pp *PublicParameter) sampleUniformWithinEtaF() ([]int32, error) {
 	}
 	return got[:pp.paramD], nil
 }
+
 func (pp *PublicParameter) rejectionUniformWithinEtaF(buf []byte, length int) []int32 {
 	// [-1023,1023] 11bit
 	res := make([]int32, 0, length)

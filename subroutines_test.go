@@ -55,3 +55,15 @@ func TestSampleUniformPloyWithLowZeros(t *testing.T) {
 	myPoly := pp.sampleUniformPloyWithLowZeros()
 	fmt.Println(myPoly)
 }
+
+func TestSampleUniformWithinEtaF(t *testing.T) {
+	pp := PublicParameter{}
+	pp.paramSysBytes = 128
+	pp.paramD = 128
+	pp.paramEtaF = 1024 - 1
+	res, err := pp.sampleUniformWithinEtaF()
+	if err != nil {
+		t.Errorf("error")
+	}
+	fmt.Println(res)
+}

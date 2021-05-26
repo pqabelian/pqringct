@@ -769,10 +769,10 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 	}
 
 	if len(inputDescs) > pp.paramI {
-		return nil, err // todo: err info
+		return nil, errors.New("too many inputs") //Todo: may define a new error type?
 	}
 	if len(outputDescs) > pp.paramJ {
-		return nil, err // todo: err info
+		return nil, errors.New("too many outputs") ////Todo: may define a new error type?
 	}
 
 	V := uint64(1)<<pp.paramD - 1
@@ -796,7 +796,7 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 			return nil, err // todo: err info
 		}
 		if outputDescItem.mpk.WellformCheck(pp) == false {
-			return nil, err
+			return nil, err // todo: err info
 		}
 	}
 
@@ -829,8 +829,17 @@ func (pp *PublicParameter) TransferTXGen(inputDescs []*TxInputDesc, outputDescs 
 			return nil, err // todo: err info
 		}
 
-		//	todo:
 		//	check no repeated dpk in inputDescItem.txoList
+		var mapDpk map[*DerivedPubKey]bool
+		mapDpk = make(map[*DerivedPubKey]bool)
+		for _, txo := range inputDescItem.txoList {
+			_, ok := mapDpk[txo.dpk]
+			if ok {
+				return nil, err // todo: err info
+			}
+			mapDpk[txo.dpk] = true
+		}
+		// todo
 		//	check inputDescItem[i].txoList[inputDescItem[i].sidx].dpk \neq inputDescItem[j].txoList[inputDescItem[j].sidx].dpk
 		//	check (inputDescItem[i].txoList == inputDescItem[j].txoList) or (inputDescItem[i].txoList \cap inputDescItem[j].txoList = \emptyset)
 	}
