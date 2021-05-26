@@ -72,7 +72,7 @@ func (cbTxWitness *CbTxWitness) Deserialize(serializedTxWitness []byte) error {
 }
 
 type CoinbaseTx struct {
-//	Version uint32
+	//	Version uint32
 
 	Vin        uint64
 	OutputTxos []*TXO
@@ -111,7 +111,7 @@ func (trTxWitness *TrTxWitness) Deserialize(serializedTxWitness []byte) error {
 }
 
 type TransferTx struct {
-//	Version uint32
+	//	Version uint32
 
 	Inputs     []*TrTxInput
 	OutputTxos []*TXO
@@ -282,7 +282,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 	J := len(txOutputDescs)
 
 	retcbTx := &CoinbaseTx{}
-//	retcbTx.Version = 0 // todo: how to set and how to use the version? The bpf just care the content of cbTx?
+	//	retcbTx.Version = 0 // todo: how to set and how to use the version? The bpf just care the content of cbTx?
 	retcbTx.Vin = vin
 	retcbTx.OutputTxos = make([]*TXO, J)
 
@@ -858,7 +858,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 	for i := 0; i < I; i++ {
 		rettrTx.Inputs[i].TxoList = inputDescs[i].txoList
-		rettrTx.Inputs[i].SerialNumber, err = pp.TxoSerialNumberGen(inputDescs[i].txoList[inputDescs[i].sidx].dpk, inputDescs[i].mpk, inputDescs[i].msvk, inputDescs[i].mssk)
+		rettrTx.Inputs[i].SerialNumber, err = pp.TxoSerialNumberGen(inputDescs[i].txoList[inputDescs[i].sidx], inputDescs[i].mpk, inputDescs[i].msvk, inputDescs[i].mssk)
 		if err != nil {
 			return nil, err
 		}
@@ -1329,10 +1329,12 @@ func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r
 /*
 As wallet may call this algorithm to generate serial numbers for the coins, this method is set to be public.
 */
-func (pp *PublicParameter) TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte, err error) {
-	if dpk == nil || mpk == nil || msvk == nil || mssk == nil {
+func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte, err error) {
+	if txo == nil || txo.dpk == nil || mpk == nil || msvk == nil || mssk == nil {
 		return nil, errors.New("nil pointer")
 	}
+
+	dpk := txo.dpk
 
 	// todo: check the well-formness of dpk, mpk, msvk, and mssk
 
