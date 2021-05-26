@@ -149,9 +149,6 @@ type elrsSignature struct {
 	keyImg *PolyNTTVec
 }
 
-type Image struct {
-}
-
 func (pp *PublicParameter) GetMasterPublicKeyByteLen() int {
 	return 1 // todo
 }
@@ -226,41 +223,6 @@ func Setup() (pp *PublicParameter) {
 	// todo
 	return nil
 }
-
-/*
-func MasterKeyGen(masterSeed []byte, parameter *PublicParameter) (mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, mseed []byte, err error) {
-	// to do
-	return nil, nil, nil, nil, nil
-}
-
-func CoinbaseTxGen(vin int64, txOutputDescList []*TxOutputDesc) (cbTx *CoinbaseTx, err error) {
-	//	to do
-	return nil, nil
-}
-
-func CoinbaseTxVerify(cbTx *CoinbaseTx) (valid bool) {
-	//	to do
-	return false
-}
-
-func TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *MasterSecretViewKey) (valid bool, value int64, err error) {
-	//	to do
-	return false, 0, nil
-}
-
-func TransferTxGen(txInputDescList []*TxInputDesc, txOutputDescList []*TxOutputDesc, fee int64) (transferTx *TransferTx, err error) {
-	//	to do
-	return nil, nil
-}
-
-func TransferTxVerify(trTx *TransferTx) (valid bool) {
-	//	to do
-	return false
-}
-
-func TxoSerialNumberGen(dpk *DerivedPubKey, mpk *MasterPublicKey, mssk *MasterSecretSignKey, msvk *MasterSecretViewKey) (snMa []Poly) {
-	panic("implement me")
-}*/
 
 func (pp *PublicParameter) MasterKeyGen(seed []byte) (mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
 	/*	mpk := MasterPublicKey{}
