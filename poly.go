@@ -139,7 +139,7 @@ func (pp *PublicParameter) PolyMul(a *Poly, b *Poly) (r *Poly) {
 }
 
 /*
-	todo: output a PolyNTT with all coefficients are 0.
+	todo_DONE: output a PolyNTT with all coefficients are 0.
 */
 func (pp *PublicParameter) NewZeroPolyNTT() (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
@@ -147,10 +147,14 @@ func (pp *PublicParameter) NewZeroPolyNTT() (r *PolyNTT) {
 }
 
 /*
-todo： utput a PolyNTTVec with all polyNTTs are zero-PolyNTT.
+todo_DONE： utput a PolyNTTVec with all polyNTTs are zero-PolyNTT.
 */
 func (pp *PublicParameter) NewZeroPolyNTTVec(vecLen int) (r *PolyNTTVec) {
-	return
+	polys := make([]*PolyNTT, vecLen)
+	for i := 0; i < vecLen; i++ {
+		polys = append(polys, pp.NewZeroPolyNTT())
+	}
+	return &PolyNTTVec{polyNTTs: polys}
 }
 
 func (pp *PublicParameter) PolyNTTAdd(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
