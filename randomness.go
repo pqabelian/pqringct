@@ -46,7 +46,7 @@ func randomBytes(length int) []byte {
 // randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=6/16 and P(1)=P(-1)=5/16
 // and return an array with given length. If the length of seed is not 0 or length/2, will return ErrLength, and if the
 // seed is nil, then there will get a seed from the machine.
-func randomnessFromProbabilityDistributions(seed []byte, length int) ([]int32, error) {
+func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte,[]int32, error) {
 	res := make([]int32, length)
 	// if the seed is nil, acquire the seed from crypto/rand.Reader
 	if seed == nil {
@@ -54,7 +54,7 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]int32, e
 	}
 	// check the length of seed, make sure the randomness is enough
 	if len(seed) < length/2 {
-		return nil, ErrLength
+		return seed,nil, ErrLength
 	}
 	var a1, a2, b1, b2 int32
 	for i := 0; i < length/2; i++ {
@@ -77,7 +77,7 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]int32, e
 			res[i] -= 3
 		}
 	}
-	return res, nil
+	return seed,res, nil
 }
 
 // randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=1/2 and P(1)=P(-1)=1/4
