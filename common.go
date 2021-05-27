@@ -3,6 +3,7 @@ package pqringct
 import (
 	"encoding/binary"
 	"io"
+	"math"
 )
 
 const (
@@ -75,6 +76,36 @@ func writeElement(w io.Writer, element interface{}) error {
 	}
 
 	return binary.Write(w, binary.LittleEndian, element)
+}
+
+// WriteVarInt serializes val to w using a variable number of bytes depending
+// on its value.
+func WriteVarInt(w io.Writer, val uint64) error {
+	if val < 0xfd {
+		return binarySerializer.PutUint8(w, uint8(val))
+	}
+
+	if val <= math.MaxUint16 {
+		err := binarySerializer.PutUint8(w, 0xfd)
+		if err != nil {
+			return err
+		}
+		return binarySerializer.PutUint16(w, binary.LittleEndian, uint16(val))
+	}
+
+	if val <= math.MaxUint32 {
+		err := binarySerializer.PutUint8(w, 0xfe)
+		if err != nil {
+			return err
+		}
+		return binarySerializer.PutUint32(w, binary.LittleEndian, uint32(val))
+	}
+
+	err := binarySerializer.PutUint8(w, 0xff)
+	if err != nil {
+		return err
+	}
+	return binarySerializer.PutUint64(w, binary.LittleEndian, val)
 }
 
 // Uint8 reads a single byte from the provided reader using a buffer from the

@@ -88,11 +88,24 @@ type TrTxInput struct {
 }
 
 func (trTxInput TrTxInput) Serialize(w io.Writer) error {
+	// write txoList size
+	count := uint64(len(trTxInput.TxoList))
+	err := WriteVarInt(w, count)
+	if err != nil {
+		return err
+	}
+	// write txoList
 	for _, txo := range trTxInput.TxoList {
 		err := txo.Serialize(w)
 		if err != nil {
 			return err
 		}
+	}
+
+	// write serialNumber
+	_, err = w.Write(trTxInput.SerialNumber)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -135,27 +148,52 @@ type TransferTx struct {
 
 func (trTx *TransferTx) Serialize() ([]byte, error) {
 	w := new(bytes.Buffer)
-	// txInputs
+
+	// write inputs size
+	count := uint64(len(trTx.Inputs))
+	err := WriteVarInt(w, count)
+	if err != nil {
+		return nil, err
+	}
+	// write inputs
 	for _, input := range trTx.Inputs {
 		err := input.Serialize(w)
 		if err != nil {
 			return nil, err
 		}
 	}
-	// txOutputs
+
+	// write outputs size
+	count = uint64(len(trTx.OutputTxos))
+	err = WriteVarInt(w, count)
+	if err != nil {
+		return nil, err
+	}
+	// write outputs
 	for _, output := range trTx.OutputTxos {
 		err := output.Serialize(w)
 		if err != nil {
 			return nil, err
 		}
 	}
-	// txFee
-	err := writeElement(w, trTx.Fee)
+
+	// write txFee
+	err = WriteVarInt(w, trTx.Fee)
 	if err != nil {
 		return nil, err
 	}
-	// txMemo
+
+	// write txMemo size
+	count = uint64(len(trTx.TxMemo))
+	err = WriteVarInt(w, count)
+	if err != nil {
+		return nil, err
+	}
+	// write txMemo
 	w.Write(trTx.TxMemo[:])
+
+	// write txWitness?
+
 	return w.Bytes(), nil
 }
 
@@ -251,6 +289,80 @@ func (txo *TXO) Deserialize(serializedTxo []byte) error {
 }
 
 func (txo *TXO) Serialize(w io.Writer) error {
+	// write dpk.ckem
+	count := len(txo.dpk.ckem)
+	err := WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(txo.dpk.ckem)
+	if err != nil {
+		return err
+	}
+
+	// write dpk.t
+	count = len(txo.dpk.t.polyNTTs)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count ; i++ {
+		cnt := len(txo.dpk.t.polyNTTs[i].coeffs)
+		err = WriteVarInt(w, uint64(cnt))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < cnt ; j++ {
+			err = WriteVarInt(w, uint64(txo.dpk.t.polyNTTs[i].coeffs[j]))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	//write cmt.b
+	count = len(txo.cmt.b.polyNTTs)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count ; i++ {
+		cnt := len(txo.cmt.b.polyNTTs[i].coeffs)
+		err = WriteVarInt(w, uint64(cnt))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < cnt ; j++ {
+			err = WriteVarInt(w, uint64(txo.cmt.b.polyNTTs[i].coeffs[j]))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// write cmt.c
+	count = len(txo.cmt.c.coeffs)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count ; i++ {
+		err = WriteVarInt(w, uint64(txo.cmt.c.coeffs[i]))
+		if err != nil {
+			return err
+		}
+	}
+
+	// write vc
+	count = len(txo.vc)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(txo.vc[:])
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -881,7 +993,6 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 	}
 
-	// todo: serialize unfinished
 	msgTrTxCon, err := rettrTx.Serialize()
 	if err != nil {
 		return nil, err
