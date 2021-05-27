@@ -260,7 +260,7 @@ func Setup() (pp *PublicParameter) {
 	return nil
 }
 
-func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte,mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
+func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
 	/*	mpk := MasterPublicKey{}
 		msvk := MasterSecretViewKey{}
 		mssk := MasterSecretSignKey{}
@@ -274,13 +274,13 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte,mpk *Master
 		//	todo: check the validity of seed
 		randomnessA, err := pp.expandRandomnessA(seed)
 		if err != nil {
-			return seed,nil, nil, nil, err
+			return seed, nil, nil, nil, err
 		}
 		s = pp.NTTVec(randomnessA)
 	} else {
 		randomnessA, err := pp.sampleRandomnessA()
 		if err != nil {
-			return seed,nil, nil, nil, err
+			return seed, nil, nil, nil, err
 		}
 		s = pp.NTTVec(randomnessA)
 	}
@@ -301,10 +301,10 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte,mpk *Master
 		s: s,
 	}
 
-	return seed,rstmpk, rstmsvk, rstmssk, nil
+	return seed, rstmpk, rstmsvk, rstmssk, nil
 }
 
-func (pp *PublicParameter) collectBytesForCoinbase(vin uint64,cmts []*Commitment,ws []*PolyNTTVec,deltas []*PolyNTT)[]byte{
+func (pp *PublicParameter) collectBytesForCoinbase1(vin uint64, cmts []*Commitment, ws []*PolyNTTVec, deltas []*PolyNTT) []byte {
 	tmp := make([]byte, pp.paramD*4+(pp.paramKc+1)*pp.paramD*4+(pp.paramKc+1)*pp.paramD*4)
 	appendPolyNTTToBytes := func(a *PolyNTT) {
 		for k := 0; k < pp.paramD; k++ {
@@ -335,6 +335,25 @@ func (pp *PublicParameter) collectBytesForCoinbase(vin uint64,cmts []*Commitment
 		appendPolyNTTToBytes(deltas[i])
 	}
 	return tmp
+}
+
+func (pp *PublicParameter) collectBytesForCoinbase2(b_hat *PolyNTTVec, c_hats []*PolyNTT) []byte {
+	res := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*len(c_hats))
+	appendPolyNTTToBytes := func(a *PolyNTT) {
+		for k := 0; k < pp.paramD; k++ {
+			res = append(res, byte(a.coeffs[k]>>0))
+			res = append(res, byte(a.coeffs[k]>>8))
+			res = append(res, byte(a.coeffs[k]>>16))
+			res = append(res, byte(a.coeffs[k]>>24))
+		}
+	}
+	for i := 0; i < pp.paramKc; i++ {
+		appendPolyNTTToBytes(b_hat.polyNTTs[i])
+	}
+	for i := 0; i < len(c_hats); i++ { //TODO check the length of c_hats
+		appendPolyNTTToBytes(c_hats[i])
+	}
+	return res
 }
 func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDesc) (cbTx *CoinbaseTx, err error) {
 	V := uint64(1)<<pp.paramN - 1
@@ -395,7 +414,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			deltas[t] = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], ys[t], pp.paramLc)
 		}
 
-		chseed, err := H(pp.collectBytesForCoinbase(vin,cmts,ws ,deltas ))
+		chseed, err := H(pp.collectBytesForCoinbase1(vin, cmts, ws, deltas))
 		if err != nil {
 			return nil, err
 		}
@@ -464,7 +483,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		}
 		msg_hats[J+1] = e
 
-		_,randomnessC, err := pp.sampleRandomnessC()
+		_, randomnessC, err := pp.sampleRandomnessC()
 		if err != nil {
 			return nil, err
 		}
@@ -482,22 +501,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		u_p := make([]int32, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
 		u_p_tmp := make([]int64, pp.paramD)
 
-		seed_binTmp := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*(n+2))
-		appendPolyNTTToBytes := func(a *PolyNTT) {
-			for k := 0; k < pp.paramD; k++ {
-				seed_binTmp = append(seed_binTmp, byte(a.coeffs[k]>>0))
-				seed_binTmp = append(seed_binTmp, byte(a.coeffs[k]>>8))
-				seed_binTmp = append(seed_binTmp, byte(a.coeffs[k]>>16))
-				seed_binTmp = append(seed_binTmp, byte(a.coeffs[k]>>24))
-			}
-		}
-		for i := 0; i < pp.paramKc; i++ {
-			appendPolyNTTToBytes(b_hat.polyNTTs[i])
-		}
-		for i := 0; i < n+2; i++ { //TODO check the length of c_hats
-			appendPolyNTTToBytes(c_hats[i])
-		}
-		seed_binM, err := H(seed_binTmp) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM, err := H(pp.collectBytesForCoinbase2(b_hat,c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
 			return nil, err
 		}
@@ -623,36 +627,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 					pp.PolyNTTSub(cbTx.OutputTxos[0].cmt.c, &PolyNTT{msg})))
 		}
 
-		tmp := make([]byte, pp.paramD*4+(pp.paramKc+1)*pp.paramD*4+(pp.paramKc+1)*pp.paramD*4)
-		appendPolyNTTToBytes := func(a *PolyNTT) {
-			for k := 0; k < pp.paramD; k++ {
-				tmp = append(tmp, byte(a.coeffs[k]>>0))
-				tmp = append(tmp, byte(a.coeffs[k]>>8))
-				tmp = append(tmp, byte(a.coeffs[k]>>16))
-				tmp = append(tmp, byte(a.coeffs[k]>>24))
-			}
-		}
-
-		m := NewPoly(pp.paramD)
-		mtmp := intToBinary(cbTx.Vin, pp.paramD)
-		for i := 0; i < pp.paramD; i++ {
-			m.coeffs[i] = mtmp[i]
-		}
-		ntt_m := pp.NTT(m)
-		appendPolyNTTToBytes(ntt_m)
-
-		for i := 0; i < len(cbTx.OutputTxos[0].cmt.b.polyNTTs); i++ {
-			appendPolyNTTToBytes(cbTx.OutputTxos[0].cmt.b.polyNTTs[i])
-		}
-		appendPolyNTTToBytes(cbTx.OutputTxos[0].cmt.c)
-
-		for i := 0; i < pp.paramK; i++ {
-			for j := 0; j < pp.paramKc; j++ {
-				appendPolyNTTToBytes(ws[i].polyNTTs[j])
-			}
-			appendPolyNTTToBytes(deltas[i])
-		}
-		seed_ch, err := H(tmp)
+		seed_ch, err := H(pp.collectBytesForCoinbase1(cbTx.Vin, []*Commitment{cbTx.OutputTxos[0].cmt}, ws, deltas))
 		if err != nil {
 			return false
 		}
@@ -688,22 +663,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 			}
 		}
 
-		seed_binTmp := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*(n+2))
-		appendPolyNTTToBytes := func(a *PolyNTT) {
-			for k := 0; k < pp.paramD; k++ {
-				seed_binTmp = append(seed_binTmp, byte(a.coeffs[k]>>0))
-				seed_binTmp = append(seed_binTmp, byte(a.coeffs[k]>>8))
-				seed_binTmp = append(seed_binTmp, byte(a.coeffs[k]>>16))
-				seed_binTmp = append(seed_binTmp, byte(a.coeffs[k]>>24))
-			}
-		}
-		for i := 0; i < pp.paramKc; i++ {
-			appendPolyNTTToBytes(cbTx.TxWitness.b_hat.polyNTTs[i])
-		}
-		for i := 0; i < n+2; i++ { //TODO check the length of c_hats
-			appendPolyNTTToBytes(cbTx.TxWitness.c_hats[i])
-		}
-		seed_binM, err := H(seed_binTmp) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM, err := H(pp.collectBytesForCoinbase2(cbTx.TxWitness.b_hat,cbTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
 			return false
 		}
@@ -779,6 +739,25 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	return true, v, nil
 }
 
+
+func(pp *PublicParameter)collectBytesForTransfer(b_hat *PolyNTTVec,c_hats []*PolyNTT) []byte{
+	res := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*len(c_hats))
+	appendPolyNTTToBytes := func(a *PolyNTT) {
+		for k := 0; k < pp.paramD; k++ {
+			res = append(res, byte(a.coeffs[k]>>0))
+			res = append(res, byte(a.coeffs[k]>>8))
+			res = append(res, byte(a.coeffs[k]>>16))
+			res = append(res, byte(a.coeffs[k]>>24))
+		}
+	}
+	for i := 0; i < pp.paramKc; i++ {
+		appendPolyNTTToBytes(b_hat.polyNTTs[i])
+	}
+	for i := 0; i < len(c_hats); i++ { //TODO check the length of c_hats
+		appendPolyNTTToBytes(c_hats[i])
+	}
+	return res
+}
 func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64, txMemo []byte) (trTx *TransferTx, err error) {
 	//	check the well-formness of the inputs and outputs
 	if len(inputDescs) == 0 || len(outputDescs) == 0 {
@@ -926,7 +905,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			pp.NTTVec(satmp),
 			pp.paramKa)
 
-		_,randomnessC, err := pp.sampleRandomnessC()
+		_, randomnessC, err := pp.sampleRandomnessC()
 		if err != nil {
 			return nil, err
 		}
@@ -996,7 +975,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 		msg_hats[n+1] = e
 
-		_,randomnessC, err := pp.sampleRandomnessC()
+		_, randomnessC, err := pp.sampleRandomnessC()
 		if err != nil {
 			return nil, err
 		}
@@ -1011,7 +990,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int32, pp.paramD)
 		u_p_temp := make([]int64, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		seed_binM := []byte{}                // todo: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM,err := H(pp.collectBytesForTransfer(b_hat,c_hats))                // todo: compute the seed using hash function on (b_hat, c_hats).
+		if err!=nil{
+			return nil,err
+		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
 		if err != nil {
 			return nil, err
@@ -1099,7 +1081,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 		msg_hats[n+3] = e
 
-		_,randomnessC, err := pp.sampleRandomnessC()
+		_, randomnessC, err := pp.sampleRandomnessC()
 		if err != nil {
 			return nil, err
 		}
@@ -1116,7 +1098,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int32, pp.paramD)
 		u_p_temp := make([]int64, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		seed_binM := []byte{}                // todo: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM,err := H(pp.collectBytesForTransfer(b_hat,c_hats))                // todo: compute the seed using hash function on (b_hat, c_hats).
+		if err!=nil{
+			return nil,err
+		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
 		if err != nil {
 			return nil, err
@@ -1228,8 +1213,8 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 			t_cs[j] = trTx.Inputs[i].TxoList[j].cmt.toPolyNTTVec()
 			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKc+1)
 		}
-		valid:= pp.elrsVerify(t_as, t_cs, msgTrTxCon, trTx.TxWitness.elrsSigs[i])
-		if !valid  {
+		valid := pp.elrsVerify(t_as, t_cs, msgTrTxCon, trTx.TxWitness.elrsSigs[i])
+		if !valid {
 			return false
 		}
 	}
@@ -1263,7 +1248,10 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 			}
 		}
 
-		seed_binM := []byte{} // todo: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM ,err:= H(pp.collectBytesForTransfer(trTx.TxWitness.b_hat,trTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		if err!=nil{
+			return false
+		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
 		if err != nil {
 			return false
@@ -1274,7 +1262,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
 		u_hats[2] = trTx.TxWitness.u_p
 
-		flag:= pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 3, u_hats, trTx.TxWitness.rpulpproof)
+		flag := pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 3, u_hats, trTx.TxWitness.rpulpproof)
 		if !flag {
 			return false
 		}
@@ -1300,7 +1288,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 			}
 		}
 
-		seed_binM := []byte{} // todo: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM ,err:= H(pp.collectBytesForTransfer(trTx.TxWitness.b_hat,trTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
 		if err != nil {
 			return false
@@ -1313,7 +1301,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		u_hats[3] = make([]int32, pp.paramD) // todo: all zero
 		u_hats[4] = trTx.TxWitness.u_p
 
-		flag:= pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 5, u_hats, trTx.TxWitness.rpulpproof)
+		flag := pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 5, u_hats, trTx.TxWitness.rpulpproof)
 		if !flag {
 			return false
 		}
