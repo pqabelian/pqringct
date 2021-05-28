@@ -29,7 +29,7 @@ func Test_randomnessFromProbabilityDistributions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := randomnessFromProbabilityDistributions(tt.args.seed, tt.args.length)
+			got, _,  err := randomnessFromProbabilityDistributions(tt.args.seed, tt.args.length)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("randomnessFromProbabilityDistributions() error = %value, wantErr %value", err, tt.wantErr)
 				return

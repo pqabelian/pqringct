@@ -851,7 +851,6 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	return true, v, nil
 }
 
-
 func(pp *PublicParameter)collectBytesForTransfer(b_hat *PolyNTTVec,c_hats []*PolyNTT) []byte{
 	res := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*len(c_hats))
 	appendPolyNTTToBytes := func(a *PolyNTT) {
@@ -870,6 +869,7 @@ func(pp *PublicParameter)collectBytesForTransfer(b_hat *PolyNTTVec,c_hats []*Pol
 	}
 	return res
 }
+
 func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64, txMemo []byte) (trTx *TransferTx, err error) {
 	//	check the well-formness of the inputs and outputs
 	if len(inputDescs) == 0 || len(outputDescs) == 0 {
@@ -997,6 +997,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 	if err != nil {
 		return nil, err
 	}
+	msgTrTxConHash, err := H(msgTrTxCon)
+	if err != nil {
+		return nil, err
+	}
 
 	elrsSigs := make([]*elrsSignature, I)
 	cmtps := make([]*Commitment, I)
@@ -1005,6 +1009,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		msg_hats[i] = intToBinary(inputDescs[i].value, pp.paramD)
 
 		//	dpk = inputDescs[i].txoList[inputDescs[i].sidx].dpk = (C, t)
+		// todo
 		kappa := []byte{}
 
 		satmp, err := pp.expandRandomnessA(kappa)
@@ -1052,7 +1057,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKc+1)
 		}
 
-		elrsSigs[i], err = pp.elrsSign(t_as, t_cs, msgTrTxCon, inputDescs[i].sidx, s_a, s_c)
+		elrsSigs[i], err = pp.elrsSign(t_as, t_cs, msgTrTxConHash, inputDescs[i].sidx, s_a, s_c)
 		if err != nil {
 			return nil, err // todo
 		}
@@ -1305,7 +1310,14 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 	//	todo: check the well-form of TxWitness
 
 	//	check the ring signatures
-	msgTrTxCon := []byte{}
+	msgTrTxCon, err := trTx.Serialize()
+	if err != nil {
+		return false
+	}
+	msgTrTxConHash, err := H(msgTrTxCon)
+	if err != nil {
+		return false
+	}
 	for i := 0; i < I; i++ {
 		//	check the validity of sigma_{lrs,i}
 		sn, err := pp.keyImgToSerialNumber(trTx.TxWitness.elrsSigs[i].keyImg)
@@ -1324,7 +1336,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 			t_cs[j] = trTx.Inputs[i].TxoList[j].cmt.toPolyNTTVec()
 			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKc+1)
 		}
-		valid := pp.elrsVerify(t_as, t_cs, msgTrTxCon, trTx.TxWitness.elrsSigs[i])
+		valid := pp.elrsVerify(t_as, t_cs, msgTrTxConHash, trTx.TxWitness.elrsSigs[i])
 		if !valid {
 			return false
 		}
