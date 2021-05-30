@@ -1275,7 +1275,7 @@ func (pp *PublicParameter) rejectionUniformWithZq(buf []byte, length int) []int3
 todo: generate MatrixA from pp.Cstr
 */
 func (pp *PublicParameter) expandPubMatrixA(seed []byte) (matrixA []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(append(seed), pp.paramKa, pp.paramLa)
+	matrix, err := pp.generateNTTMatrix(seed, pp.paramKa, pp.paramLa)
 	if err != nil {
 		return nil, err
 	}
@@ -1287,7 +1287,7 @@ todo: generate MatrixB from pp.Cstr
 todo: store the matrices in PP or generate them each time they are generated
 */
 func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(append(seed), pp.paramKc, pp.paramLc)
+	matrix, err := pp.generateNTTMatrix(seed, pp.paramKc, pp.paramLc)
 	if err != nil {
 		return nil, err
 	}
@@ -1295,7 +1295,7 @@ func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyNTTVec,
 }
 
 func (pp *PublicParameter) expandPubMatrixC(seed []byte) (matrixC []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(append(seed), pp.paramI+pp.paramJ+7, pp.paramLc)
+	matrix, err := pp.generateNTTMatrix(seed, pp.paramI+pp.paramJ+7, pp.paramLc)
 	if err != nil {
 		return nil, err
 	}

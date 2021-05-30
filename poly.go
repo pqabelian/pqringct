@@ -345,7 +345,8 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 		for start := 0; start+step < pp.paramD; start += step << 1 {
 			zeta := zetas[0]
 			for i := start; i < start+step; i++ {
-				coeffs[i], coeffs[i+step] = (coeffs[i]+coeffs[i+step]*zeta%int64(pp.paramQ)+int64(pp.paramQ))%int64(pp.paramQ), (coeffs[i]-coeffs[i+step]*zeta%int64(pp.paramQ)+int64(pp.paramQ))%int64(pp.paramQ)
+				tmp:=pp.reduce(coeffs[i+step]*zeta)
+				coeffs[i], coeffs[i+step] = int64(pp.reduce(coeffs[i]+int64(tmp))), int64(pp.reduce(coeffs[i]-int64(tmp)))
 				zeta = zetas[(i-start+1)*(pp.paramD/step)]
 			}
 		}
@@ -353,6 +354,9 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 
 	// todo:
 	coeffs1 := make([]int32, pp.paramD)
+	for i := 0; i < pp.paramD; i++ {
+		coeffs1[i]= int32(coeffs[i])
+	}
 	return &PolyNTT{coeffs1}
 	/*	res := NewPolyNTT(pp.paramD)
 		for i := 0; i < pp.paramD; i++ {
@@ -382,10 +386,9 @@ func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
 	//	}
 	//}
 	//return &Poly{coeffs: coeffs}
-
 	coeffs := make([]int64, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = int64(poly.coeffs[i])
+		coeffs[i] = int64(polyntt.coeffs[i])
 	}
 	for i := 0; i < pp.paramD/2; i++ {
 		coeffs[i], coeffs[tree[i]] = coeffs[tree[i]], coeffs[i]
@@ -394,7 +397,8 @@ func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
 		for start := 0; start+step < pp.paramD; start += step << 1 {
 			zeta := zetas[0]
 			for i := start; i < start+step; i++ {
-				coeffs[i], coeffs[i+step] = (coeffs[i]+coeffs[i+step]*zeta%int64(pp.paramQ)+int64(pp.paramQ))%int64(pp.paramQ), (coeffs[i]-coeffs[i+step]*zeta%int64(pp.paramQ)+int64(pp.paramQ))%int64(pp.paramQ)
+				tmp:=pp.reduce(coeffs[i+step]*zeta)
+				coeffs[i], coeffs[i+step] = int64(pp.reduce(coeffs[i]+int64(tmp))), int64(pp.reduce(coeffs[i]-int64(tmp)))
 				zeta = zetas[2*pp.paramD-(i-start+1)*(pp.paramD/step)]
 			}
 		}
@@ -402,6 +406,9 @@ func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
 
 	// todo:
 	coeffs1 := make([]int32, pp.paramD)
+	for i := 0; i < pp.paramD; i++ {
+		coeffs1[i]=pp.reduce(coeffs[i]* int64(pp.paramDInv))
+	}
 	return &Poly{coeffs1}
 }
 

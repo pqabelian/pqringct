@@ -2,6 +2,7 @@ package pqringct
 
 import (
 	"github.com/cryptosuite/kyber-go/kyber"
+	"golang.org/x/crypto/sha3"
 	"log"
 )
 
@@ -189,21 +190,27 @@ type PublicParameter struct {
 	paramSysBytes int
 }
 
-func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32, paramKem *kyber.ParameterSet) (*PublicParameter, error) {
-	res := &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF, paramKem: paramKem}
+func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramDInv int32, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32, paramKem *kyber.ParameterSet) (*PublicParameter, error) {
+	res := &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramDInv: paramDInv, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF, paramKem: paramKem}
 	seed, err := H(res.paramCStr)
 	if err != nil {
 		return nil, err
 	}
-	res.paramMatrixA, err = res.expandPubMatrixA(append(seed, 'M', 'A'))
+	tmpa := make([]byte, 32)
+	sha3.ShakeSum256(tmpa, append([]byte{'M', 'C'}, seed...))
+	res.paramMatrixA, err = res.expandPubMatrixA(tmpa)
 	if err != nil {
 		return nil, err
 	}
-	res.paramMatrixB, err = res.expandPubMatrixB(append(seed, 'M', 'B'))
+	tmpb := make([]byte, 32)
+	sha3.ShakeSum256(tmpb, append([]byte{'M', 'B'}, seed...))
+	res.paramMatrixB, err = res.expandPubMatrixB(tmpb)
 	if err != nil {
 		return nil, err
 	}
-	res.paramMatrixC, err = res.expandPubMatrixC(append(seed, 'M', 'C'))
+	tmpc := make([]byte, 32)
+	sha3.ShakeSum256(tmpc, append([]byte{'M', 'C'}, seed...))
+	res.paramMatrixC, err = res.expandPubMatrixC(tmpc)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +270,6 @@ type PubParams struct {
 	C []PolyNTTVec //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
 }
 
-
 func (pp *PublicParameter) reduce(a int64) int32 {
 	qm := int64(pp.paramQm)
 
@@ -276,6 +282,17 @@ func (pp *PublicParameter) reduce(a int64) int32 {
 	}
 
 	return int32(rst)
+	// another implement
+	//for a < 0 {
+	//	a = a+int64(pp.paramQ)
+	//}
+	//for a > int64(pp.paramQ){
+	//	a = a - int64(pp.paramQ)
+	//}
+	//if a > int64(pp.paramQm){
+	//	a = a - int64(pp.paramQ)
+	//}
+	//return a
 }
 
 func init() {
@@ -286,6 +303,7 @@ func init() {
 		5,
 
 		128,
+		-33554396,
 		4294962689,
 		27080629,
 		4,
