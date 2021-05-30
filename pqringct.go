@@ -409,13 +409,9 @@ func (pp *PublicParameter) collectBytesForCoinbase1(vin uint64, cmts []*Commitme
 		}
 	}
 
-	m := NewPoly(pp.paramD)
-	mtmp := intToBinary(vin, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
-		m.coeffs[i] = mtmp[i]
-	}
-	ntt_m := pp.NTT(m)
-	appendPolyNTTToBytes(ntt_m)
+	mbin := intToBinary(vin, pp.paramD)
+	m := &PolyNTT{mbin}
+	appendPolyNTTToBytes(m)
 
 	for i := 0; i < len(cmts[0].b.polyNTTs); i++ {
 		appendPolyNTTToBytes(cmts[0].b.polyNTTs[i])

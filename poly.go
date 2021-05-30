@@ -25,6 +25,11 @@ type PolyNTTVec struct {
 	polyNTTs []*PolyNTT
 }
 
+/*func (pp *PublicParameter) NewPoly() (r *Poly) {
+	tmp := make([]int32, pp.paramD)
+	return &Poly{coeffs: tmp}
+}*/
+
 // NewPoly create a struct with coeffs and if the length of coeffs must be more than parameter D of Public Parameter
 func (pp *PublicParameter) NewPoly(coeffs []int32) *Poly {
 	tmp := make([]int32, pp.paramD)
@@ -40,13 +45,21 @@ func (pp *PublicParameter) NewPoly(coeffs []int32) *Poly {
 // NewZeroPoly return a Poly with all coefficients are 0.
 func (pp *PublicParameter) NewZeroPoly() (r *Poly) {
 	tmp := make([]int32, pp.paramD)
-	/*	for i := 0; i < len(tmp); i++ {
+	for i := 0; i < len(tmp); i++ {
 		tmp[i] = 0
-	}*/
+	}
 	return &Poly{coeffs: tmp}
 }
 
 func (pp *PublicParameter) NewZeroPolyVec(vecLen int) (r *PolyVec) {
+	polys := make([]*Poly, vecLen)
+	for i := 0; i < vecLen; i++ {
+		polys[i] = pp.NewZeroPoly()
+	}
+	return &PolyVec{polys: polys}
+}
+
+func (pp *PublicParameter) NewPolyVec(vecLen int) (r *PolyVec) {
 	polys := make([]*Poly, vecLen)
 	for i := 0; i < vecLen; i++ {
 		polys[i] = pp.NewZeroPoly()

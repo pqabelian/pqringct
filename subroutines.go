@@ -1185,7 +1185,7 @@ func (pp *PublicParameter) generateNTTMatrix(seed []byte, rowLength int, colLeng
 func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []byte, vecLen int) (*PolyVec, error) {
 	var err error
 	// check the length of seed
-	ret := pp.NewZeroPolyVec(vecLen)
+	ret := pp.NewPolyVec(vecLen)
 	buf := make([]byte, pp.paramD*4)
 	XOF := sha3.NewShake128()
 	for i := 0; i < vecLen; i++ {
