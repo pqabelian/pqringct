@@ -85,6 +85,11 @@ func (trTxInput TrTxInput) Serialize(w io.Writer) error {
 	}
 
 	// write serialNumber
+	count = uint64(len(trTxInput.SerialNumber))
+	err = WriteVarInt(w, count)
+	if err != nil {
+		return err
+	}
 	_, err = w.Write(trTxInput.SerialNumber)
 	if err != nil {
 		return err
@@ -106,7 +111,7 @@ func (trTxWitness *TrTxWitness) SerializeSize() uint32 {
 	return 1
 }
 
-func (trTxWitness *TrTxWitness) Serialize() []byte {
+func (trTxWitness *TrTxWitness) Serialize() error {
 	// todo
 	return nil
 }
@@ -160,7 +165,7 @@ func (trTx *TransferTx) Serialize() ([]byte, error) {
 	}
 
 	// write txFee
-	err = WriteVarInt(w, trTx.Fee)
+	err = writeElement(w, trTx.Fee)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +300,7 @@ func (txo *TXO) Serialize(w io.Writer) error {
 			return err
 		}
 		for j := 0; j < cnt; j++ {
-			err = WriteVarInt(w, uint64(txo.dpk.t.polyNTTs[i].coeffs[j]))
+			err = writeElement(w, txo.dpk.t.polyNTTs[i].coeffs[j])
 			if err != nil {
 				return err
 			}
@@ -315,7 +320,7 @@ func (txo *TXO) Serialize(w io.Writer) error {
 			return err
 		}
 		for j := 0; j < cnt; j++ {
-			err = WriteVarInt(w, uint64(txo.cmt.b.polyNTTs[i].coeffs[j]))
+			err = writeElement(w, txo.cmt.b.polyNTTs[i].coeffs[j])
 			if err != nil {
 				return err
 			}
@@ -329,7 +334,7 @@ func (txo *TXO) Serialize(w io.Writer) error {
 		return err
 	}
 	for i := 0; i < count; i++ {
-		err = WriteVarInt(w, uint64(txo.cmt.c.coeffs[i]))
+		err = writeElement(w, txo.cmt.c.coeffs[i])
 		if err != nil {
 			return err
 		}
