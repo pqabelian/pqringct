@@ -111,8 +111,65 @@ func (trTxWitness *TrTxWitness) SerializeSize() uint32 {
 	return 1
 }
 
-func (trTxWitness *TrTxWitness) Serialize() error {
-	// todo
+func (trTxWitness *TrTxWitness) Serialize(w io.Writer) error {
+	// write b_hat
+	count := len(trTxWitness.b_hat.polyNTTs)
+	err := WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		num := len(trTxWitness.b_hat.polyNTTs[i].coeffs)
+		err := WriteVarInt(w, uint64(num))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < num; j++ {
+			err := writeElement(w, trTxWitness.b_hat.polyNTTs[i].coeffs[j])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// write c_hats
+	count = len(trTxWitness.c_hats)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		num := len(trTxWitness.c_hats[i].coeffs)
+		err := WriteVarInt(w, uint64(num))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < num; j++ {
+			err := writeElement(w, trTxWitness.c_hats[i].coeffs[j])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// write u_p
+	count = len(trTxWitness.u_p)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		err := writeElement(w, trTxWitness.u_p[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	// todo: write rpulpproof
+
+	// todo: write cmtps
+
+	// todo: write elrsSigs
 	return nil
 }
 
@@ -133,7 +190,7 @@ type TransferTx struct {
 	TxWitness *TrTxWitness
 }
 
-func (trTx *TransferTx) Serialize() ([]byte, error) {
+func (trTx *TransferTx) Serialize(hasWitness bool) ([]byte, error) {
 	w := new(bytes.Buffer)
 
 	// write inputs size
@@ -179,7 +236,13 @@ func (trTx *TransferTx) Serialize() ([]byte, error) {
 	// write txMemo
 	w.Write(trTx.TxMemo[:])
 
-	// write txWitness?
+	// write txWitness
+	if hasWitness {
+		err := trTx.TxWitness.Serialize(w)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return w.Bytes(), nil
 }
@@ -976,7 +1039,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 	}
 
-	msgTrTxCon, err := rettrTx.Serialize()
+	msgTrTxCon, err := rettrTx.Serialize(false)
 	if err != nil {
 		return nil, err
 	}
@@ -1292,7 +1355,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 	//	todo: check the well-form of TxWitness
 
 	//	check the ring signatures
-	msgTrTxCon, err := trTx.Serialize()
+	msgTrTxCon, err := trTx.Serialize(false)
 	if err != nil {
 		return false
 	}
