@@ -7,31 +7,13 @@ import (
 	"io"
 )
 
-type PolyVec struct {
-	// the length must be paramLa?
-	polys []*Poly
-}
-
-func NewPolyVec(rowlength int, colLength int) *PolyVec {
-	res := make([]*Poly, rowlength)
-	for i := 0; i < rowlength; i++ {
-		res[i] = NewPoly(colLength)
-	}
-	return &PolyVec{polys: res}
-}
-
-type PolyNTTVec struct {
-	// the length must be paramLa?
-	polyNTTs []*PolyNTT
-}
-
-func NewPolyNTTVec(rowlength int, colLength int) *PolyNTTVec {
+/*func NewPolyNTTVec(rowlength int, colLength int) *PolyNTTVec {
 	res := make([]*PolyNTT, rowlength)
 	for i := 0; i < rowlength; i++ {
 		res[i] = NewPolyNTT(colLength)
 	}
 	return &PolyNTTVec{polyNTTs: res}
-}
+}*/
 
 /*
 This file defines all public constants and interfaces of PQRingCT.
@@ -306,13 +288,13 @@ func (txo *TXO) Serialize(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for i := 0; i < count ; i++ {
+	for i := 0; i < count; i++ {
 		cnt := len(txo.dpk.t.polyNTTs[i].coeffs)
 		err = WriteVarInt(w, uint64(cnt))
 		if err != nil {
 			return err
 		}
-		for j := 0; j < cnt ; j++ {
+		for j := 0; j < cnt; j++ {
 			err = WriteVarInt(w, uint64(txo.dpk.t.polyNTTs[i].coeffs[j]))
 			if err != nil {
 				return err
@@ -326,13 +308,13 @@ func (txo *TXO) Serialize(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for i := 0; i < count ; i++ {
+	for i := 0; i < count; i++ {
 		cnt := len(txo.cmt.b.polyNTTs[i].coeffs)
 		err = WriteVarInt(w, uint64(cnt))
 		if err != nil {
 			return err
 		}
-		for j := 0; j < cnt ; j++ {
+		for j := 0; j < cnt; j++ {
 			err = WriteVarInt(w, uint64(txo.cmt.b.polyNTTs[i].coeffs[j]))
 			if err != nil {
 				return err
@@ -346,7 +328,7 @@ func (txo *TXO) Serialize(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for i := 0; i < count ; i++ {
+	for i := 0; i < count; i++ {
 		err = WriteVarInt(w, uint64(txo.cmt.c.coeffs[i]))
 		if err != nil {
 			return err
@@ -613,7 +595,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		u_p := make([]int32, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
 		u_p_tmp := make([]int64, pp.paramD)
 
-		seed_binM, err := H(pp.collectBytesForCoinbase2(b_hat,c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM, err := H(pp.collectBytesForCoinbase2(b_hat, c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
 			return nil, err
 		}
@@ -775,7 +757,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 			}
 		}
 
-		seed_binM, err := H(pp.collectBytesForCoinbase2(cbTx.TxWitness.b_hat,cbTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM, err := H(pp.collectBytesForCoinbase2(cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
 			return false
 		}
@@ -851,7 +833,7 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	return true, v, nil
 }
 
-func(pp *PublicParameter)collectBytesForTransfer(b_hat *PolyNTTVec,c_hats []*PolyNTT) []byte{
+func (pp *PublicParameter) collectBytesForTransfer(b_hat *PolyNTTVec, c_hats []*PolyNTT) []byte {
 	res := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*len(c_hats))
 	appendPolyNTTToBytes := func(a *PolyNTT) {
 		for k := 0; k < pp.paramD; k++ {
@@ -1105,10 +1087,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int32, pp.paramD)
-		u_p_temp := make([]int64, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		seed_binM,err := H(pp.collectBytesForTransfer(b_hat,c_hats))                // todo: compute the seed using hash function on (b_hat, c_hats).
-		if err!=nil{
-			return nil,err
+		u_p_temp := make([]int64, pp.paramD)                           // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		seed_binM, err := H(pp.collectBytesForTransfer(b_hat, c_hats)) // todo: compute the seed using hash function on (b_hat, c_hats).
+		if err != nil {
+			return nil, err
 		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
 		if err != nil {
@@ -1213,10 +1195,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int32, pp.paramD)
-		u_p_temp := make([]int64, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		seed_binM,err := H(pp.collectBytesForTransfer(b_hat,c_hats))                // todo: compute the seed using hash function on (b_hat, c_hats).
-		if err!=nil{
-			return nil,err
+		u_p_temp := make([]int64, pp.paramD)                           // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		seed_binM, err := H(pp.collectBytesForTransfer(b_hat, c_hats)) // todo: compute the seed using hash function on (b_hat, c_hats).
+		if err != nil {
+			return nil, err
 		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
 		if err != nil {
@@ -1371,8 +1353,8 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 			}
 		}
 
-		seed_binM ,err:= H(pp.collectBytesForTransfer(trTx.TxWitness.b_hat,trTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
-		if err!=nil{
+		seed_binM, err := H(pp.collectBytesForTransfer(trTx.TxWitness.b_hat, trTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		if err != nil {
 			return false
 		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
@@ -1411,7 +1393,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 			}
 		}
 
-		seed_binM ,err:= H(pp.collectBytesForTransfer(trTx.TxWitness.b_hat,trTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM, err := H(pp.collectBytesForTransfer(trTx.TxWitness.b_hat, trTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
 		if err != nil {
 			return false

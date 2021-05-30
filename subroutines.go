@@ -1109,14 +1109,15 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 
 	return true
 }
+
 func (pp *PublicParameter) generateMatrix(seed []byte, rowLength int, colLength int) ([]*PolyVec, error) {
 	var err error
 	// check the length of seed
-	res := make([]*PolyVec, rowLength)
+	ret := make([]*PolyVec, rowLength)
 	buf := make([]byte, colLength*pp.paramD*4)
 	XOF := sha3.NewShake128()
 	for i := 0; i < rowLength; i++ {
-		res[i] = NewPolyVec(colLength, pp.paramD)
+		ret[i] = pp.NewZeroPolyVec(colLength)
 		for j := 0; j < colLength; j++ {
 			XOF.Reset()
 			_, err = XOF.Write(append(seed, byte(i), byte(j)))
@@ -1137,11 +1138,11 @@ func (pp *PublicParameter) generateMatrix(seed []byte, rowLength int, colLength 
 				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
 			}
 			for k := 0; k < pp.paramD; k++ {
-				res[i].polys[j].coeffs[k] = got[k]
+				ret[i].polys[j].coeffs[k] = got[k]
 			}
 		}
 	}
-	return res, nil
+	return ret, nil
 }
 
 func (pp *PublicParameter) generateNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyNTTVec, error) {
@@ -1151,7 +1152,8 @@ func (pp *PublicParameter) generateNTTMatrix(seed []byte, rowLength int, colLeng
 	buf := make([]byte, colLength*pp.paramD*4)
 	XOF := sha3.NewShake128()
 	for i := 0; i < rowLength; i++ {
-		res[i] = NewPolyNTTVec(colLength, pp.paramD)
+		res[i] = pp.NewZeroPolyNTTVec(colLength)
+		//		res[i] = NewPolyNTTVec(colLength, pp.paramD)
 		for j := 0; j < colLength; j++ {
 			XOF.Reset()
 			_, err = XOF.Write(append(seed, byte(i), byte(j)))
@@ -1180,13 +1182,13 @@ func (pp *PublicParameter) generateNTTMatrix(seed []byte, rowLength int, colLeng
 }
 
 // generatePolyVecWithProbabilityDistributions generate a poly whose coefficient is in S_r named Probability Distribution
-func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []byte, length int) (*PolyVec, error) {
+func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []byte, vecLen int) (*PolyVec, error) {
 	var err error
 	// check the length of seed
-	res := NewPolyVec(length, pp.paramD)
+	ret := pp.NewZeroPolyVec(vecLen)
 	buf := make([]byte, pp.paramD*4)
 	XOF := sha3.NewShake128()
-	for i := 0; i < length; i++ {
+	for i := 0; i < vecLen; i++ {
 		XOF.Reset()
 		_, err = XOF.Write(append(seed, byte(i)))
 		if err != nil {
@@ -1196,24 +1198,24 @@ func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []by
 		if err != nil {
 			return nil, err
 		}
-		_,got, err := randomnessFromProbabilityDistributions(buf, pp.paramD)
+		_, got, err := randomnessFromProbabilityDistributions(buf, pp.paramD)
 		if len(got) < pp.paramLc {
 			newBuf := make([]byte, pp.paramD)
 			_, err = XOF.Read(newBuf)
 			if err != nil {
 				return nil, err
 			}
-			_,newGot, err := randomnessFromProbabilityDistributions(newBuf, pp.paramD-len(got))
+			_, newGot, err := randomnessFromProbabilityDistributions(newBuf, pp.paramD-len(got))
 			if err != nil {
 				return nil, err
 			}
 			got = append(got, newGot...)
 		}
 		for k := 0; k < pp.paramD; k++ {
-			res.polys[i].coeffs[k] = got[k]
+			ret.polys[i].coeffs[k] = got[k]
 		}
 	}
-	return res, nil
+	return ret, nil
 }
 func (pp *PublicParameter) generateBits(seed []byte, length int) ([]byte, error) {
 	var err error
@@ -1313,7 +1315,7 @@ func (pp PublicParameter) expandKeyImgMatrix(seed []byte) (matrixH []*PolyNTTVec
 func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLa)
 	for i := 0; i < pp.paramLa; i++ {
-		_,tmp, err := randomnessFromProbabilityDistributions(nil, pp.paramD)
+		_, tmp, err := randomnessFromProbabilityDistributions(nil, pp.paramD)
 		if err != nil {
 			return nil, err
 		}
@@ -1341,21 +1343,21 @@ func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec, err error
 	return r, nil
 }
 
-func (pp *PublicParameter) sampleRandomnessC() (seed []byte,r *PolyVec, err error) {
+func (pp *PublicParameter) sampleRandomnessC() (seed []byte, r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
 
 	for i := 0; i < pp.paramLc; i++ {
 		var tmp []int32
-		seed,tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramD)
+		seed, tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramD)
 		if err != nil {
-			return nil,nil, err
+			return nil, nil, err
 		}
 		polys[i] = &Poly{coeffs: tmp}
 	}
 	rst := &PolyVec{
 		polys: polys,
 	}
-	return seed,rst, nil
+	return seed, rst, nil
 }
 
 func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec, err error) {
@@ -1478,17 +1480,17 @@ func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte, err error) 
 	return r, nil
 }
 
-func (pp PublicParameter) sampleUniformPloyWithLowZeros() (r *Poly) {
-	res := NewPoly(pp.paramD)
+func (pp *PublicParameter) sampleUniformPloyWithLowZeros() (r *Poly) {
+	ret := pp.NewZeroPoly()
 	seed := randomBytes(pp.paramSysBytes)
 	tmp := pp.rejectionUniformWithZq(seed, pp.paramD-pp.paramK)
 	for i := pp.paramK; i < pp.paramD; i++ {
-		res.coeffs[i] = tmp[i-pp.paramK]
+		ret.coeffs[i] = tmp[i-pp.paramK]
 	}
-	return res
+	return ret
 }
 
-func (pp PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m int) (alphas []*PolyNTT, betas []*PolyNTT, gammas [][][]int32, err error) {
+func (pp *PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m int) (alphas []*PolyNTT, betas []*PolyNTT, gammas [][][]int32, err error) {
 	alphas = make([]*PolyNTT, n1)
 	betas = make([]*PolyNTT, pp.paramK)
 	gammas = make([][][]int32, pp.paramK)
@@ -1503,7 +1505,7 @@ func (pp PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m i
 	}
 	buf := make([]byte, n1*pp.paramD*4)
 	for i := 0; i < n1; i++ {
-		alphas[i] = NewPolyNTT(pp.paramD)
+		alphas[i] = pp.NewZeroPolyNTT()
 		_, err = XOF.Read(buf)
 		if err != nil {
 			return nil, nil, nil, err
@@ -1529,7 +1531,7 @@ func (pp PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m i
 	}
 	buf = make([]byte, pp.paramK*pp.paramD*4)
 	for i := 0; i < pp.paramK; i++ {
-		betas[i] = NewPolyNTT(pp.paramD)
+		betas[i] = pp.NewZeroPolyNTT()
 		_, err = XOF.Read(buf)
 		if err != nil {
 			return nil, nil, nil, err
@@ -1650,7 +1652,7 @@ todo:
 */
 func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
 	// extend seed via sha3.Shake128
-	res := NewPoly(pp.paramD)
+	ret := pp.NewZeroPoly()
 	buf := make([]byte, pp.paramD/4)
 	XOF := sha3.NewShake128()
 	XOF.Reset()
@@ -1664,9 +1666,9 @@ func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
 	}
 	got, err := randomnessFromChallengeSpace(seed, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		res.coeffs[i] = got[i]
+		ret.coeffs[i] = got[i]
 	}
-	return res, nil
+	return ret, nil
 }
 
 /*
