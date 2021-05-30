@@ -987,8 +987,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		msg_hats[i] = intToBinary(inputDescs[i].value, pp.paramD)
 
 		//	dpk = inputDescs[i].txoList[inputDescs[i].sidx].dpk = (C, t)
-		// todo
-		kappa := []byte{}
+		kappa := inputDescs[i].msvk.skkem.CryptoKemDec(inputDescs[i].txoList[inputDescs[i].sidx].dpk.ckem)
 
 		satmp, err := pp.expandRandomnessA(kappa)
 		if err != nil {
