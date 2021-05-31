@@ -26,24 +26,6 @@ func TestMod(t *testing.T) {
 	fmt.Println((xi - tau) % pp.paramK)
 }
 
-func TestSampleRandomnessA(t *testing.T) {
-	pp := PublicParameter{}
-	pp.paramLa = 8
-	pp.paramD = 8
-	pp.paramQ = 4294962689
-
-	A, err := pp.sampleRandomnessA()
-	if err != nil {
-		t.Error(err)
-	}
-	for i := 0 ; i < pp.paramLa ; i++ {
-		for j := 0 ; j < pp.paramD ; j++ {
-			fmt.Print(A.polys[i].coeffs[j])
-			fmt.Print(" ")
-		}
-		fmt.Print("\n")
-	}
-}
 
 func TestSampleUniformPloyWithLowZeros(t *testing.T) {
 	pp := PublicParameter{}

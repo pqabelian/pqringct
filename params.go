@@ -55,7 +55,7 @@ type PublicParameter struct {
 	paramJ int
 
 	/*
-			d: the degree of the polynomial ring, say R =Z[X] / (X^d + 1)
+			paramD: the degree of the polynomial ring, say R =Z[X] / (X^d + 1)
 			d should be a power of two, not too small (otherwise is insecure) and not too large (otherwise inefficient)
 			here we define it as 'int', since we need to loop from 0 to d-1 for some matrix, and int is fine for the possible
 			values, such as d=128, 256, 512, and even 1024, on any platform/OS, since int maybe int32 or int64.
@@ -68,7 +68,7 @@ type PublicParameter struct {
 	paramDInv int32
 
 	/*
-		q is the module to define R_q[X] = Z_q[X] / (X^d +1)
+		paramQ is the module to define R_q[X] = Z_q[X] / (X^d +1)
 		q = 1 mod 2d will guarantee that R_q[X] is a fully-splitting ring, say that X^d+1 = (X-\zeta)(X-\zetz^3)...(X-\zeta^{2d-1}),
 		where \zeta is a primitive 2d-th root of unity in Z_q^*.
 		For efficiency, q is expected to small. Considering the security, q (approx.)= 2^32 is fine.
@@ -78,12 +78,12 @@ type PublicParameter struct {
 	paramQ uint32
 
 	/*
-		q_m = (q-1)/2, as this value will be often used in computation, we define it as a parameter, rather than compute it each time.
+		paramQm = (q-1)/2, as this value will be often used in computation, we define it as a parameter, rather than compute it each time.
 	*/
 	paramQm uint32
 
 	/*
-		k is a power of two such that k|d and q^{-k} is negligible.
+		paramK is a power of two such that k|d and q^{-k} is negligible.
 		As we will also loop for k, we define it with 'int' type.
 	*/
 	paramK int
@@ -106,18 +106,18 @@ type PublicParameter struct {
 	paramSigmaInvPermutations [][]int
 
 	/*
-		zeta is a primitive 2d-th root of unity in Z_q^*.
+		paramZeta is a primitive 2d-th root of unity in Z_q^*.
 		As zeta \in Z_q, we define it with 'int32' type.
 	*/
 	paramZeta int32
 
 	/*
-		As we need to loop k_a, we define it with 'int' type
+		As we need to loop paramKa, we define it with 'int' type
 	*/
 	paramKa int
 
 	/*
-		As we need to loop l_a, we define it with 'int' type
+		As we need to loop paramLa, we define it with 'int' type
 	*/
 	paramLa int
 
@@ -125,22 +125,22 @@ type PublicParameter struct {
 	paramBetaA int32
 
 	/*
-		As we need to loop for k_c, we define it with 'int' type
+		As we need to loop for paramKc, we define it with 'int' type
 	*/
 	paramKc int
 
 	/*
-		As we need to loop for l_c, we define it with 'int' type
+		As we need to loop for paramLc, we define it with 'int' type
 	*/
 	paramLc int
 
 	/*
-		As eta_c is used to specify the infNorm of polys in Ring, thus we define it with type 'int32' (as q)
+		As paramEtaC is used to specify the infNorm of polys in Ring, thus we define it with type 'int32' (as q)
 	*/
 	paramEtaC int32
 
 	/*
-		As beta_c is used to specify the infNorm of polys in Ring, thus we define it with type 'int32' (as q)
+		As paramBetaC is used to specify the infNorm of polys in Ring, thus we define it with type 'int32' (as q)
 	*/
 	paramBetaC int32
 
@@ -148,7 +148,7 @@ type PublicParameter struct {
 	paramBetaC2 int32
 
 	/*
-		m_a is used to specify the row number of Key Image Matrix
+		paramMa is used to specify the row number of Key Image Matrix
 		As we need to loop for m_a, we define it with 'int' type
 	*/
 	paramMa int
@@ -158,6 +158,9 @@ type PublicParameter struct {
 	*/
 	paramEtaF int32
 
+	/*
+		As paramCStr is used to generate the public matrix, such as paramMatrixA, paramMatrixB, paramMatrixC
+	*/
 	paramCStr []byte
 
 	/*
@@ -190,24 +193,28 @@ type PublicParameter struct {
 	paramSysBytes int
 }
 
+// NewPublicParameter construct a PublicParameter with some parameters
 func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramDInv int32, paramQ uint32, paramZeta int32, paramK int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramEtaF int32, paramKem *kyber.ParameterSet) (*PublicParameter, error) {
 	res := &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramDInv: paramDInv, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramEtaF: paramEtaF, paramKem: paramKem}
 	seed, err := H(res.paramCStr)
 	if err != nil {
 		return nil, err
 	}
+	// generate the public matrix paramMatrixA from seed
 	tmpa := make([]byte, 32)
 	sha3.ShakeSum256(tmpa, append([]byte{'M', 'C'}, seed...))
 	res.paramMatrixA, err = res.expandPubMatrixA(tmpa)
 	if err != nil {
 		return nil, err
 	}
+	// generate the public matrix paramMatrixB from seed
 	tmpb := make([]byte, 32)
 	sha3.ShakeSum256(tmpb, append([]byte{'M', 'B'}, seed...))
 	res.paramMatrixB, err = res.expandPubMatrixB(tmpb)
 	if err != nil {
 		return nil, err
 	}
+	// generate the public matrix paramMatrixC from seed
 	tmpc := make([]byte, 32)
 	sha3.ShakeSum256(tmpc, append([]byte{'M', 'C'}, seed...))
 	res.paramMatrixC, err = res.expandPubMatrixC(tmpc)
@@ -248,6 +255,7 @@ func (p *PublicParameter) TransferTXVerify(tx *TransferTx) bool {
 	panic("implement me")
 }*/
 
+// DefaultPP is a public parameter which will be generated by the default parameters
 var DefaultPP *PublicParameter
 
 // PQRingCT TODO_DONE: optimize the interface using array?  not
@@ -261,15 +269,16 @@ var DefaultPP *PublicParameter
 //	TransferTXVerify(tx *TransferTx) bool
 //}
 
-type PubParams struct {
-	// the length must be paramLa
-	A []PolyNTTVec
-	// the length must be paramLc
-	B []PolyNTTVec
-	// the length must be paramI + paramJ + 7
-	C []PolyNTTVec //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
-}
+//type PubParams struct {
+//	// the length must be paramLa
+//	A []PolyNTTVec
+//	// the length must be paramLc
+//	B []PolyNTTVec
+//	// the length must be paramI + paramJ + 7
+//	C []PolyNTTVec //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
+//}
 
+// reduce is private function for helping the overall operation is in Zq which is described by paramQ
 func (pp *PublicParameter) reduce(a int64) int32 {
 	qm := int64(pp.paramQm)
 
@@ -282,7 +291,7 @@ func (pp *PublicParameter) reduce(a int64) int32 {
 	}
 
 	return int32(rst)
-	// another implement
+	// another implementation
 	//for a < 0 {
 	//	a = a+int64(pp.paramQ)
 	//}
@@ -295,6 +304,8 @@ func (pp *PublicParameter) reduce(a int64) int32 {
 	//return a
 }
 
+
+// init set the default public parameter for package importer
 func init() {
 	var err error
 	DefaultPP, err = NewPublicParameter(
@@ -309,21 +320,21 @@ func init() {
 		4,
 
 		10,
-		10,
-		1024-1,
-		2,
+		20,
+		1<<15-1,
+		256,
 
 		10,
-		10,
-		1024-1,
-		2,
+		36,
+		1<<18-1,
+		128,
 
-		1024-1,
-		2,
+		1<<16-1,
+		256,
 
 		1,
-		1024-1,
-		kyber.Kyber512,
+		1<<28-1,
+		kyber.Kyber768,
 	)
 	if err != nil {
 		log.Fatalln("init error")

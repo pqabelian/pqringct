@@ -193,6 +193,7 @@ rpUlpProveRestart:
 	}
 
 	//	p^(t)_j:
+	// TODO: the binaryMatrixB is transposed
 	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
 	//	phi
@@ -1312,12 +1313,14 @@ func (pp PublicParameter) expandKeyImgMatrix(seed []byte) (matrixH []*PolyNTTVec
 	return matrix, nil
 }
 
-func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec, err error) {
+// Deprecated: Before calling the function expandRandomnessA, you should got the random bytes
+func (pp *PublicParameter) sampleRandomnessA() (seed []byte,r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLa)
 	for i := 0; i < pp.paramLa; i++ {
-		_, tmp, err := randomnessFromProbabilityDistributions(nil, pp.paramD)
+		var tmp []int32
+		seed, tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramD)
 		if err != nil {
-			return nil, err
+			return nil,nil, err
 		}
 		polys[i] = &Poly{coeffs: tmp}
 	}
@@ -1325,12 +1328,14 @@ func (pp *PublicParameter) sampleRandomnessA() (r *PolyVec, err error) {
 	retr := &PolyVec{
 		polys: polys,
 	}
-	return retr, nil
+	return seed,retr, nil
 }
 
 /*
 todo: expand a seed to a PolyVec with length l_a from (S_r)^d
 */
+// expandRandomnessA expand a bytes slice to a PolyVec with length l_a from (S_r)^d.
+// And before calling, you should have got the seed.
 func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec, err error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
@@ -1720,6 +1725,7 @@ func (pp *PublicParameter) intMatrixInnerProduct(a [][]int32, b [][]int32, rowNu
 	return rst
 }
 
+// TODO: a int32 -> byte
 func (pp *PublicParameter) intVecInnerProduct(a []int32, b []int32, vecLen int) (r int32) {
 	rst := int32(0)
 	for i := 0; i < vecLen; i++ {
@@ -1737,15 +1743,15 @@ func intToBinary(v uint64, bitNum int) (bits []int32) {
 	return rstbits
 }
 
-func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]int32, err error) {
-	// todo: in randomness, we need a method to expandUniformBits()
+// TODO: fix the bug for [][]int32 to [][]byte
+func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err error) {
 	//	todo: for binaryMatrxi we may do some optimoztion, e.g. use []byte to denote the matrix directly
 	//	so that for a 128*128 matrix, we just need 16*16 bytes rather than 128*128 int32's.
-	binM = make([][]int32, rownum)
+	binM = make([][]byte, rownum)
 	XOF := sha3.NewShake128()
 	buf := make([]byte, (colnum+7)/8)
 	for i := 0; i < rownum; i++ {
-		binM[i] = make([]int32, colnum)
+		binM[i] = make([]byte, colnum)
 		XOF.Reset()
 		_, err = XOF.Write(append(seed, byte(i)))
 		if err != nil {
@@ -1756,7 +1762,7 @@ func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]int32, er
 			return nil, err
 		}
 		for j := 0; j < colnum; j++ {
-			binM[i][j] = int32((buf[i/8] >> (j / 8)) & 1)
+			binM[i][j] = byte((buf[i/8] >> (j / 8)) & 1)
 		}
 	}
 	return
@@ -1782,7 +1788,7 @@ func (cmt *Commitment) toPolyNTTVec() *PolyNTTVec {
 
 	return rettransMatrix
 }*/
-
+// TODO: the int32 -> byte and the byte will be used for 8 values (as int32)
 func getMatrixColumn(matrix [][]int32, rowNum int, j int) (col []int32) {
 	retcol := make([]int32, rowNum)
 	for i := 0; i < rowNum; i++ {
@@ -1812,6 +1818,7 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]in
 			for i := 0; i < pp.paramD; i++ {
 				// F^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
 				// B^T[i]: ith-col of B
+				// TODO: get the binary matrix,
 				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][2], pp.paramD)
 				if i == 0 {
 					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i]))

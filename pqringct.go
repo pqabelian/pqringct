@@ -592,6 +592,9 @@ func Setup() (pp *PublicParameter) {
 	return nil
 }
 
+1// MasterKeyGen generates the master public key, master view key, and master sign key.
+// If the seed is nil, this function will random a seed whose length is paramSysBytes.
+// This function requires the length of seed is at least 2*paramSysBytes.
 func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
 	/*	mpk := MasterPublicKey{}
 		msvk := MasterSecretViewKey{}
@@ -599,34 +602,39 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *Maste
 
 		return &mpk, &msvk, &mssk, nil*/
 
-	//	kappa := []byte
 	var s *PolyNTTVec
-	if seed != nil {
-		//	todo:
-		//	todo: check the validity of seed
-		randomnessA, err := pp.expandRandomnessA(seed)
-		if err != nil {
-			return seed, nil, nil, nil, err
-		}
-		s = pp.NTTVec(randomnessA)
-	} else {
-		randomnessA, err := pp.sampleRandomnessA()
-		if err != nil {
-			return seed, nil, nil, nil, err
-		}
-		s = pp.NTTVec(randomnessA)
-	}
-	//len(s.polys) != pp.paramLa
+	var randomnessA *PolyVec
+	var kemPK *kyber.PublicKey
+	var kemSK *kyber.SecretKey
 
+	// check the validity of the length of seed
+	if seed != nil && len(seed) < 2*pp.paramSysBytes {
+		return nil, nil, nil, nil, errors.New("the length of seed is invalid")
+	}
+	if seed == nil {
+		seed= randomBytes(2*pp.paramSysBytes)
+	}
+	//
+	randomnessA, err = pp.expandRandomnessA(seed[:pp.paramSysBytes])
+	if err != nil {
+		return seed, nil, nil, nil, err
+	}
+	kemPK, kemSK, err = pp.paramKem.CryptoKemKeyPair(seed[pp.paramSysBytes : 2*pp.paramSysBytes])
+	if err != nil {
+		return seed, nil, nil, nil, err
+	}
+
+	s = pp.NTTVec(randomnessA)
+	// t = A * s, will be as a part of public key
 	t := pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKa, pp.paramLa)
 
 	rstmpk := &MasterPublicKey{
-		nil, // todo
+		kemPK,
 		t,
 	}
 
 	rstmsvk := &MasterSecretViewKey{
-		skkem: nil,
+		skkem: kemSK,
 	}
 
 	rstmssk := &MasterSecretSignKey{
@@ -841,6 +849,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		for i := 0; i < pp.paramD; i++ {
 			u_p_tmp[i] = 0
 			for j := 0; j < pp.paramD; j++ {
+				// TODO: re-write
 				u_p_tmp[i] = u_p_tmp[i] + int64(binM[i][j])*int64(f[j]) + int64(e[j])
 			}
 
@@ -1433,6 +1442,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		if err != nil {
 			return nil, err
 		}
+		// TODO: notice the offset
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
 		if err != nil {
 			return nil, err
@@ -1447,7 +1457,8 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		for i := 0; i < pp.paramD; i++ {
 			u_p_temp[i] = 0
 			for j := 0; j < pp.paramD; j++ {
-				u_p_temp[i] = u_p_temp[i] + int64(binM[i][j])*int64(f1[j]) + int64(binM[i][pp.paramD+j])*int64(f2[j]) + int64(e[j])
+				u_p_temp[i] = u_p_temp[i] + int64(binM[i][j])*int64(f1[j]) +
+					int64(binM[i][pp.paramD+j])*int64(f2[j]) + int64(e[j])
 			}
 
 			infNorm := u_p_temp[i]

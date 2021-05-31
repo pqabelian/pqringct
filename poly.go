@@ -3,7 +3,8 @@ package pqringct
 /**
 Note we do everything on Ring over some PublicParameter.
 */
-// Poly why do export?
+
+// Poly uses coefficient notation to define a polynomial in Zq
 type Poly struct {
 	coeffs []int32
 }
@@ -11,46 +12,54 @@ type Poly struct {
 /*
 The NTT-form poly in a fully-splitting ring
 */
+
+// PolyNTT defines a polynomial in the NTT domain
 type PolyNTT struct {
 	coeffs []int32
 }
 
+// PolyVec defines a polynomial vector in Zq
 type PolyVec struct {
 	// the length must be paramLa?
 	polys []*Poly
 }
 
+// PolyNTTVec defines a polynomial vector in the NTT domain
 type PolyNTTVec struct {
 	// the length must be paramLa?
 	polyNTTs []*PolyNTT
 }
 
-/*func (pp *PublicParameter) NewPoly() (r *Poly) {
+// NewPoly creates a Poly with all coefficients are default initial value.
+// If need to set the coefficients, please use the self-contained way in Golang.
+func (pp *PublicParameter) NewPoly() *Poly {
 	tmp := make([]int32, pp.paramD)
-	return &Poly{coeffs: tmp}
-}*/
-
-// NewPoly create a struct with coeffs and if the length of coeffs must be more than parameter D of Public Parameter
-func (pp *PublicParameter) NewPoly(coeffs []int32) *Poly {
-	tmp := make([]int32, pp.paramD)
-	for i := 0; i < len(tmp); i++ {
-		tmp[i] = coeffs[i]
-	}
 	return &Poly{coeffs: tmp}
 }
 
-/*
-	todo_DONE: output a Poly with all coefficients are 0.
-*/
-// NewZeroPoly return a Poly with all coefficients are 0.
+// NewZeroPoly returns a Poly with all coefficients are 0.
+// This function is encapsulated for requirements.
 func (pp *PublicParameter) NewZeroPoly() (r *Poly) {
 	tmp := make([]int32, pp.paramD)
+	// The following loop is clear that all coefficient are 0
 	for i := 0; i < len(tmp); i++ {
 		tmp[i] = 0
 	}
 	return &Poly{coeffs: tmp}
 }
 
+// NewPolyVec creates a PolyVec with all coefficients are default initial value.
+// If need to set the coefficients, please use the self-contained way in Golang.
+func (pp *PublicParameter) NewPolyVec(vecLen int) (r *PolyVec) {
+	polys := make([]*Poly, vecLen)
+	for i := 0; i < vecLen; i++ {
+		polys[i] = pp.NewPoly()
+	}
+	return &PolyVec{polys: polys}
+}
+
+// NewZeroPolyVec returns a PolyVec with all coefficients are 0.
+// This function is encapsulated for requirements.
 func (pp *PublicParameter) NewZeroPolyVec(vecLen int) (r *PolyVec) {
 	polys := make([]*Poly, vecLen)
 	for i := 0; i < vecLen; i++ {
@@ -59,14 +68,7 @@ func (pp *PublicParameter) NewZeroPolyVec(vecLen int) (r *PolyVec) {
 	return &PolyVec{polys: polys}
 }
 
-func (pp *PublicParameter) NewPolyVec(vecLen int) (r *PolyVec) {
-	polys := make([]*Poly, vecLen)
-	for i := 0; i < vecLen; i++ {
-		polys[i] = pp.NewZeroPoly()
-	}
-	return &PolyVec{polys: polys}
-}
-
+// PolyAdd performances polynomial addition, and return a result Poly.
 func (pp *PublicParameter) PolyAdd(a *Poly, b *Poly) (r *Poly) {
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
@@ -75,6 +77,7 @@ func (pp *PublicParameter) PolyAdd(a *Poly, b *Poly) (r *Poly) {
 	return &Poly{coeffs: coeffs}
 }
 
+// PolySub performances polynomial subtraction, and return a result Poly.
 func (pp *PublicParameter) PolySub(a *Poly, b *Poly) (r *Poly) {
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
@@ -83,6 +86,8 @@ func (pp *PublicParameter) PolySub(a *Poly, b *Poly) (r *Poly) {
 	return &Poly{coeffs: coeffs}
 }
 
+// PolyMul performances polynomial muitlplication, and return a result Poly.
+// It uses fast number theory transformation to accelerate the calculation process.
 func (pp *PublicParameter) PolyMul(a *Poly, b *Poly) (r *Poly) {
 	var antt = pp.NTT(a)
 	var bntt = pp.NTT(b)
@@ -91,17 +96,15 @@ func (pp *PublicParameter) PolyMul(a *Poly, b *Poly) (r *Poly) {
 	return pp.NTTInv(rntt)
 }
 
-/*
-	todo_DONE: output a PolyNTT with all coefficients are 0.
-*/
+// NewZeroPolyNTT creates a PolyNTT with all coefficients are 0.
+// This function is encapsulated for requirements.
 func (pp *PublicParameter) NewZeroPolyNTT() (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
 	return &PolyNTT{coeffs}
 }
 
-/*
-todo_DONE： utput a PolyNTTVec with all polyNTTs are zero-PolyNTT.
-*/
+// NewZeroPolyNTTVec creates a PolyNTTVec with all coefficients are default initial value.
+// This function is encapsulated for requirements.
 func (pp *PublicParameter) NewZeroPolyNTTVec(vecLen int) (r *PolyNTTVec) {
 	polyNTTs := make([]*PolyNTT, vecLen)
 	for i := 0; i < vecLen; i++ {
@@ -111,6 +114,7 @@ func (pp *PublicParameter) NewZeroPolyNTTVec(vecLen int) (r *PolyNTTVec) {
 		polyNTTs}
 }
 
+// PolyNTTAdd performances polynomial addition, and return a result PolyNTT.
 func (pp *PublicParameter) PolyNTTAdd(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
@@ -119,6 +123,7 @@ func (pp *PublicParameter) PolyNTTAdd(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	return &PolyNTT{coeffs: coeffs}
 }
 
+// PolyNTTSub performances polynomial subtraction, and return a result PolyNTT.
 func (pp *PublicParameter) PolyNTTSub(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
@@ -127,6 +132,7 @@ func (pp *PublicParameter) PolyNTTSub(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	return &PolyNTT{coeffs: coeffs}
 }
 
+// PolyNTTMul performances the component-wise multiplication of vectors, and return a result PolyNTT.
 func (pp *PublicParameter) PolyNTTMul(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
@@ -135,15 +141,27 @@ func (pp *PublicParameter) PolyNTTMul(a *PolyNTT, b *PolyNTT) (r *PolyNTT) {
 	return &PolyNTT{coeffs: coeffs}
 }
 
+// PolyNTTPower performs exponentiation for all coefficients
 func (pp *PublicParameter) PolyNTTPower(a *PolyNTT, e uint) (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
-	// todo
+	var res,cnt int64
+	var tmp uint
 	for i := 0; i < pp.paramD; i++ {
-
+		res=int64(1)
+		tmp=e
+		cnt=int64(a.coeffs[i])
+		for tmp!=0 {
+			if tmp & 1 ==1 {
+				res = int64(pp.reduce(res * cnt))
+			}
+			cnt= int64(pp.reduce(cnt * cnt))
+			tmp >>= 1
+		}
 	}
 	return &PolyNTT{coeffs: coeffs}
 }
 
+// PolyNTTEqualCheck reports whether a and b are the same length and contain the same content.
 func (pp *PublicParameter) PolyNTTEqualCheck(a *PolyNTT, b *PolyNTT) (eq bool) {
 	if a == nil || b == nil {
 		return false
@@ -162,6 +180,7 @@ func (pp *PublicParameter) PolyNTTEqualCheck(a *PolyNTT, b *PolyNTT) (eq bool) {
 	return true
 }
 
+// PolyNTTVecAdd performs the addition of polynomial vectors in the NTT domain
 func (pp *PublicParameter) PolyNTTVecAdd(a *PolyNTTVec, b *PolyNTTVec, vecLen int) (r *PolyNTTVec) {
 	rst := &PolyNTTVec{}
 	rst.polyNTTs = make([]*PolyNTT, vecLen)
@@ -172,6 +191,7 @@ func (pp *PublicParameter) PolyNTTVecAdd(a *PolyNTTVec, b *PolyNTTVec, vecLen in
 	return rst
 }
 
+// PolyNTTVecSub performs the subtraction of polynomial vectors in the NTT domain
 func (pp *PublicParameter) PolyNTTVecSub(a *PolyNTTVec, b *PolyNTTVec, vecLen int) (r *PolyNTTVec) {
 	rst := &PolyNTTVec{}
 	rst.polyNTTs = make([]*PolyNTT, vecLen)
@@ -182,6 +202,8 @@ func (pp *PublicParameter) PolyNTTVecSub(a *PolyNTTVec, b *PolyNTTVec, vecLen in
 	return rst
 }
 
+// PolyNTTVecEqualCheck reports whether a and b are the same length and contain the same content.
+// if any of inputs is nil, it will return false
 func (pp *PublicParameter) PolyNTTVecEqualCheck(a *PolyNTTVec, b *PolyNTTVec) (eq bool) {
 	if a == nil || b == nil {
 		return false
@@ -204,6 +226,7 @@ func (pp *PublicParameter) PolyNTTVecEqualCheck(a *PolyNTTVec, b *PolyNTTVec) (e
 	return true
 }
 
+// PolyNTTVecScaleMul
 func (pp *PublicParameter) PolyNTTVecScaleMul(polyNTTScale *PolyNTT, polyNTTVec *PolyNTTVec, vecLen int) (r *PolyNTTVec) {
 	rst := &PolyNTTVec{}
 	rst.polyNTTs = make([]*PolyNTT, vecLen)
@@ -213,6 +236,7 @@ func (pp *PublicParameter) PolyNTTVecScaleMul(polyNTTScale *PolyNTT, polyNTTVec 
 	return rst
 }
 
+// PolyNTTVecInnerProduct performances the inner product operation of polynomial vectors in the NTT domain
 func (pp *PublicParameter) PolyNTTVecInnerProduct(a *PolyNTTVec, b *PolyNTTVec, vecLen int) (r *PolyNTT) {
 	rst := pp.NewZeroPolyNTT()
 	for i := 0; i < vecLen; i++ {
@@ -222,6 +246,7 @@ func (pp *PublicParameter) PolyNTTVecInnerProduct(a *PolyNTTVec, b *PolyNTTVec, 
 	return rst
 }
 
+// PolyNTTMatrixMulVector performances the multiplication of polynomial matrix and polynomial vectors in the NTT domain
 func (pp *PublicParameter) PolyNTTMatrixMulVector(M []*PolyNTTVec, vec *PolyNTTVec, rowNum int, vecLen int) (r *PolyNTTVec) {
 	rst := &PolyNTTVec{}
 	rst.polyNTTs = make([]*PolyNTT, rowNum)
@@ -231,6 +256,7 @@ func (pp *PublicParameter) PolyNTTMatrixMulVector(M []*PolyNTTVec, vec *PolyNTTV
 	return rst
 }
 
+// infNorm calculates the infinite norm of a polynomial in Zq
 func (p *Poly) infNorm() (infNorm int32) {
 	rst := int32(0)
 	for _, coeff := range p.coeffs {
@@ -244,6 +270,7 @@ func (p *Poly) infNorm() (infNorm int32) {
 	return rst
 }
 
+// infNorm calculates the infinite norm of a polynomial vector in Zq
 func (pv *PolyVec) infNorm() (infNorm int32) {
 	rst := int32(0)
 	for _, p := range pv.polys {
@@ -257,8 +284,8 @@ func (pv *PolyVec) infNorm() (infNorm int32) {
 }
 
 // zetas is used for ntt and inv-ntt
-// zetas[1] is the element whose order is 256. In other word, zetas[1] is the
-// primitive 256-th root of unity
+// where zetas[1] is the element whose order is 256.
+// In other word, zetas[1] is the primitive 256-th root of unity
 var zetas []int64 = []int64{
 	1, 27080629, 4177814269, 4110422914, 2193819743, 2991980804, 1892424754, 3818155385,
 	980252025, 4178285626, 4125354759, 3801306276, 461633757, 1788171609, 965426373, 719032860,
@@ -293,6 +320,8 @@ var zetas []int64 = []int64{
 	2398405180, 1009654371, 3659052928, 1269821458, 865373539, 1433286680, 1162534279, 1394720400,
 	3824065600, 1535371675, 1289455571, 1499260483, 3255851524, 4136219683, 2063290838, 3974498827,
 }
+
+// tree is the 7-bit reverse mapping, used for ntt and inv_ntt
 var tree []int32 = []int32{
 	0, 64, 32, 96, 16, 80, 48, 112, 8, 72, 40, 104, 24, 88, 56, 120, 4,
 	68, 36, 100, 20, 84, 52, 116, 12, 76, 44, 108, 28, 92, 60, 124, 2,
@@ -305,7 +334,7 @@ var tree []int32 = []int32{
 }
 
 // NTT performance in-place number-theoretic transform (NTT) in Rq.
-// The input is in standard order, output is in bit-reversed order
+// The input is in standard order, output is in standard order.
 func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 
 	//coeffs := make([]int32, pp.paramD)
@@ -345,17 +374,16 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 		for start := 0; start+step < pp.paramD; start += step << 1 {
 			zeta := zetas[0]
 			for i := start; i < start+step; i++ {
-				tmp:=pp.reduce(coeffs[i+step]*zeta)
+				tmp := pp.reduce(coeffs[i+step] * zeta)
 				coeffs[i], coeffs[i+step] = int64(pp.reduce(coeffs[i]+int64(tmp))), int64(pp.reduce(coeffs[i]-int64(tmp)))
 				zeta = zetas[(i-start+1)*(pp.paramD/step)]
 			}
 		}
 	}
 
-	// todo:
 	coeffs1 := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs1[i]= int32(coeffs[i])
+		coeffs1[i] = int32(coeffs[i])
 	}
 	return &PolyNTT{coeffs1}
 	/*	res := NewPolyNTT(pp.paramD)
@@ -363,12 +391,11 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 			res.coeffs[i] = int32(coeffs[i])
 		}
 		return res*/
-	// TODO: optimize the NTT algorithm
+	// TODO: optimize the NTT algorithm by adjusting the order of zetas
 }
 
-/*
-todo:
-*/
+// NTTInv performance inverse in-place number-theoretic transform (NTT) in Rq.
+// The input is in standard order, output is in standard order.
 func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
 
 	//coeffs:=make([]int32,pp.paramD)
@@ -397,24 +424,22 @@ func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
 		for start := 0; start+step < pp.paramD; start += step << 1 {
 			zeta := zetas[0]
 			for i := start; i < start+step; i++ {
-				tmp:=pp.reduce(coeffs[i+step]*zeta)
+				tmp := pp.reduce(coeffs[i+step] * zeta)
 				coeffs[i], coeffs[i+step] = int64(pp.reduce(coeffs[i]+int64(tmp))), int64(pp.reduce(coeffs[i]-int64(tmp)))
 				zeta = zetas[2*pp.paramD-(i-start+1)*(pp.paramD/step)]
 			}
 		}
 	}
 
-	// todo:
 	coeffs1 := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs1[i]=pp.reduce(coeffs[i]* int64(pp.paramDInv))
+		coeffs1[i] = pp.reduce(coeffs[i] * int64(pp.paramDInv))
 	}
 	return &Poly{coeffs1}
 }
 
-/*
-Transfer a vector of polys to a vector of polyNTTs
-*/
+// NTTVec performances the number-theoretic transform for every polynomial,
+// and it return a vector of polyNTTs(PolyNTTVec)
 func (pp *PublicParameter) NTTVec(polyVec *PolyVec) (polyNTTVec *PolyNTTVec) {
 	if polyVec == nil {
 		return nil
@@ -430,6 +455,8 @@ func (pp *PublicParameter) NTTVec(polyVec *PolyVec) (polyNTTVec *PolyNTTVec) {
 	return r
 }
 
+// NTTInvVec performances the inverse number-theoretic transform for every polynomial,
+// and it return a vector of polyNTTs(PolyVec)
 func (pp *PublicParameter) NTTInvVec(polyNTTVec *PolyNTTVec) (polyVec *PolyVec) {
 	if polyNTTVec == nil {
 		return nil
