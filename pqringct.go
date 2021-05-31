@@ -165,11 +165,181 @@ func (trTxWitness *TrTxWitness) Serialize(w io.Writer) error {
 		}
 	}
 
-	// todo: write rpulpproof
+	// write rpulpproof
+	// write rpulpproof.c_waves
+	count = len(trTxWitness.rpulpproof.c_waves)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		num := len(trTxWitness.rpulpproof.c_waves[i].coeffs)
+		err := WriteVarInt(w, uint64(num))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < num; j++ {
+			err := writeElement(w, trTxWitness.rpulpproof.c_waves[i].coeffs[j])
+			if err != nil {
+				return err
+			}
+		}
+	}
 
-	// todo: write cmtps
+	// write rpulpproof.c_hat_g
+	count = len(trTxWitness.rpulpproof.c_hat_g.coeffs)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		err := writeElement(w, trTxWitness.rpulpproof.c_hat_g.coeffs[i])
+		if err != nil {
+			return err
+		}
+	}
 
-	// todo: write elrsSigs
+	// write rpulpproof.psi
+	count = len(trTxWitness.rpulpproof.psi.coeffs)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		err := writeElement(w, trTxWitness.rpulpproof.psi.coeffs[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	// write rpulpproof.phi
+	count = len(trTxWitness.rpulpproof.phi.coeffs)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		err := writeElement(w, trTxWitness.rpulpproof.phi.coeffs[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	// write rpulpproof.chseed
+	count = len(trTxWitness.rpulpproof.chseed)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(trTxWitness.rpulpproof.chseed[:])
+	if err != nil {
+		return err
+	}
+
+	// write rpulpproof.cmt_zs
+	count = len(trTxWitness.rpulpproof.cmt_zs)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		len1 := len(trTxWitness.rpulpproof.cmt_zs[i])
+		err := WriteVarInt(w, uint64(len1))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < len1; j++ {
+			len2 := len(trTxWitness.rpulpproof.cmt_zs[i][j].polyNTTs)
+			err := WriteVarInt(w, uint64(len2))
+			if err != nil {
+				return err
+			}
+			for k := 0; k < len2; k++ {
+				len3 := len(trTxWitness.rpulpproof.cmt_zs[i][j].polyNTTs[k].coeffs)
+				err := WriteVarInt(w, uint64(len3))
+				if err != nil {
+					return err
+				}
+				for k2 := 0; k2 < len3; k2++ {
+					err := writeElement(w, trTxWitness.rpulpproof.cmt_zs[i][j].polyNTTs[k].coeffs[k2])
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// write rpulpproof.zs
+	count = len(trTxWitness.rpulpproof.zs)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		len1 := len(trTxWitness.rpulpproof.zs[i].polyNTTs)
+		err := WriteVarInt(w, uint64(len1))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < len1; j++ {
+			len2 := len(trTxWitness.rpulpproof.zs[i].polyNTTs[j].coeffs)
+			err := WriteVarInt(w, uint64(len2))
+			if err != nil {
+				return err
+			}
+			for k := 0; k < len2; k++ {
+				err := writeElement(w, trTxWitness.rpulpproof.zs[i].polyNTTs[j].coeffs[k])
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// write cmtps
+	count = len(trTxWitness.cmtps)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		// write cmtps.b
+		len1 := len(trTxWitness.cmtps[i].b.polyNTTs)
+		err := WriteVarInt(w, uint64(len1))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < len1; j++ {
+			len2 := len(trTxWitness.cmtps[i].b.polyNTTs[j].coeffs)
+			err := WriteVarInt(w, uint64(len2))
+			if err != nil {
+				return err
+			}
+			for k := 0; k < len2; k++ {
+				err := writeElement(w, trTxWitness.cmtps[i].b.polyNTTs[j].coeffs[k])
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		// write cmtps.c
+		len3 := len(trTxWitness.cmtps[i].c.coeffs)
+		err = WriteVarInt(w, uint64(len3))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < len3; j++ {
+			err := writeElement(w, trTxWitness.cmtps[i].c.coeffs[j])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// write elrsSigs.
+
 	return nil
 }
 
