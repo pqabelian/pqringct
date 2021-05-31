@@ -226,7 +226,7 @@ func (pp *PublicParameter) PolyNTTVecEqualCheck(a *PolyNTTVec, b *PolyNTTVec) (e
 	return true
 }
 
-// PolyNTTVecScaleMul
+// PolyNTTVecScaleMul performances the scale multiplication using polynomial as basic element
 func (pp *PublicParameter) PolyNTTVecScaleMul(polyNTTScale *PolyNTT, polyNTTVec *PolyNTTVec, vecLen int) (r *PolyNTTVec) {
 	rst := &PolyNTTVec{}
 	rst.polyNTTs = make([]*PolyNTT, vecLen)

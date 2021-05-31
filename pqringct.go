@@ -592,7 +592,7 @@ func Setup() (pp *PublicParameter) {
 	return nil
 }
 
-1// MasterKeyGen generates the master public key, master view key, and master sign key.
+// MasterKeyGen generates the master public key, master view key, and master sign key.
 // If the seed is nil, this function will random a seed whose length is paramSysBytes.
 // This function requires the length of seed is at least 2*paramSysBytes.
 func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
@@ -612,7 +612,7 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *Maste
 		return nil, nil, nil, nil, errors.New("the length of seed is invalid")
 	}
 	if seed == nil {
-		seed= randomBytes(2*pp.paramSysBytes)
+		seed = randomBytes(2 * pp.paramSysBytes)
 	}
 	//
 	randomnessA, err = pp.expandRandomnessA(seed[:pp.paramSysBytes])
@@ -644,6 +644,7 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *Maste
 	return seed, rstmpk, rstmsvk, rstmssk, nil
 }
 
+// collectBytesForCoinbase1 is an auxiliary function for CoinbaseTxGen and CoinbaseTxVerify to collect some information into a byte slice
 func (pp *PublicParameter) collectBytesForCoinbase1(vin uint64, cmts []*Commitment, ws []*PolyNTTVec, deltas []*PolyNTT) []byte {
 	tmp := make([]byte, pp.paramD*4+(pp.paramKc+1)*pp.paramD*4+(pp.paramKc+1)*pp.paramD*4)
 	appendPolyNTTToBytes := func(a *PolyNTT) {
@@ -673,6 +674,7 @@ func (pp *PublicParameter) collectBytesForCoinbase1(vin uint64, cmts []*Commitme
 	return tmp
 }
 
+// collectBytesForCoinbase2 is an auxiliary function for CoinbaseTxGen and CoinbaseTxVerify to collect some information into a byte slice
 func (pp *PublicParameter) collectBytesForCoinbase2(b_hat *PolyNTTVec, c_hats []*PolyNTT) []byte {
 	res := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*len(c_hats))
 	appendPolyNTTToBytes := func(a *PolyNTT) {
@@ -691,6 +693,8 @@ func (pp *PublicParameter) collectBytesForCoinbase2(b_hat *PolyNTTVec, c_hats []
 	}
 	return res
 }
+
+// CoinbaseTxGen returns an coinbase transaction with the transaction outputs request
 func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDesc) (cbTx *CoinbaseTx, err error) {
 	V := uint64(1)<<pp.paramN - 1
 
@@ -849,8 +853,10 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		for i := 0; i < pp.paramD; i++ {
 			u_p_tmp[i] = 0
 			for j := 0; j < pp.paramD; j++ {
-				// TODO: re-write
-				u_p_tmp[i] = u_p_tmp[i] + int64(binM[i][j])*int64(f[j]) + int64(e[j])
+				u_p_tmp[i] = u_p_tmp[i] + int64(e[j])
+				if (binM[i][j]>>j)&1 == 1 {
+					u_p_tmp[i] = u_p_tmp[i] + int64(f[j])
+				}
 			}
 
 			infNorm := u_p_tmp[i]
@@ -885,6 +891,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 	return retcbTx, nil
 }
 
+// CoinbaseTxVerify reports whether a coinbase transaction is legal.
 func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 	if cbTx == nil {
 		return false
@@ -1025,7 +1032,8 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 
 	return true
 }
-
+// TxoCoinReceive reports whether a transaction output belongs to the given master key pair
+// If true, it will show the coin value, otherwise, the returned value is 0.
 func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *MasterSecretViewKey) (valid bool, coinvale uint64, err error) {
 	if txo == nil || mpk == nil || msvk == nil {
 		return false, 0, errors.New("nil pointer")
@@ -1034,7 +1042,6 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	// todo: check the well-formness of dpk
 	// (C, t)
 
-	// todo_DONE: decaps and obtain kappa
 	kappa := msvk.skkem.CryptoKemDec(txo.dpk.ckem)
 	sptmp, err := pp.expandRandomnessA(kappa) // TODO_DONE handle the err
 	if err != nil {
@@ -1076,6 +1083,7 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	return true, v, nil
 }
 
+// collectBytesForTransfer is an auxiliary function for TransferTxGen and TransferTxVerify to collect some information into a byte slice
 func (pp *PublicParameter) collectBytesForTransfer(b_hat *PolyNTTVec, c_hats []*PolyNTT) []byte {
 	res := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*len(c_hats))
 	appendPolyNTTToBytes := func(a *PolyNTT) {
@@ -1095,6 +1103,7 @@ func (pp *PublicParameter) collectBytesForTransfer(b_hat *PolyNTTVec, c_hats []*
 	return res
 }
 
+// TransferTxGen returns an transfer transaction with the inputs, the outputs, transaction fee, and some extra information packaged in txMemo.
 func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64, txMemo []byte) (trTx *TransferTx, err error) {
 	//	check the well-formness of the inputs and outputs
 	if len(inputDescs) == 0 || len(outputDescs) == 0 {
@@ -1342,7 +1351,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		for i := 0; i < pp.paramD; i++ {
 			u_p_temp[i] = 0
 			for j := 0; j < pp.paramD; j++ {
-				u_p_temp[i] = u_p_temp[i] + int64(binM[i][j])*int64(f[j]) + int64(e[j])
+				u_p_temp[i] = u_p_temp[i] + int64(e[j])
+				if (binM[i][j/8]>>(j%8))&1 == 1 {
+					u_p_temp[i] += int64(f[j])
+				}
 			}
 
 			infNorm := u_p_temp[i]
@@ -1457,8 +1469,14 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		for i := 0; i < pp.paramD; i++ {
 			u_p_temp[i] = 0
 			for j := 0; j < pp.paramD; j++ {
-				u_p_temp[i] = u_p_temp[i] + int64(binM[i][j])*int64(f1[j]) +
-					int64(binM[i][pp.paramD+j])*int64(f2[j]) + int64(e[j])
+				u_p_temp[i] = u_p_temp[i] + int64(e[j])
+
+				if (binM[i][j/8]>>(j%8))&1 == 1 {
+					u_p_temp[i] += int64(f1[j])
+				}
+				if (binM[i][(pp.paramD+j)/8]>>((pp.paramD+j)%8))&1 == 1 {
+					u_p_temp[i] += int64(f2[j])
+				}
 			}
 
 			infNorm := u_p_temp[i]
@@ -1499,7 +1517,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 	return rettrTx, err
 }
-
+// TransferTxVerify reports whether a transfer transaction is legal.
 func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 	if trTx == nil {
 		return false
@@ -1660,6 +1678,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 
 }
 
+// txoGen returns an transaction output and a random polynomial related to the corresponding transaction output with the master public key and value
 func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r *PolyNTTVec, err error) {
 	//	(C, kappa)
 	C, kappa, err := mpk.pkkem.CryptoKemEnc()
@@ -1718,6 +1737,7 @@ func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r
 /*
 As wallet may call this algorithm to generate serial numbers for the coins, this method is set to be public.
 */
+// TxoSerialNumberGen generates the serial number for given transaction output when the output does belong to given key pair
 func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey) (sn []byte, err error) {
 	if txo == nil || txo.dpk == nil || mpk == nil || msvk == nil || mssk == nil {
 		return nil, errors.New("nil pointer")
@@ -1766,7 +1786,7 @@ func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, ms
 	return pp.keyImgToSerialNumber(keyImg)
 }
 
-//	todo_DONE: serial number is a hash value
+// keyImgToSerialNumber generates the serial number from key image, it is a auxiliary function for TxoSerialNumberGen and TransferTxVerify
 func (pp *PublicParameter) keyImgToSerialNumber(keyImg *PolyNTTVec) (sn []byte, err error) {
 	// todo:
 	seed := make([]byte, 0, pp.paramKa*pp.paramD*4)
