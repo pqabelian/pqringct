@@ -66,7 +66,7 @@ type CoinbaseTx struct {
 type TrTxInput struct {
 	TxoList []*TXO
 	//SerialNumber []byte
-	SerialNumber []byte // todo: change to a hash value
+	SerialNumber []byte // todo_DONE: change to a hash value
 }
 
 func (trTxInput TrTxInput) Serialize(w io.Writer) error {
@@ -793,7 +793,7 @@ func (pp *PublicParameter) collectBytesForCoinbase2(b_hat *PolyNTTVec, c_hats []
 	for i := 0; i < pp.paramKc; i++ {
 		appendPolyNTTToBytes(b_hat.polyNTTs[i])
 	}
-	for i := 0; i < len(c_hats); i++ { //TODO check the length of c_hats
+	for i := 0; i < len(c_hats); i++ {
 		appendPolyNTTToBytes(c_hats[i])
 	}
 	return res
@@ -803,7 +803,7 @@ func (pp *PublicParameter) collectBytesForCoinbase2(b_hat *PolyNTTVec, c_hats []
 func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDesc) (cbTx *CoinbaseTx, err error) {
 	V := uint64(1)<<pp.paramN - 1
 
-	if vin > V {
+	if vin >= V {
 		return nil, errors.New("vin is not in [0, V]") // todo: more accurate info
 	}
 
@@ -920,8 +920,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		msg_hats[J] = f
 
 	cbTxGenJ2Restart:
-		e := make([]int32, pp.paramD) //	todo_DONE: sample e from ([-eta_f, eta_f])^d
-		//TODO whether the function meet the need?
+		e := make([]int32, pp.paramD)
 		e, err := pp.sampleUniformWithinEtaF()
 		if err != nil {
 			return nil, err
@@ -934,6 +933,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		}
 		r_hat := pp.NTTVec(randomnessC)
 
+		// b_hat =B * r_hat
 		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKc, pp.paramLc)
 
 		for i := 0; i < n2; i++ { // n2 = J+2
@@ -975,7 +975,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			u_p[i] = pp.reduce(u_p_tmp[i])
 		}
 
-		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[1] = make([]int32, pp.paramD)
 		u_hats[2] = u_p
 
 		n1 := n
@@ -1021,22 +1021,29 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 		return false
 	}
 
-	// todo: check no repeated dpk in cbTx.OutputTxos
+	// todo_DONE: check no repeated dpk in cbTx.OutputTxos
+	dpkMap := make(map[*DerivedPubKey]struct{})
+	for i := 0; i < len(cbTx.OutputTxos); i++ {
+		if _, ok := dpkMap[cbTx.OutputTxos[i].dpk]; !ok {
+			dpkMap[cbTx.OutputTxos[i].dpk] = struct{}{}
+		} else {
+			return false
+		}
+	}
 	// todo: check cbTx.OutputTxos[j].cmt is well-formed
 
 	if J == 1 {
-		//if cbTx.TxWitness.b_hat != nil || cbTx.TxWitness.b_hat != nil || cbTx.TxWitness.u_p != nil {
-		//	return false
-		//}
-		//if cbTx.TxWitness.rpulpproof == nil {
-		//	return false
-		//}
-		//
-		//if cbTx.TxWitness.rpulpproof.c_waves != nil || cbTx.TxWitness.rpulpproof.c_hat_g != nil ||
-		//	cbTx.TxWitness.rpulpproof.psi != nil || cbTx.TxWitness.rpulpproof.psi != nil ||
-		//	cbTx.TxWitness.rpulpproof.cmt_zs != nil {
-		//	return false
-		//}
+		if cbTx.TxWitness.b_hat != nil || cbTx.TxWitness.c_hats != nil || cbTx.TxWitness.u_p != nil {
+			return false
+		}
+		if cbTx.TxWitness.rpulpproof == nil {
+			return false
+		}
+		if cbTx.TxWitness.rpulpproof.c_waves != nil || cbTx.TxWitness.rpulpproof.c_hat_g != nil ||
+			cbTx.TxWitness.rpulpproof.psi != nil || cbTx.TxWitness.rpulpproof.phi != nil ||
+			cbTx.TxWitness.rpulpproof.cmt_zs != nil {
+			return false
+		}
 		if cbTx.TxWitness.rpulpproof.chseed == nil || cbTx.TxWitness.rpulpproof.zs == nil {
 			return false
 		}
@@ -1123,7 +1130,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 
 		u_hats := make([][]int32, 3)
 		u_hats[0] = intToBinary(cbTx.Vin, pp.paramD)
-		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[1] = make([]int32, pp.paramD)
 		u_hats[2] = cbTx.TxWitness.u_p
 
 		cmts := make([]*Commitment, n)
@@ -1137,6 +1144,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 
 	return true
 }
+
 // TxoCoinReceive reports whether a transaction output belongs to the given master key pair
 // If true, it will show the coin value, otherwise, the returned value is 0.
 func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *MasterSecretViewKey) (valid bool, coinvale uint64, err error) {
@@ -1162,9 +1170,19 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 		return false, 0, errors.New("not Equal")
 	}
 
-	v := uint64(0) // todo: recover value from txo.vc
-	// todo: check value
-
+	v := uint64(0)
+	// recover value from txo.vc
+	sk, err := pp.expandRandomBitsV(kappa)
+	if err != nil {
+		return false, 0, err
+	}
+	for i := 0; i < pp.paramD; i++ {
+		v |= uint64(sk[i]^txo.vc[i]) << i
+	}
+	// check value
+	if v > uint64(1<<pp.paramN-1) {
+		return false, 0, errors.New("the value is more than V")
+	}
 	m := intToBinary(v, pp.paramD)
 	cmtrtmp, err := pp.expandRandomnessC(kappa) // TODO_DONE handle the err
 	if err != nil {
@@ -1178,11 +1196,11 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 		&PolyNTT{m})
 
 	if pp.PolyNTTVecEqualCheck(cmt.b, txo.cmt.b) != true {
-		return false, 0, errors.New("not Equal")
+		return false, 0, errors.New("cmt.b not Equal")
 	}
 
 	if pp.PolyNTTEqualCheck(cmt.c, txo.cmt.c) != true {
-		return false, 0, errors.New("not Equal")
+		return false, 0, errors.New("cmt.c not Equal")
 	}
 
 	return true, v, nil
@@ -1202,7 +1220,7 @@ func (pp *PublicParameter) collectBytesForTransfer(b_hat *PolyNTTVec, c_hats []*
 	for i := 0; i < pp.paramKc; i++ {
 		appendPolyNTTToBytes(b_hat.polyNTTs[i])
 	}
-	for i := 0; i < len(c_hats); i++ { //TODO check the length of c_hats
+	for i := 0; i < len(c_hats); i++ {
 		appendPolyNTTToBytes(c_hats[i])
 	}
 	return res
@@ -1212,87 +1230,103 @@ func (pp *PublicParameter) collectBytesForTransfer(b_hat *PolyNTTVec, c_hats []*
 func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64, txMemo []byte) (trTx *TransferTx, err error) {
 	//	check the well-formness of the inputs and outputs
 	if len(inputDescs) == 0 || len(outputDescs) == 0 {
-		return nil, err // todo: err info
+		return nil, errors.New("some information is empty")
 	}
 
 	if len(inputDescs) > pp.paramI {
 		return nil, errors.New("too many inputs") //Todo: may define a new error type?
 	}
 	if len(outputDescs) > pp.paramJ {
-		return nil, errors.New("too many outputs") ////Todo: may define a new error type?
+		return nil, errors.New("too many outputs")
 	}
 
-	V := uint64(1)<<pp.paramD - 1
+	V := uint64(1)<<pp.paramN - 1
 
 	if fee > V {
-		return nil, err // todo: err info
+		return nil, errors.New("the transaction fee is more than V")
 	}
 
 	//	check on the outputDesc is simple, so check it first
 	outputTotal := fee
 	for _, outputDescItem := range outputDescs {
 		if outputDescItem.value > V {
-			return nil, err // todo: err info
+			return nil, errors.New("the value is more than max value")
 		}
 		outputTotal = outputTotal + outputDescItem.value
 		if outputTotal > V {
-			return nil, err // todo: err info
+			return nil, errors.New("the value is more than max value")
 		}
 
 		if outputDescItem.mpk == nil {
-			return nil, err // todo: err info
+			return nil, errors.New("the master public key is nil")
 		}
-		if outputDescItem.mpk.WellformCheck(pp) == false {
-			return nil, err // todo: err info
+		if !outputDescItem.mpk.WellformCheck(pp) {
+			return nil, errors.New("the mpk is not well-form")
 		}
 	}
 
 	inputTotal := uint64(0)
-	for _, inputDescItem := range inputDescs {
+	dpkMap := make(map[*DerivedPubKey]struct{})
+	txoListMap := make(map[int]map[*DerivedPubKey]struct{})
+	for index, inputDescItem := range inputDescs {
 		if inputDescItem.value > V {
-			return nil, err // todo: err info
+			return nil, errors.New("the value is more than max value")
 		}
 		inputTotal = inputTotal + inputDescItem.value
 		if inputTotal > V {
-			return nil, err // todo: err info
+			return nil, errors.New("the value is more than max value")
 		}
 
 		if len(inputDescItem.txoList) == 0 {
-			return nil, err // todo: err info
+			return nil, errors.New("the transaction output list is empty")
 		}
 		if inputDescItem.sidx < 0 || inputDescItem.sidx >= len(inputDescItem.txoList) {
-			return nil, err // todo: err info
+			return nil, errors.New("the index is not suitable")
 		}
 		if inputDescItem.mpk == nil || inputDescItem.msvk == nil || inputDescItem.mssk == nil {
-			return nil, err // todo: err info
+			return nil, errors.New("some information is empty")
 		}
 
 		if inputDescItem.mssk.WellformCheck(pp) == false {
-			return nil, err // todo: err info
+			return nil, errors.New("the master view key is not well-formed")
 		}
 
 		b, v, err := pp.TxoCoinReceive(inputDescItem.txoList[inputDescItem.sidx], inputDescItem.mpk, inputDescItem.msvk)
 		if b == false || v != inputDescItem.value || err != nil {
-			return nil, err // todo: err info
+			return nil, errors.New("fail to receive some transaction output")
 		}
 
 		//	check no repeated dpk in inputDescItem.txoList
-		var mapDpk map[*DerivedPubKey]bool
-		mapDpk = make(map[*DerivedPubKey]bool)
+		var mapDpk map[*DerivedPubKey]struct{}
+		mapDpk = make(map[*DerivedPubKey]struct{})
 		for _, txo := range inputDescItem.txoList {
 			_, ok := mapDpk[txo.dpk]
 			if ok {
-				return nil, err // todo: err info
+				return nil, errors.New("there are repeated derived public key")
 			}
-			mapDpk[txo.dpk] = true
+			mapDpk[txo.dpk] = struct{}{}
 		}
-		// todo
+		txoListMap[index]=mapDpk
+		// todo_DONE
 		//	check inputDescItem[i].txoList[inputDescItem[i].sidx].dpk \neq inputDescItem[j].txoList[inputDescItem[j].sidx].dpk
-		//	check (inputDescItem[i].txoList == inputDescItem[j].txoList) or (inputDescItem[i].txoList \cap inputDescItem[j].txoList = \emptyset)
+		if _, ok := dpkMap[inputDescItem.txoList[inputDescItem.sidx].dpk]; !ok {
+			dpkMap[inputDescItem.txoList[inputDescItem.sidx].dpk] = struct{}{}
+		} else {
+			return nil, errors.New("the same derived public key in the input")
+		}
+		//	TODO check (inputDescItem[i].txoList == inputDescItem[j].txoList) or (inputDescItem[i].txoList \cap inputDescItem[j].txoList = \emptyset)
+		for i := 0; i < len(inputDescItem.txoList); i++ {
+			for j := 0; j < index; j++ {
+				if _, ok := txoListMap[j][inputDescItem.txoList[i].dpk]; ok {
+					return nil, errors.New("the intersection of txo list is not empty")
+				}
+
+			}
+		}
 	}
 
 	if outputTotal != inputTotal {
-		return nil, err // todo: err info
+		return nil, errors.New("the total coin value is not balance")
 	}
 
 	I := len(inputDescs)
@@ -1317,7 +1351,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 	for j := 0; j < J; j++ {
 		rettrTx.OutputTxos[j], cmt_rs[I+j], err = pp.txoGen(outputDescs[j].mpk, outputDescs[j].value)
 		if err != nil {
-			return nil, err // todo
+			return nil, errors.New("fail to generate the transaction output")
 		}
 
 		cmts[I+j] = rettrTx.OutputTxos[j].cmt
@@ -1389,7 +1423,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			t_as[j] = inputDescs[i].txoList[j].dpk.t
 
 			if len(inputDescs[i].txoList[j].cmt.b.polyNTTs) != pp.paramKc {
-				return nil, err // todo
+				return nil,errors.New("the length of cmt.b is not accurate")
 			}
 			t_cs[j] = inputDescs[i].txoList[j].cmt.toPolyNTTVec()
 			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKc+1)
@@ -1397,7 +1431,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 		elrsSigs[i], err = pp.elrsSign(t_as, t_cs, msgTrTxConHash, inputDescs[i].sidx, s_a, s_c)
 		if err != nil {
-			return nil, err // todo
+			return nil, errors.New("fail to generate the extend linkable signature")
 		}
 	}
 
@@ -1443,8 +1477,8 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int32, pp.paramD)
-		u_p_temp := make([]int64, pp.paramD)                           // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		seed_binM, err := H(pp.collectBytesForTransfer(b_hat, c_hats)) // todo: compute the seed using hash function on (b_hat, c_hats).
+		u_p_temp := make([]int64, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		seed_binM, err := H(pp.collectBytesForTransfer(b_hat, c_hats))
 		if err != nil {
 			return nil, err
 		}
@@ -1476,7 +1510,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 		u_hats := make([][]int32, 3)
 		u_hats[0] = u
-		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[1] = make([]int32, pp.paramD)
 		u_hats[2] = u_p
 
 		n1 := n
@@ -1554,12 +1588,11 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int32, pp.paramD)
-		u_p_temp := make([]int64, pp.paramD)                           // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		seed_binM, err := H(pp.collectBytesForTransfer(b_hat, c_hats)) // todo: compute the seed using hash function on (b_hat, c_hats).
+		u_p_temp := make([]int64, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		seed_binM, err := H(pp.collectBytesForTransfer(b_hat, c_hats))
 		if err != nil {
 			return nil, err
 		}
-		// TODO: notice the offset
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
 		if err != nil {
 			return nil, err
@@ -1597,10 +1630,13 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 
 		u_hats := make([][]int32, 5)
-		u_hats[0] = make([]int32, pp.paramD) // todo: all zero
-		u_hats[1] = u                        // todo: -u
-		u_hats[2] = make([]int32, pp.paramD) // todo: all zero
-		u_hats[3] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[0] = make([]int32, pp.paramD)
+		// todo_DONE: -u
+		for i := 0; i < len(u_hats[1]); i++ {
+			u_hats[1][i] = pp.reduce(-int64(u[i]))
+		}
+		u_hats[2] = make([]int32, pp.paramD)
+		u_hats[3] = make([]int32, pp.paramD)
 		u_hats[4] = u_p
 
 		n1 := n + 1
@@ -1622,6 +1658,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 	return rettrTx, err
 }
+
 // TransferTxVerify reports whether a transfer transaction is legal.
 func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 	if trTx == nil {
@@ -1638,22 +1675,59 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		return false
 	}
 
+	txoListMap := make(map[int]map[*DerivedPubKey]struct{})
 	for i := 0; i < I; i++ {
 		input := trTx.Inputs[i]
 		if input.TxoList == nil || input.SerialNumber == nil {
 			return false
 		}
-		// todo: check whether there exists repeated dpk in trTx.Inputs[i]
+		// todo_DONE: check whether there exists repeated dpk in trTx.Inputs[i]
+		dpkMap := make(map[*DerivedPubKey]struct{})
+		for j := 0; j < len(input.TxoList); j++ {
+			if _, ok := dpkMap[input.TxoList[j].dpk]; ok {
+				return false
+			}
+			dpkMap[input.TxoList[j].dpk] = struct{}{}
+		}
 
 		// todo: check whether there exists two txoList such that they have common Txos but are different
-
-		// todo: check whether theres exits repeated serialNumber
+		// TODO: there are some wrong?
+		for j := 0; j < len(input.TxoList); j++ {
+			for k := 0; k < i; k++ {
+				if _, ok := txoListMap[k][input.TxoList[j].dpk]; ok {
+					// check whether the two list are the same
+					flag:=true
+					for derivedPubKey, _ := range dpkMap {
+						if _,ok:=txoListMap[k][derivedPubKey];!ok{
+							flag=false
+							break
+						}
+					}
+					if flag {
+						return false
+					}
+				}
+			}
+		}
+		txoListMap[i]=dpkMap
+		// todo_DONE: check whether theres exits repeated serialNumber
+		for j := 0; j < i; j++ {
+			if bytes.Equal(trTx.Inputs[j].SerialNumber,input.SerialNumber) {
+				return false
+			}
+		}
 	}
 
+	txoDpkMap:=make(map[*DerivedPubKey]struct{})
 	for j := 0; j < J; j++ {
 		//	todo: check the well-form of outputTxos
 
-		// todo: check whether there exits repeated dpk in the outputTxos
+		// todo_DONE: check whether there exits repeated dpk in the outputTxos
+		for k := 0; k < len(trTx.OutputTxos); k++ {
+			if _,ok:=txoDpkMap[trTx.OutputTxos[k].dpk];ok{
+				return false
+			}
+		}
 	}
 
 	//	todo: check the well-form of TxWitness
@@ -1730,8 +1804,8 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		}
 
 		u_hats := make([][]int32, 3)
-		u_hats[0] = u                        //
-		u_hats[1] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[0] = u
+		u_hats[1] = make([]int32, pp.paramD)
 		u_hats[2] = trTx.TxWitness.u_p
 
 		flag := pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 3, u_hats, trTx.TxWitness.rpulpproof)
@@ -1767,10 +1841,13 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		}
 
 		u_hats := make([][]int32, 5)
-		u_hats[0] = make([]int32, pp.paramD) // todo: all zero
-		u_hats[1] = u                        // todo: -u
-		u_hats[2] = make([]int32, pp.paramD) // todo: all zero
-		u_hats[3] = make([]int32, pp.paramD) // todo: all zero
+		u_hats[0] = make([]int32, pp.paramD)
+		// todo_DONE: -u
+		for i := 0; i < len(u_hats[1]); i++ {
+			u_hats[1][i] = pp.reduce(-int64(u[i]))
+		}
+		u_hats[2] = make([]int32, pp.paramD)
+		u_hats[3] = make([]int32, pp.paramD)
 		u_hats[4] = trTx.TxWitness.u_p
 
 		flag := pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 5, u_hats, trTx.TxWitness.rpulpproof)
@@ -1785,33 +1862,31 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 
 // txoGen returns an transaction output and a random polynomial related to the corresponding transaction output with the master public key and value
 func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r *PolyNTTVec, err error) {
-	//	(C, kappa)
+	//	got (C, kappa) from key encapsulate mechanism
 	C, kappa, err := mpk.pkkem.CryptoKemEnc()
+	// expand the kappa to a PolyVec
 	s_prime, err := pp.expandRandomnessA(kappa)
 	s_p := pp.NTTVec(s_prime)
-	t_prime := pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa)
-	t := pp.PolyNTTVecAdd(mpk.t, t_prime, pp.paramKa)
-	//	(C, t)
+	// t = mpk.t + A * s_p
+	t := pp.PolyNTTVecAdd(mpk.t,
+		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa),
+		pp.paramKa)
+	//	dpk = (C, t)
 	dpk := &DerivedPubKey{
 		ckem: C,
 		t:    t,
 	}
-	// todo : dpk.c
-	dpk.t = pp.PolyNTTVecAdd(
-		mpk.t,
-		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa),
-		pp.paramKa)
 
-	//	cmt
-	sctmp, err := pp.expandRandomnessC(kappa) //TODO:handle the err
+	//	expand the kappa to another PolyVec
+	sctmp, err := pp.expandRandomnessC(kappa)
 	if err != nil {
 		return nil, nil, err
 	}
 	cmtr := pp.NTTVec(sctmp)
 
 	mtmp := intToBinary(vin, pp.paramD)
-	m := pp.NTT(&Poly{coeffs: mtmp})
-
+	m := &PolyNTT{coeffs: mtmp}
+	// [b c]^T = C*r + [0 m]^T
 	cmt := &Commitment{}
 	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmtr, pp.paramKc, pp.paramLc)
 	cmt.c = pp.PolyNTTAdd(
@@ -1819,7 +1894,7 @@ func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r
 		m,
 	)
 
-	//	vc
+	//	vc = m ^ sk
 	sk, err := pp.expandRandomBitsV(kappa)
 	if err != nil {
 		return nil, nil, err
@@ -1838,7 +1913,7 @@ func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r
 	return rettxo, cmtr, nil
 }
 
-//	todo: serial number is a hash value
+//	todo_DONE: serial number is a hash value
 /*
 As wallet may call this algorithm to generate serial numbers for the coins, this method is set to be public.
 */
@@ -1852,9 +1927,8 @@ func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, ms
 
 	// todo: check the well-formness of dpk, mpk, msvk, and mssk
 
-	// todo_DONE: decaps and obtain kappa
 	kappa := msvk.skkem.CryptoKemDec(dpk.ckem)
-	sptmp, err := pp.expandRandomnessA(kappa) //TODO_DONE:handle the err
+	sptmp, err := pp.expandRandomnessA(kappa)
 	if err != nil {
 		return nil, err
 	}
@@ -1893,7 +1967,7 @@ func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, ms
 
 // keyImgToSerialNumber generates the serial number from key image, it is a auxiliary function for TxoSerialNumberGen and TransferTxVerify
 func (pp *PublicParameter) keyImgToSerialNumber(keyImg *PolyNTTVec) (sn []byte, err error) {
-	// todo:
+
 	seed := make([]byte, 0, pp.paramKa*pp.paramD*4)
 	for i := 0; i < len(keyImg.polyNTTs); i++ {
 		for j := 0; j < len(keyImg.polyNTTs[i].coeffs); j++ {
@@ -1912,10 +1986,10 @@ func (pp *PublicParameter) keyImgToSerialNumber(keyImg *PolyNTTVec) (sn []byte, 
 	for i := 0; i < len(imgM); i++ {
 		for j := 0; j < len(imgM[i].polyNTTs); j++ {
 			for k := 0; k < len(imgM[i].polyNTTs[j].coeffs); k++ {
-				seed = append(seed, byte(imgM[i].polyNTTs[j].coeffs[k]>>0))
-				seed = append(seed, byte(imgM[i].polyNTTs[j].coeffs[k]>>8))
-				seed = append(seed, byte(imgM[i].polyNTTs[j].coeffs[k]>>16))
-				seed = append(seed, byte(imgM[i].polyNTTs[j].coeffs[k]>>24))
+				tmp = append(tmp, byte(imgM[i].polyNTTs[j].coeffs[k]>>0))
+				tmp = append(tmp, byte(imgM[i].polyNTTs[j].coeffs[k]>>8))
+				tmp = append(tmp, byte(imgM[i].polyNTTs[j].coeffs[k]>>16))
+				tmp = append(tmp, byte(imgM[i].polyNTTs[j].coeffs[k]>>24))
 			}
 
 		}

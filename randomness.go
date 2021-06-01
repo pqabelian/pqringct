@@ -46,7 +46,7 @@ func randomBytes(length int) []byte {
 // randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=6/16 and P(1)=P(-1)=5/16
 // and return an array with given length. If the length of seed is not 0 or length/2, will return ErrLength, and if the
 // seed is nil, then there will get a seed from the machine.
-func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte,[]int32, error) {
+func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte, []int32, error) {
 	res := make([]int32, length)
 	// if the seed is nil, acquire the seed from crypto/rand.Reader
 	if seed == nil {
@@ -54,7 +54,7 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte,[]i
 	}
 	// check the length of seed, make sure the randomness is enough
 	if len(seed) < length/2 {
-		return seed,nil, ErrLength
+		return seed, nil, ErrLength
 	}
 	var a1, a2, b1, b2 int32
 	for i := 0; i < length/2; i++ {
@@ -77,7 +77,247 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte,[]i
 			res[i] -= 3
 		}
 	}
-	return seed,res, nil
+	return seed, res, nil
+}
+
+func randomnessFromEtaC(seed []byte, length int) ([]int32, error) {
+	// 1<<18 -1
+	bytes := make([]byte, (18*length+7)/8)
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Read(seed)
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Write(bytes)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]int32, length)
+	pos := 0
+	for pos < len(bytes) {
+		res[pos/9*4+0] = int32(bytes[pos+0]&0xFF)<<10 | int32(bytes[pos+1])<<2 | int32(bytes[pos+2]&0xC0)>>6
+		res[pos/9*4+1] = int32(bytes[pos+2]&0x3F)<<12 | int32(bytes[pos+3])<<4 | int32(bytes[pos+4]&0xF0)>>4
+		res[pos/9*4+2] = int32(bytes[pos+4]&0x0F)<<14 | int32(bytes[pos+5])<<6 | int32(bytes[pos+6]&0xFC)>>2
+		res[pos/9*4+3] = int32(bytes[pos+6]&0x03)<<16 | int32(bytes[pos+7])<<8 | int32(bytes[pos+8]&0xFF)>>0
+		pos += 9
+	}
+	for i := 0; i < length; i += 8 {
+		for j := 0; j < 8; j++ {
+			if (bytes[pos]>>j)&1 == 0 {
+				res[i+j] = -res[i+j]
+			}
+		}
+		pos++
+	}
+	return res[:length], nil
+}
+func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
+	// 1<<15-1
+	bytes := make([]byte, (15*length+7)/8)
+	if seed == nil {
+		seed = randomBytes(32)
+	}
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Read(seed)
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Write(bytes)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]int32, length)
+	pos := 0
+	for pos < len(bytes) {
+		res[pos/2+0] = int32(bytes[pos+0])<<8 | int32(bytes[pos+1])<<0
+		res[pos/2+1] = int32(bytes[pos+2])<<8 | int32(bytes[pos+3])<<0
+		pos += 4
+	}
+	return res[:length], nil
+}
+func randomnessFromEtaC2(seed []byte, length int) ([]int32, error) {
+	// 1<<16-1
+	bytes := make([]byte, 2*length)
+	if seed == nil {
+		seed = randomBytes(32)
+	}
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Read(seed)
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Write(bytes)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]int32, length)
+	pos := 0
+	for pos < len(bytes) {
+		res[pos/2+0] = int32(bytes[pos+0])<<8 | int32(bytes[pos+1])<<0
+		res[pos/2+1] = int32(bytes[pos+2])<<8 | int32(bytes[pos+3])<<0
+		pos += 4
+	}
+	for i := 0; i < length; i += 8 {
+		for j := 0; j < 8; j++ {
+			if (bytes[pos]>>j)&1 == 0 {
+				res[i] = -res[i]
+			}
+		}
+		pos++
+	}
+	return res[:length], nil
+}
+
+func randomnessFromZetaA(seed []byte, length int) ([]int32, error) {
+	// etaA - betaA = 1<<15-1 - 256
+	res := make([]int32, 0, length)
+	bytes := make([]byte, (length+7)/8)
+	if seed == nil {
+		seed = randomBytes(32)
+	}
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Read(append(seed, byte(0)))
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Write(bytes)
+	if err != nil {
+		return nil, err
+	}
+	pos := 0
+	for i := 0; i < length; i += 8 {
+		for j := 0; j < 8; j++ {
+			if (bytes[pos]>>j)&1 == 0 {
+				res = append(res, -1)
+			} else {
+				res = append(res, 1)
+			}
+		}
+	}
+	cnt := 1
+	cur := 0
+	for len(res) < length {
+		bytes = make([]byte, 2*(length-len(res)))
+		xof.Reset()
+		_, err := xof.Read(append(seed, byte(cnt)))
+		if err != nil {
+			return nil, err
+		}
+		_, err = xof.Write(bytes)
+		if err != nil {
+			return nil, err
+		}
+		pos = 0
+		var value int32
+		for pos < len(bytes) {
+			value = int32(bytes[pos+0]&0xFF)<<7 | int32(bytes[pos+1]&0xFE)>>1
+			if value < 1<<15-257 {
+				res[cur] *= value
+				cur++
+			}
+			value = int32(bytes[pos+1]&0x01)<<14 | int32(bytes[pos+2])<<6 | int32(bytes[pos+3]&0xFC)>>2
+			if value < 1<<15-257 {
+				res[cur] *= value
+				cur++
+			}
+			value = int32(bytes[pos+3]&0x03)<<13 | int32(bytes[pos+4])<<5 | int32(bytes[pos+5]&0xF8)>>3
+			if value < 1<<15-257 {
+				res[cur] *= value
+				cur++
+			}
+			value = int32(bytes[pos+5]&0x07)<<12 | int32(bytes[pos+6])<<4 | int32(bytes[pos+7]&0xF0)>>4
+			if value < 1<<15-257 {
+				res[cur] *= value
+				cur++
+			}
+			value = int32(bytes[pos+7]&0x0F)<<11 | int32(bytes[pos+8])<<3 | int32(bytes[pos+9]&0xE0)>>5
+			if value < 1<<15-257 {
+				res[cur] *= value
+				cur++
+			}
+			value = int32(bytes[pos+9]&0x1F)<<10 | int32(bytes[pos+10])<<2 | int32(bytes[pos+11]&0xC0)>>6
+			if value < 1<<15-257 {
+				res[cur] *= value
+				cur++
+			}
+			value = int32(bytes[pos+11]&0x3F)<<9 | int32(bytes[pos+12])<<1 | int32(bytes[pos+13]&0x80)>>7
+			if value < 1<<15-257 {
+				res[cur] *= value
+				cur++
+			}
+			value = int32(bytes[pos+13]&0x7F)<<8 | int32(bytes[pos+14])>>0
+			if value < 1<<15-257 {
+				res[cur] *= value
+				cur++
+			}
+			pos += 15
+		}
+	}
+
+	return res[:length], nil
+}
+func randomnessFromZetaC2(seed []byte, length int) ([]int32, error) {
+	// etaC2 - betaC2 = 1<<16-1 - 256
+	res := make([]int32, 0, length)
+	bytes := make([]byte, (length+7)/8)
+	if seed == nil {
+		seed = randomBytes(32)
+	}
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Read(append(seed, byte(0)))
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Write(bytes)
+	if err != nil {
+		return nil, err
+	}
+	pos := 0
+	for i := 0; i < length; i += 8 {
+		for j := 0; j < 8; j++ {
+			if (bytes[pos]>>j)&1 == 0 {
+				res = append(res, -1)
+			} else {
+				res = append(res, 1)
+			}
+		}
+	}
+	cnt := 1
+	cur := 0
+	for len(res) < length {
+		bytes = make([]byte, 2*(length-len(res)))
+		xof.Reset()
+		_, err := xof.Read(append(seed, byte(cnt)))
+		if err != nil {
+			return nil, err
+		}
+		_, err = xof.Write(bytes)
+		if err != nil {
+			return nil, err
+		}
+		pos = 0
+		var value int32
+		for pos < len(bytes) {
+			value= int32(bytes[pos+0])<<8 | int32(bytes[pos+1])
+			if value< 1<<16-256 {
+				res[cur]*=value
+				cur++
+			}
+			value= int32(bytes[pos+2])<<8 | int32(bytes[pos+3])
+			if value< 1<<16-256 {
+				res[cur]*=value
+				cur++
+			}
+			pos += 4
+		}
+	}
+
+	return res[:length], nil
 }
 
 // randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=1/2 and P(1)=P(-1)=1/4
@@ -111,7 +351,6 @@ func randomnessFromChallengeSpace(seed []byte, length int) ([]int32, error) {
 }
 
 func randomFromDistribution(seed []byte, dist Distribution, length int) ([]byte, []int) {
-	// TODO_DONE: consider add a parameter System Parameter for seed ?
 	if seed == nil || len(seed) == 0 {
 		seed = randomBytes(64)
 	}

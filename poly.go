@@ -336,33 +336,7 @@ var tree []int32 = []int32{
 // NTT performance in-place number-theoretic transform (NTT) in Rq.
 // The input is in standard order, output is in standard order.
 func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
-
-	//coeffs := make([]int32, pp.paramD)
-	//
-	//var x int64
-	//
-	//zeta := int64(pp.paramZeta)
-	//zeta2 := int64(pp.reduce(zeta * zeta)) // zeta^2
-	//for i := 0; i < pp.paramD; i++ {
-	//	// rst[i] = a_0 + a_1 ((pp.paramZeta)^{2i+1})^1 + a_2 ((pp.paramZeta)^{2i+1})^2 + ... + a_j ((pp.paramZeta)^{2i+1})^j + ... + a_{d-1} () ((pp.paramZeta)^{2i+1})^{d-1}
-	//	//	rst[0] : (pp.paramZeta)^{1};
-	//	//	rst[1] : (pp.paramZeta)^{3}
-	//	//	...
-	//	//	rst[d-1] : (pp.paramZeta)^{2d-1}
-	//
-	//	coeffs[i] = 0
-	//	x = int64(1)
-	//	for j := 0; j < pp.paramD; j++ {
-	//		coeffs[i] = pp.reduce(int64(coeffs[i]) + int64(pp.reduce(int64(poly.coeffs[j])*x)))
-	//
-	//		x = x * zeta
-	//	}
-	//
-	//	zeta = int64(pp.reduce(zeta * zeta2)) // zeta = pp.paramZeta, pp.paramZeta^3, pp.paramZeta^5, ..., pp.paramZeta^{2d-1}
-	//}
-	//
-	//return &PolyNTT{coeffs: coeffs}
-
+	// TODO: optimize the NTT algorithm by adjusting the order of zetas
 	coeffs := make([]int64, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
 		coeffs[i] = int64(poly.coeffs[i])
@@ -386,33 +360,11 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 		coeffs1[i] = int32(coeffs[i])
 	}
 	return &PolyNTT{coeffs1}
-	/*	res := NewPolyNTT(pp.paramD)
-		for i := 0; i < pp.paramD; i++ {
-			res.coeffs[i] = int32(coeffs[i])
-		}
-		return res*/
-	// TODO: optimize the NTT algorithm by adjusting the order of zetas
 }
 
 // NTTInv performance inverse in-place number-theoretic transform (NTT) in Rq.
 // The input is in standard order, output is in standard order.
 func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
-
-	//coeffs:=make([]int32,pp.paramD)
-	//for i := 0; i < pp.paramD; i++ {
-	//	coeffs[i]=polyntt.coeffs[i]
-	//}
-	//for step := 1; step <= pp.paramD/2; step <<= 1 {
-	//	for group := 0; group+step < pp.paramD; group += 2 * step {
-	//		zeta := zetas[0]
-	//		for start := group; start < group+step; start++ {
-	//			coeffs[start], coeffs[start+step] = coeffs[start]+coeffs[start+step]*zeta, coeffs[start]-coeffs[start+step]*zeta
-	//			zeta = zetas[2*pp.paramD-(start-group+1)*(pp.paramD/step)]
-	//
-	//		}
-	//	}
-	//}
-	//return &Poly{coeffs: coeffs}
 	coeffs := make([]int64, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
 		coeffs[i] = int64(polyntt.coeffs[i])

@@ -2,10 +2,13 @@ package pqringct
 
 import (
 	"bytes"
+	"errors"
 	"golang.org/x/crypto/sha3"
 )
 
 // rpulpProve generates balance proof
+
+// RpUlpType is the type for difference transaction
 type RpUlpType uint8
 
 const (
@@ -136,10 +139,12 @@ cmts []*Commitment, cmt_rs []*PolyNTTVec: cmt_bs[i] = matrixB * cmt_rs[i], cmt_c
 h_hat *PolyNTTVec, r_hat *PolyNTTVec, c_hats []*PolyNTT
 n >= 2 && n <= n1 && n1 <= n2 && n <= pp.paramI+pp.paramJ && n2 <= pp.paramI+pp.paramJ+4
 */
+// rpulpProve generate the balance proof among the message committed Commitment,
+// including the range proof for m_i ( i is [1,n1]), and the unstructured linear relation proof among m_j ( j is [1,n2]).
 func (pp PublicParameter) rpulpProve(cmts []*Commitment, cmt_rs []*PolyNTTVec, n int,
 	b_hat *PolyNTTVec, r_hat *PolyNTTVec, c_hats []*PolyNTT, msg_hats [][]int32, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, m int, u_hats [][]int32) (rpulppi *rpulpProof, err error) {
-
+	// c_waves[i] = <h_i, r_i> + m_i
 	c_waves := make([]*PolyNTT, n)
 	for i := 0; i < n; i++ {
 		c_waves[i] = pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], cmt_rs[i], pp.paramLc), &PolyNTT{msg_hats[i]})
@@ -155,6 +160,7 @@ rpUlpProveRestart:
 		cmt_ys[t] = make([]*PolyNTTVec, n)
 		cmt_ws[t] = make([]*PolyNTTVec, n)
 		for i := 0; i < n; i++ {
+			// random some element in the {s_etaC}^Lc space
 			maskC, err := pp.sampleMaskC()
 			if err != nil {
 				return nil, err
@@ -231,7 +237,6 @@ rpUlpProveRestart:
 	}
 
 	//	p^(t)_j:
-	// TODO: the binaryMatrixB is transposed
 	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
 	//	phi
@@ -298,8 +303,7 @@ rpUlpProveRestart:
 	}
 
 	//	seed_ch and ch
-
-	chseed, err := H(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, psi, psip, phi, phips)) // todo_DONE
+	chseed, err := H(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, psi, psip, phi, phips))
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +313,7 @@ rpUlpProveRestart:
 	}
 	ch := pp.NTT(ctmp)
 
-	// z
+	// z = y + sigma^t(c) * r
 	cmt_zs := make([][]*PolyNTTVec, pp.paramK)
 	zs := make([]*PolyNTTVec, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
@@ -348,7 +352,7 @@ rpUlpProveRestart:
 func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	b_hat *PolyNTTVec, c_hats []*PolyNTT, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, m int, u_hats [][]int32,
-	rpulppi *rpulpProof) (valid bool) { //TODO: set the err information for different situation
+	rpulppi *rpulpProof) (valid bool) {
 
 	if !(n >= 2 && n <= n1 && n1 <= n2 && n <= pp.paramI+pp.paramJ && n2 <= pp.paramI+pp.paramJ+4) {
 		return false
@@ -366,11 +370,17 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 		return false
 	}
 
-	// todo
 	// check the matrix and u_hats
-
-	// todo
+	if len(binMatrixB) != m*pp.paramD/8 || len(binMatrixB[0]) != n2*pp.paramD {
+		return false
+	}
+	if len(u_hats) != m*pp.paramD {
+		return false
+	}
 	// check the well-formness of the \pi
+	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramD || len(rpulppi.psi.coeffs) != pp.paramD || len(rpulppi.phi.coeffs) != pp.paramD || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyNTTs) != n {
+		return false
+	}
 	if rpulppi == nil {
 		return false
 	}
@@ -598,49 +608,90 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	return true
 }
 
+// collectBytesForRPULP1 is an auxiliary function for rpulpProve and rpulpVerify to collect some information into a byte slice
+func (pp PublicParameter) collectBytesForELR(msg []byte, ringSize int, t_as []*PolyNTTVec, w_as []*PolyNTTVec, w_cs []*PolyNTTVec, w_hat_as []*PolyNTTVec, retkeyImg *PolyNTTVec) []byte {
+	seedj_tmp := make([]byte, 0, len(msg)+ringSize*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKc*pp.paramD*4+pp.paramKa*pp.paramD*4+pp.paramMa*pp.paramD*4)
+	appendPolyNTTToBytes := func(a *PolyNTT) {
+		for k := 0; k < pp.paramD; k++ {
+			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>0))
+			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>8))
+			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>16))
+			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>24))
+		}
+	}
+	// M
+	for i := 0; i < len(msg); i++ {
+		seedj_tmp = append(seedj_tmp, msg...)
+	}
+	// List
+	for i := 0; i < ringSize; i++ {
+		for ii := 0; ii < pp.paramKa; ii++ {
+			appendPolyNTTToBytes(t_as[i].polyNTTs[ii])
+		}
+	}
+	// w_(a,j-1)^(t)   w_(c,j-1)^(t)
+	for i := 0; i < pp.paramK; i++ {
+		for ii := 0; ii < pp.paramKa; ii++ {
+			appendPolyNTTToBytes(w_as[i].polyNTTs[ii])
+		}
+		for ii := 0; ii < pp.paramKc+1; ii++ {
+			appendPolyNTTToBytes(w_cs[i].polyNTTs[ii])
+		}
+	}
+	// w_hat_(a,j-1)^(k-1)
+	for i := 0; i < pp.paramKa; i++ {
+		appendPolyNTTToBytes(w_hat_as[pp.paramK-1].polyNTTs[i])
+	}
+	// I
+	for i := 0; i < pp.paramMa; i++ {
+		appendPolyNTTToBytes(retkeyImg.polyNTTs[i])
+	}
+	return seedj_tmp
+}
+
 // elrsSign genarates authorizing and authentication proof
 func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg []byte, sidx int, s_a *PolyNTTVec, s_c *PolyNTTVec) (elrssig *elrsSignature, err error) {
 	//	check the well-formness of inputs
 	if t_as == nil || t_cs == nil || msg == nil || s_a == nil || s_c == nil {
-		return nil, nil // todo: error
+		return nil, errors.New("lack some information")
 	}
 
 	if len(t_as) == 0 || len(t_cs) == 0 || len(msg) == 0 {
-		return nil, nil // todo: error
+		return nil, errors.New("lack some information")
 	}
 
 	if len(t_as) != len(t_cs) {
-		return nil, nil // todo: error
+		return nil, errors.New("the length of t_as is not equal to the t_cs")
 	}
 
 	ringSize := len(t_as)
 
 	if sidx < 0 || sidx >= ringSize {
-		return nil, nil // todo: error
+		return nil, errors.New("the index is not in [0,ringSize)")
 	}
 
 	for j := 0; j < ringSize; j++ {
 		if len(t_as[j].polyNTTs) != pp.paramKa {
-			return nil, nil // todo: error
+			return nil, errors.New("the length of t_as is not accurate")
 		}
 		if len(t_cs[j].polyNTTs) != pp.paramKc+1 {
-			return nil, nil // todo: error
+			return nil, errors.New("the length of t_cs is not accurate")
 		}
 	}
 
 	if len(s_a.polyNTTs) != pp.paramLa || len(s_c.polyNTTs) != pp.paramLc {
-		return nil, nil // todo: error
+		return nil, errors.New("the length of s_a or s_c is not accurate")
 	}
 
 	if pp.NTTInvVec(s_a).infNorm() > 2 {
-		return nil, nil // todo: error
+		return nil, errors.New("the norm of s_a is not right")
 	}
 	if pp.NTTInvVec(s_c).infNorm() > 2 {
-		return nil, nil // todo: error
+		return nil, errors.New("the norm of s_c is not right")
 	}
 
 	if pp.PolyNTTVecEqualCheck(t_as[sidx], pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_a, pp.paramKa, pp.paramLa)) != true {
-		return nil, nil // todo: error
+		return nil, errors.New("t_as not equal")
 	}
 
 	matrixBExt := make([]*PolyNTTVec, pp.paramKc+1)
@@ -650,7 +701,7 @@ func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg [
 	matrixBExt[pp.paramKc] = pp.paramMatrixC[0]
 
 	if pp.PolyNTTVecEqualCheck(t_cs[sidx], pp.PolyNTTMatrixMulVector(matrixBExt, s_c, pp.paramKc+1, pp.paramLc)) != true {
-		return nil, nil // todo: error
+		return nil, errors.New("t_cs not equal")
 	}
 
 	//	keyImgMatrices
@@ -713,48 +764,13 @@ elrsSignRestart:
 	var sigma_tau_ch *PolyNTT
 
 	for j := (sidx + 1) % ringSize; ; {
-		seedj_tmp := make([]byte, 0, len(msg)+ringSize*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKc*pp.paramD*4+pp.paramKa*pp.paramD*4+pp.paramMa*pp.paramD*4)
-		appendPolyNTTToBytes := func(a *PolyNTT) {
-			for k := 0; k < pp.paramD; k++ {
-				seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>0))
-				seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>8))
-				seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>16))
-				seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>24))
-			}
-		}
-		// M
-		for i := 0; i < len(msg); i++ {
-			seedj_tmp = append(seedj_tmp, msg...)
-		}
-		// List
-		for i := 0; i < ringSize; i++ {
-			for ii := 0; ii < pp.paramKa; ii++ {
-				appendPolyNTTToBytes(t_as[i].polyNTTs[ii])
-			}
-		}
-		// w_(a,j-1)^(t)   w_(c,j-1)^(t)
-		for i := 0; i < pp.paramK; i++ {
-			for ii := 0; ii < pp.paramKa; ii++ {
-				appendPolyNTTToBytes(w_as[i].polyNTTs[ii])
-			}
-			for ii := 0; ii < pp.paramKc+1; ii++ {
-				appendPolyNTTToBytes(w_cs[i].polyNTTs[ii])
-			}
-		}
-		// w_hat_(a,j-1)^(k-1)
-		for i := 0; i < pp.paramKa; i++ {
-			appendPolyNTTToBytes(w_hat_as[pp.paramK-1].polyNTTs[i])
-		}
-		// I
-		for i := 0; i < pp.paramMa; i++ {
-			appendPolyNTTToBytes(retkeyImg.polyNTTs[i])
-		}
-		seedj, err = H(seedj_tmp) // todo_DONE
+
+		seedj, err = H(pp.collectBytesForELR(msg, ringSize, t_as, w_as, w_cs, w_hat_as, retkeyImg))
 		if err != nil {
 			return nil, err
 		}
 
-		chtmm, err := pp.expandChallenge(seedj) //TODO_DONE:handle the err
+		chtmm, err := pp.expandChallenge(seedj)
 		if err != nil {
 			return nil, err
 		}
@@ -800,48 +816,11 @@ elrsSignRestart:
 		}
 	}
 
-	seedj_tmp := make([]byte, 0, len(msg)+ringSize*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKc*pp.paramD*4+pp.paramKa*pp.paramD*4+pp.paramMa*pp.paramD*4)
-	appendPolyNTTToBytes := func(a *PolyNTT) {
-		for k := 0; k < pp.paramD; k++ {
-			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>0))
-			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>8))
-			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>16))
-			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>24))
-		}
-	}
-	// M
-	for i := 0; i < len(msg); i++ {
-		seedj_tmp = append(seedj_tmp, msg...)
-	}
-	// List
-	for i := 0; i < ringSize; i++ {
-		for ii := 0; ii < pp.paramKa; ii++ {
-			appendPolyNTTToBytes(t_as[i].polyNTTs[ii])
-		}
-	}
-	// w_(a,j-1)^(t)   w_(c,j-1)^(t)
-	for i := 0; i < pp.paramK; i++ {
-		for ii := 0; ii < pp.paramKa; ii++ {
-			appendPolyNTTToBytes(w_as[i].polyNTTs[ii])
-		}
-		for ii := 0; ii < pp.paramKc+1; ii++ {
-			appendPolyNTTToBytes(w_cs[i].polyNTTs[ii])
-		}
-	}
-	// w_hat_(a,j-1)^(k-1)
-	for i := 0; i < pp.paramKa; i++ {
-		appendPolyNTTToBytes(w_hat_as[pp.paramK-1].polyNTTs[i])
-	}
-	// I
-	for i := 0; i < pp.paramMa; i++ {
-		appendPolyNTTToBytes(retkeyImg.polyNTTs[i])
-	}
-
-	seedj, err = H(seedj_tmp) // todo_DONE
+	seedj, err = H(pp.collectBytesForELR(msg, ringSize, t_as, w_as, w_cs, w_hat_as, retkeyImg))
 	if err != nil {
 		return nil, err
 	}
-	chtmp, err := pp.expandChallenge(seedj) // TODO_DONE:handle the err
+	chtmp, err := pp.expandChallenge(seedj)
 	if err != nil {
 		return nil, err
 	}
@@ -950,7 +929,6 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 		}
 		imgMatrix, err := pp.expandKeyImgMatrix(tmp)
 		if err != nil {
-			// TODO: define Const Error Variable
 			return false
 		}
 
@@ -1184,8 +1162,9 @@ func (pp *PublicParameter) rejectionUniformWithZq(buf []byte, length int) []int3
 }
 
 /**
-todo: generate MatrixA from pp.Cstr
+todo_DONE: generate MatrixA from pp.Cstr
 */
+// expandPubMatrixA generate the a matrix according to the given seed
 func (pp *PublicParameter) expandPubMatrixA(seed []byte) (matrixA []*PolyNTTVec, err error) {
 	matrix, err := pp.generateNTTMatrix(seed, pp.paramKa, pp.paramLa)
 	if err != nil {
@@ -1195,9 +1174,10 @@ func (pp *PublicParameter) expandPubMatrixA(seed []byte) (matrixA []*PolyNTTVec,
 }
 
 /**
-todo: generate MatrixB from pp.Cstr
-todo: store the matrices in PP or generate them each time they are generated
+todo_DONE: generate MatrixB from pp.Cstr
+todo_DONE: store the matrices in PP or generate them each time they are generated
 */
+// expandPubMatrixA generate the a matrix according to the given seed
 func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyNTTVec, err error) {
 	matrix, err := pp.generateNTTMatrix(seed, pp.paramKc, pp.paramLc)
 	if err != nil {
@@ -1206,6 +1186,7 @@ func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyNTTVec,
 	return matrix, nil
 }
 
+// expandPubMatrixA generate the a matrix according to the given seed
 func (pp *PublicParameter) expandPubMatrixC(seed []byte) (matrixC []*PolyNTTVec, err error) {
 	matrix, err := pp.generateNTTMatrix(seed, pp.paramI+pp.paramJ+7, pp.paramLc)
 	if err != nil {
@@ -1214,8 +1195,7 @@ func (pp *PublicParameter) expandPubMatrixC(seed []byte) (matrixC []*PolyNTTVec,
 	return matrix, nil
 }
 
-// TODO:Why is input a poltNTTVec?
-//func (pp PublicParameter) expandKeyImgMatrix(t *PolyNTTVec) (matrixH []*PolyNTTVec) {
+// expandKeyImgMatrix enerate the a matrix according to the given seed and a const string "IM"
 func (pp PublicParameter) expandKeyImgMatrix(seed []byte) (matrixH []*PolyNTTVec, err error) {
 	matrix, err := pp.generateNTTMatrix(append(seed, 'I', 'M'), pp.paramMa, pp.paramLa)
 	if err != nil {
@@ -1243,7 +1223,7 @@ func (pp *PublicParameter) sampleRandomnessA() (seed []byte, r *PolyVec, err err
 }
 
 /*
-todo: expand a seed to a PolyVec with length l_a from (S_r)^d
+todo_DONE: expand a seed to a PolyVec with length l_a from (S_r)^d
 */
 // expandRandomnessA expand a bytes slice to a PolyVec with length l_a from (S_r)^d.
 // And before calling, you should have got the seed.
@@ -1259,6 +1239,8 @@ func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec, err error
 	return r, nil
 }
 
+// sampleRandomnessC sample a bytes slice to a PolyVec with length l_c from (S_r)^d.
+// And before calling, you should have got the seed.
 func (pp *PublicParameter) sampleRandomnessC() (seed []byte, r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
 
@@ -1276,6 +1258,8 @@ func (pp *PublicParameter) sampleRandomnessC() (seed []byte, r *PolyVec, err err
 	return seed, rst, nil
 }
 
+// expandRandomnessC expand a bytes slice with given bytes slice to a PolyVec with length l_c from (S_r)^d.
+// And before calling, you should have got the seed.
 func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec, err error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
@@ -1288,11 +1272,13 @@ func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec, err error
 	return r, nil
 }
 
+// sampleMaskA sample a bytes slice with given bytes slice to a PolyVec with length l_a from (S_etaA)^d.
+// And before calling, you should have got the seed.
 func (pp PublicParameter) sampleMaskA() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLa)
 
 	for i := 0; i < pp.paramLa; i++ {
-		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		tmp, err := randomnessFromEtaA(nil, pp.paramD)
 		if err != nil {
 			return nil, err
 		}
@@ -1305,10 +1291,11 @@ func (pp PublicParameter) sampleMaskA() (r *PolyVec, err error) {
 }
 
 func (pp PublicParameter) sampleMaskC() (r *PolyVec, err error) {
+	// etaC
 	polys := make([]*Poly, pp.paramLc)
 
 	for i := 0; i < pp.paramLc; i++ {
-		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		tmp, err := randomnessFromEtaC(randomBytes(32), pp.paramD)
 		if err != nil {
 			return nil, err
 		}
@@ -1324,7 +1311,7 @@ func (pp PublicParameter) sampleMaskC2() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
 
 	for i := 0; i < pp.paramLc; i++ {
-		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		tmp, err := randomnessFromEtaC2(nil, pp.paramD)
 		if err != nil {
 			return nil, err
 		}
@@ -1340,7 +1327,7 @@ func (pp PublicParameter) sampleZetaA() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLa)
 
 	for i := 0; i < pp.paramLa; i++ {
-		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		tmp, err := randomnessFromZetaA(nil, pp.paramD)
 		if err != nil {
 			return nil, err
 		}
@@ -1369,10 +1356,11 @@ func (pp PublicParameter) sampleZetaC() (r *PolyVec, err error) {
 }
 
 func (pp PublicParameter) sampleZetaC2() (r *PolyVec, err error) {
+
 	polys := make([]*Poly, pp.paramLc)
 
 	for i := 0; i < pp.paramLc; i++ {
-		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+		tmp, err := randomnessFromZetaC2(nil, pp.paramD)
 		if err != nil {
 			return nil, err
 		}
@@ -1495,77 +1483,43 @@ func (pp *PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m 
 }
 
 func (pp *PublicParameter) sampleUniformWithinEtaF() ([]int32, error) {
-	var err error
-	seed := randomBytes(pp.paramSysBytes)
-	buf := make([]byte, (pp.paramD*11+7)/8)
-	XOF := sha3.NewShake128()
-	XOF.Reset()
-	_, err = XOF.Write(seed)
-	if err != nil {
-		return nil, err
-	}
-	_, err = XOF.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-	got := pp.rejectionUniformWithinEtaF(buf, pp.paramD)
-	// todo
-	if len(got)*11+7 < pp.paramD {
-		newBuf := make([]byte, (pp.paramD-len(got)*11+7)/8)
-		_, err = XOF.Read(newBuf)
-		if err != nil {
-			return nil, err
-		}
-		got = append(got, pp.rejectionUniformWithinEtaF(newBuf, pp.paramD-len(got))...)
-	}
-	return got[:pp.paramD], nil
+	// 1<<28-1
+	return rejectionUniformWithinEtaF(randomBytes(pp.paramSysBytes), pp.paramD)
 }
 
-func (pp *PublicParameter) rejectionUniformWithinEtaF(buf []byte, length int) []int32 {
-	// [-1023,1023] 11bit
-	res := make([]int32, 0, length)
+func rejectionUniformWithinEtaF(seed []byte, length int) ([]int32, error) {
+	// [-1<<28+1,1<<28-1] 29bit = 28bit + 1bit
+	// 1<<18 -1
+	buf := make([]byte, (28*length+7)/8)
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Read(seed)
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Write(buf)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]int32, length)
 	pos := 0
 	for pos < len(buf) {
-		value := int32(buf[pos+0])<<3 | int32(buf[pos+1]&0x7)
-		if -pp.paramEtaF < value && value < pp.paramEtaF {
-			res = append(res, value)
-		}
-		value = int32(buf[pos+1]>>3)<<6 | int32(buf[pos+2]&0x3F)
-		if -pp.paramEtaF < value && value < pp.paramEtaF {
-			res = append(res, value)
-		}
-		value = int32(buf[pos+2]>>6)<<9 | int32(buf[pos+3])<<1 | int32(buf[pos+4]&0x1)
-		if -pp.paramEtaF < value && value < pp.paramEtaF {
-			res = append(res, value)
-		}
-		value = int32(buf[pos+4]>>1)<<4 | int32(buf[pos+5])&0xF
-		if -pp.paramEtaF < value && value < pp.paramEtaF {
-			res = append(res, value)
-		}
-		value = int32(buf[pos+5]>>4)<<7 | int32(buf[pos+6])&0x7F
-		if -pp.paramEtaF < value && value < pp.paramEtaF {
-			res = append(res, value)
-		}
-		value = int32(buf[pos+6]>>7)<<10 | int32(buf[pos+7])<<2 | int32(buf[pos+8]&0x3)
-		if -pp.paramEtaF < value && value < pp.paramEtaF {
-			res = append(res, value)
-		}
-		value = int32(buf[pos+8]>>2)<<5 | int32(buf[pos+9])&0x1F
-		if -pp.paramEtaF < value && value < pp.paramEtaF {
-			res = append(res, value)
-		}
-		value = int32(buf[pos+9]>>5)<<3 | int32(buf[pos+10])
-		if -pp.paramEtaF < value && value < pp.paramEtaF {
-			res = append(res, value)
-		}
-		pos += 11
+		res[pos/7*2+0] = int32(buf[pos+0]&0xFF)<<20 | int32(buf[pos+1])<<12 | int32(buf[pos+2])<<4 | int32(buf[pos+3]&0xF0)>>6
+		res[pos/7*2+1] = int32(buf[pos+3]&0x0F)<<24 | int32(buf[pos+4])<<16 | int32(buf[pos+5])<<8 | int32(buf[pos+6]&0xFF)>>0
+		pos += 7
 	}
-	return res
+	for i := 0; i < length; i += 8 {
+		for j := 0; j < 8; j++ {
+			if (buf[pos]>>j)&1 == 0 {
+				res[i+j] = -res[i+j]
+			}
+		}
+		pos++
+	}
+	return res[:length], nil
 }
 
-/*
-todo:
-*/
+
 func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
 	// extend seed via sha3.Shake128
 	ret := pp.NewZeroPoly()
@@ -1587,9 +1541,7 @@ func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
 	return ret, nil
 }
 
-/*
-todo:
-*/
+
 /*func (pp *PublicParameter) sigmaPolyNTT(polyNTT *PolyNTT) (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
@@ -1610,9 +1562,7 @@ func (pp *PublicParameter) sigmaPowerPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNT
 	return &PolyNTT{coeffs}
 }
 
-/*
-todo:
-*/
+// sigmaInvPolyNTT performances the sigma transformation where the sigma is defined as sigma_65 in {Z_256}^*
 func (pp *PublicParameter) sigmaInvPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT) {
 	nttPower := pp.PolyNTTPower(polyNTT, uint(t))
 	coeffs := make([]int32, pp.paramD)
@@ -1636,7 +1586,7 @@ func (pp *PublicParameter) intMatrixInnerProduct(a [][]int32, b [][]int32, rowNu
 	return rst
 }
 
-// TODO: a int32 -> byte
+
 func (pp *PublicParameter) intVecInnerProduct(a []int32, b []int32, vecLen int) (r int32) {
 	rst := int32(0)
 	for i := 0; i < vecLen; i++ {
@@ -1654,10 +1604,8 @@ func intToBinary(v uint64, bitNum int) (bits []int32) {
 	return rstbits
 }
 
-// TODO: fix the bug for [][]int32 to [][]byte
+
 func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err error) {
-	//	todo: for binaryMatrxi we may do some optimoztion, e.g. use []byte to denote the matrix directly
-	//	so that for a 128*128 matrix, we just need 16*16 bytes rather than 128*128 int32's.
 	binM = make([][]byte, rownum)
 	XOF := sha3.NewShake128()
 	buf := make([]byte, (colnum+7)/8)
@@ -1697,7 +1645,8 @@ func (cmt *Commitment) toPolyNTTVec() *PolyNTTVec {
 
 	return rettransMatrix
 }*/
-// TODO: the int32 -> byte and the byte will be used for 8 values (as int32)
+
+
 func getMatrixColumn(matrix [][]byte, rowNum int, j int) (col []int32) {
 	retcol := make([]int32, rowNum)
 	for i := 0; i < rowNum; i++ {
@@ -1727,7 +1676,6 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 			for i := 0; i < pp.paramD; i++ {
 				// F^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
 				// B^T[i]: ith-col of B
-				// TODO: get the binary matrix,
 				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][2], pp.paramD)
 				if i == 0 {
 					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i]))

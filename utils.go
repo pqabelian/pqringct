@@ -121,7 +121,6 @@ func randomIntSliceWithWeight(items []int, weights []int, n int) (res []int) {
 
 	generateSlice := make([]int, n, n)
 	rng := rand.Reader
-	//TODO: rng from seed not from rand.Reader
 	for i := 0; i < n; i++ {
 		num, err := rand.Int(rng, big.NewInt(int64(totalWeight)))
 		if err != nil {
