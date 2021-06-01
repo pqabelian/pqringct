@@ -338,7 +338,112 @@ func (trTxWitness *TrTxWitness) Serialize(w io.Writer) error {
 		}
 	}
 
-	// write elrsSigs.
+	// write elrsSigs
+	count = len(trTxWitness.elrsSigs)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		// write elrsSigs.chseed
+		chseedLen := len(trTxWitness.elrsSigs[i].chseed)
+		err = WriteVarInt(w, uint64(chseedLen))
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(trTxWitness.elrsSigs[i].chseed[:])
+		if err != nil {
+			return err
+		}
+
+		// write elrsSigs.z_as
+		z_asRowLen := len(trTxWitness.elrsSigs[i].z_as)
+		err = WriteVarInt(w, uint64(z_asRowLen))
+		if err != nil {
+			return err
+		}
+		for k1 := 0; k1 < z_asRowLen; k1++ {
+			z_asColLen := len(trTxWitness.elrsSigs[i].z_as[k1])
+			err = WriteVarInt(w, uint64(z_asColLen))
+			if err != nil {
+				return err
+			}
+			for k2 := 0; k2 < z_asColLen; k2++ {
+				polyNTTLen := len(trTxWitness.elrsSigs[i].z_as[k1][k2].polyNTTs)
+				err = WriteVarInt(w, uint64(polyNTTLen))
+				if err != nil {
+					return err
+				}
+				for k3 := 0; k3 < polyNTTLen; k3++ {
+					coeffsLen := len(trTxWitness.elrsSigs[i].z_as[k1][k2].polyNTTs[k3].coeffs)
+					err = WriteVarInt(w, uint64(coeffsLen))
+					if err != nil {
+						return err
+					}
+					for k4 := 0; k4 < coeffsLen; k4++ {
+						err := writeElement(w, trTxWitness.elrsSigs[i].z_as[k1][k2].polyNTTs[k3].coeffs[k4])
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+
+		// write elrsSigs.z_cs
+		z_csRowLen := len(trTxWitness.elrsSigs[i].z_cs)
+		err = WriteVarInt(w, uint64(z_csRowLen))
+		if err != nil {
+			return err
+		}
+		for k1 := 0; k1 < z_csRowLen; k1++ {
+			z_csColLen := len(trTxWitness.elrsSigs[i].z_cs[k1])
+			err = WriteVarInt(w, uint64(z_csColLen))
+			if err != nil {
+				return err
+			}
+			for k2 := 0; k2 < z_csColLen; k2++ {
+				polyNTTLen := len(trTxWitness.elrsSigs[i].z_cs[k1][k2].polyNTTs)
+				err = WriteVarInt(w, uint64(polyNTTLen))
+				if err != nil {
+					return err
+				}
+				for k3 := 0; k3 < polyNTTLen; k3++ {
+					coeffsLen := len(trTxWitness.elrsSigs[i].z_cs[k1][k2].polyNTTs[k3].coeffs)
+					err = WriteVarInt(w, uint64(coeffsLen))
+					if err != nil {
+						return err
+					}
+					for k4 := 0; k4 < coeffsLen; k4++ {
+						err := writeElement(w, trTxWitness.elrsSigs[i].z_cs[k1][k2].polyNTTs[k3].coeffs[k4])
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+
+		// write elrsSigs.keyImg
+		polyNTTsLen := len(trTxWitness.elrsSigs[i].keyImg.polyNTTs)
+		err = WriteVarInt(w, uint64(polyNTTsLen))
+		if err != nil {
+			return err
+		}
+		for k1 := 0; k1 < polyNTTsLen; k1++ {
+			coeffsLen := len(trTxWitness.elrsSigs[i].keyImg.polyNTTs[k1].coeffs)
+			err = WriteVarInt(w, uint64(coeffsLen))
+			if err != nil {
+				return err
+			}
+			for k2 := 0; k2 < coeffsLen; k2++ {
+				err := writeElement(w, trTxWitness.elrsSigs[i].keyImg.polyNTTs[k1].coeffs[k2])
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
 
 	return nil
 }
