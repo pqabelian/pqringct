@@ -5,12 +5,49 @@ import (
 	"io"
 )
 
+func (coinbaseTx *CoinbaseTx) Serialize(hasWitness bool) ([]byte, error) {
+	// write Vin
+	w := new(bytes.Buffer)
+	err := writeElement(w, coinbaseTx.Vin)
+	if err != nil {
+		return nil, err
+	}
+
+	// write OutputTxos
+	count := len(coinbaseTx.OutputTxos)
+	err = WriteVarInt(w, uint64(count))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < count; i++ {
+		err := coinbaseTx.OutputTxos[i].Serialize(w)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// write TxWitness
+	if hasWitness {
+		err := coinbaseTx.TxWitness.Serialize(w)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
+}
+
+func (coinbaseTx *CoinbaseTx) Deserialize() ([]byte, error) {
+	// todo
+	return nil, nil
+}
+
 func (cbTxWitness *CbTxWitness) SerializeSize() uint32 {
 	// todo
 	return 1
 }
 
-func (cbTxWitness *CbTxWitness) Serialize() []byte {
+func (cbTxWitness *CbTxWitness) Serialize(w io.Writer) error {
+	// todo
 	// write b_hat
 
 	// write c_hats
