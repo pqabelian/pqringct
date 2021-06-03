@@ -19,7 +19,7 @@ const (
 )
 
 // collectBytesForRPULP1 is an auxiliary function for rpulpProve and rpulpVerify to collect some information into a byte slice
-func (pp PublicParameter) collectBytesForRPULP1(n int, n1 int, n2 int, binMatrixB [][]byte, m int, cmts []*Commitment, b_hat *PolyNTTVec, c_hats []*PolyNTT, rpulpType RpUlpType, I int, J int, u_hats [][]int32, c_waves []*PolyNTT, cmt_ws [][]*PolyNTTVec, ws []*PolyNTTVec) []byte {
+func (pp PublicParameter) collectBytesForRPULP1(n int, n1 int, n2 int, binMatrixB [][]byte, m int, cmts []*Commitment, b_hat *PolyNTTVec, c_hats []*PolyNTT, rpulpType RpUlpType, I int, J int, u_hats [][]int32, c_waves []*PolyNTT, cmt_ws [][]*PolyNTTVec, ws []*PolyNTTVec, c_hat_g *PolyNTT) []byte {
 	tmp := make([]byte, 0,
 		(pp.paramKc*pp.paramD*4+pp.paramD*4)*n+pp.paramKc*pp.paramD*4+pp.paramD*4*n2+4+1+len(binMatrixB)*len(binMatrixB[0])+1+1+m*pp.paramD*4+pp.paramD*4*n+(pp.paramKc*pp.paramD*4)*n*pp.paramK+(pp.paramKc*pp.paramD*4)*pp.paramK+pp.paramD*4+
 			pp.paramD*4*(n*pp.paramK*2+3+pp.paramK))
@@ -92,7 +92,7 @@ func (pp PublicParameter) collectBytesForRPULP1(n int, n1 int, n2 int, binMatrix
 		}
 	}
 	//c_hat[n2+1]
-	appendPolyNTTToBytes(c_hats[n2+1])
+  	appendPolyNTTToBytes(c_hat_g)
 	return tmp
 }
 
@@ -178,10 +178,11 @@ rpUlpProveRestart:
 	}
 
 	g := pp.NTT(pp.sampleUniformPloyWithLowZeros())
+	// c_hat(n2+1)
 	c_hat_g := pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], r_hat, pp.paramLc), g)
 
 	// splicing the data to be processed
-	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws)
+	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws,c_hat_g)
 	seed_rand, err := H(tmp) // todo_DONE
 	if err != nil {
 		return nil, err
@@ -221,10 +222,14 @@ rpUlpProveRestart:
 					pp.PolyNTTMul(
 						pp.PolyNTTSub(
 							pp.PolyNTTAdd(
-								&PolyNTT{msg_hats[i]},
-								&PolyNTT{msg_hats[i]}),
-							&PolyNTT{pp.paramMu}),
-						tmp)))
+								&PolyNTT{msg_hats[i]}, &PolyNTT{msg_hats[i]},
+								),
+								&PolyNTT{pp.paramMu},
+							),
+							tmp,
+						),
+					),
+				)
 
 			tmp2 = pp.PolyNTTAdd(
 				tmp2,
@@ -279,13 +284,13 @@ rpUlpProveRestart:
 			for tau := 0; tau < pp.paramK; tau++ {
 				tmp := pp.NewZeroPolyNTTVec(pp.paramLc)
 				for j := 0; j < n2; j++ {
-					tmp = pp.PolyNTTVecAdd(tmp, pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixC[j+1], pp.paramLc), pp.paramKc)
+					tmp = pp.PolyNTTVecAdd(tmp, pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixC[j+1], pp.paramLc), pp.paramLc)
 				}
 
 				tmp1 = pp.PolyNTTAdd(
 					tmp1,
 					pp.sigmaPowerPolyNTT(
-						pp.PolyNTTVecInnerProduct(tmp, ys[(xi-tau)%pp.paramK], pp.paramLc),
+						pp.PolyNTTVecInnerProduct(tmp, ys[(xi-tau+pp.paramK)%pp.paramK], pp.paramLc),
 						tau))
 			}
 
@@ -317,13 +322,14 @@ rpUlpProveRestart:
 	cmt_zs := make([][]*PolyNTTVec, pp.paramK)
 	zs := make([]*PolyNTTVec, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
+		cmt_zs[t]=make([]*PolyNTTVec,pp.paramLc)
 		sigma_t_ch := pp.sigmaPowerPolyNTT(ch, t)
 		for i := 0; i < n; i++ {
 			cmt_zs[t][i] = pp.PolyNTTVecAdd(
 				cmt_ys[t][i],
 				pp.PolyNTTVecScaleMul(sigma_t_ch, cmt_rs[i], pp.paramLc),
 				pp.paramLc)
-
+			// can not pass it TODO 20210602
 			if pp.NTTInvVec(cmt_zs[t][i]).infNorm() > pp.paramEtaC-pp.paramBetaC {
 				goto rpUlpProveRestart
 			}
@@ -452,7 +458,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 
 	// splicing the data to be processed
 
-	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, rpulppi.c_waves, cmt_ws, ws)
+	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, rpulppi.c_waves, cmt_ws, ws,rpulppi.c_hat_g)
 	seed_rand, err := H(tmp)
 	if err != nil {
 		return false
@@ -1046,7 +1052,11 @@ func (pp *PublicParameter) generateNTTMatrix(seed []byte, rowLength int, colLeng
 		//		res[i] = NewPolyNTTVec(colLength, pp.paramD)
 		for j := 0; j < colLength; j++ {
 			XOF.Reset()
-			_, err = XOF.Write(append(seed, byte(i), byte(j)))
+			_, err = XOF.Write(seed)
+			if err != nil {
+				return nil, err
+			}
+			_, err = XOF.Write([]byte{byte(i), byte(j)})
 			if err != nil {
 				return nil, err
 			}
@@ -1080,7 +1090,11 @@ func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []by
 	XOF := sha3.NewShake128()
 	for i := 0; i < vecLen; i++ {
 		XOF.Reset()
-		_, err = XOF.Write(append(seed, byte(i)))
+		_, err = XOF.Write(seed)
+		if err != nil {
+			return nil, err
+		}
+		_, err = XOF.Write([]byte{byte(i)})
 		if err != nil {
 			return nil, err
 		}
@@ -1110,8 +1124,8 @@ func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []by
 func (pp *PublicParameter) generateBits(seed []byte, length int) ([]byte, error) {
 	var err error
 	// check the length of seed
-	res := make([]byte, (length+7)/8*8)
-	buf := make([]byte, 8)
+	res := make([]byte, length)
+	buf := make([]byte, (length+7)/8)
 	XOF := sha3.NewShake128()
 	for i := 0; i < (length+7)/8; i++ {
 		XOF.Reset()
@@ -1123,41 +1137,53 @@ func (pp *PublicParameter) generateBits(seed []byte, length int) ([]byte, error)
 		if err != nil {
 			return nil, err
 		}
-		res[8*i+0] = buf[i] & (1 << 0) >> 0
-		res[8*i+1] = buf[i] & (1 << 1) >> 1
-		res[8*i+2] = buf[i] & (1 << 2) >> 2
-		res[8*i+3] = buf[i] & (1 << 3) >> 3
-		res[8*i+4] = buf[i] & (1 << 4) >> 4
-		res[8*i+5] = buf[i] & (1 << 5) >> 5
-		res[8*i+6] = buf[i] & (1 << 6) >> 6
-		res[8*i+7] = buf[i] & (1 << 7) >> 7
+		for j := 0; j < 8 && 8*i+j<length; j++ {
+			res[8*i+j] = buf[i] & (1 << j) >> j
+		}
 	}
 	return res[:length], nil
 }
 
 //TODO_DONE: uniform sample a element in Z_q from buf as many as possible
 // rejectionUniformWithZq uniform sample some element in Z_q from buf as many as possible
-func (pp *PublicParameter) rejectionUniformWithZq(buf []byte, length int) []int32 {
+func (pp *PublicParameter) rejectionUniformWithZq(seed []byte, length int) []int32 {
 	res := make([]int32, 0, length)
 	var curr int
 	var pos int
 	var t uint32
 	//q=1111_1111_1111_1111_1110_1110_0000_0001
-	for pos < len(buf) {
-		// 从buf中读取32个bit（4byte）
-		t = uint32(buf[pos])
-		t |= uint32(buf[pos+1]) << 8
-		t |= uint32(buf[pos+2]) << 16
-		t |= uint32(buf[pos+3]) << 24
-		if t < pp.paramQ {
-			res = append(res, int32(t-pp.paramQ))
-			curr += 1
-			if curr >= length {
-				break
-			}
+	xof:=sha3.NewShake128()
+	cnt:=1
+	for len(res)<length{
+		buf:=make([]byte,(length-len(res))*4)
+		xof.Reset()
+		_, err := xof.Write(append(seed,byte(cnt)))
+		if err != nil {
+			continue
 		}
-		pos += 4
+		_, err = xof.Read(buf)
+		if err != nil {
+			continue
+		}
+		pos=0
+		for pos < len(buf) {
+			// 从buf中读取32个bit（4byte）
+			t = uint32(buf[pos])
+			t |= uint32(buf[pos+1]) << 8
+			t |= uint32(buf[pos+2]) << 16
+			t |= uint32(buf[pos+3]) << 24
+			if t < pp.paramQ {
+				res = append(res, int32(t-pp.paramQ))
+				curr += 1
+				if curr >= length {
+					break
+				}
+			}
+			pos += 4
+		}
+		cnt++
 	}
+
 	return res
 }
 
@@ -1241,21 +1267,21 @@ func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec, err error
 
 // sampleRandomnessC sample a bytes slice to a PolyVec with length l_c from (S_r)^d.
 // And before calling, you should have got the seed.
-func (pp *PublicParameter) sampleRandomnessC() (seed []byte, r *PolyVec, err error) {
+func (pp *PublicParameter) sampleRandomnessC() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
 
 	for i := 0; i < pp.paramLc; i++ {
 		var tmp []int32
-		seed, tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramD)
+		_, tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramD)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		polys[i] = &Poly{coeffs: tmp}
 	}
 	rst := &PolyVec{
 		polys: polys,
 	}
-	return seed, rst, nil
+	return rst, nil
 }
 
 // expandRandomnessC expand a bytes slice with given bytes slice to a PolyVec with length l_c from (S_r)^d.
@@ -1295,7 +1321,7 @@ func (pp PublicParameter) sampleMaskC() (r *PolyVec, err error) {
 	polys := make([]*Poly, pp.paramLc)
 
 	for i := 0; i < pp.paramLc; i++ {
-		tmp, err := randomnessFromEtaC(randomBytes(32), pp.paramD)
+		tmp, err := randomnessFromEtaC(randomBytes(pp.paramSysBytes), pp.paramD)
 		if err != nil {
 			return nil, err
 		}
@@ -1464,7 +1490,7 @@ func (pp *PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m 
 		gammas[i] = make([][]int32, m)
 		_, err = XOF.Read(buf)
 		for j := 0; j < m; j++ {
-			gammas[i][j] = make([]int32, m)
+			gammas[i][j] = make([]int32, pp.paramD)
 			got := pp.rejectionUniformWithZq(buf, pp.paramD)
 			if len(got) < pp.paramLc {
 				newBuf := make([]byte, pp.paramD*4)
@@ -1490,26 +1516,27 @@ func (pp *PublicParameter) sampleUniformWithinEtaF() ([]int32, error) {
 func rejectionUniformWithinEtaF(seed []byte, length int) ([]int32, error) {
 	// [-1<<28+1,1<<28-1] 29bit = 28bit + 1bit
 	// 1<<18 -1
-	buf := make([]byte, (28*length+7)/8)
+	buf := make([]byte, (29*length+7)/8)
 	xof := sha3.NewShake128()
 	xof.Reset()
-	_, err := xof.Read(seed)
+	_, err := xof.Write(buf)
 	if err != nil {
 		return nil, err
 	}
-	_, err = xof.Write(buf)
+	_, err = xof.Read(seed)
+
 	if err != nil {
 		return nil, err
 	}
 	res := make([]int32, length)
 	pos := 0
-	for pos < len(buf) {
-		res[pos/7*2+0] = int32(buf[pos+0]&0xFF)<<20 | int32(buf[pos+1])<<12 | int32(buf[pos+2])<<4 | int32(buf[pos+3]&0xF0)>>6
+	for pos/7*2+1 < length {
+		res[pos/7*2+0] = int32(buf[pos+0]&0xFF)<<20 | int32(buf[pos+1])<<12 | int32(buf[pos+2])<<4 | int32(buf[pos+3]&0xF0)>>4
 		res[pos/7*2+1] = int32(buf[pos+3]&0x0F)<<24 | int32(buf[pos+4])<<16 | int32(buf[pos+5])<<8 | int32(buf[pos+6]&0xFF)>>0
 		pos += 7
 	}
 	for i := 0; i < length; i += 8 {
-		for j := 0; j < 8; j++ {
+		for j := 0; j < 8 && i+j<length; j++ {
 			if (buf[pos]>>j)&1 == 0 {
 				res[i+j] = -res[i+j]
 			}
@@ -1610,7 +1637,7 @@ func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err
 	XOF := sha3.NewShake128()
 	buf := make([]byte, (colnum+7)/8)
 	for i := 0; i < rownum; i++ {
-		binM[i] = make([]byte, colnum)
+		binM[i] = make([]byte, (colnum+7)/8)
 		XOF.Reset()
 		_, err = XOF.Write(append(seed, byte(i)))
 		if err != nil {
@@ -1650,7 +1677,7 @@ func (cmt *Commitment) toPolyNTTVec() *PolyNTTVec {
 func getMatrixColumn(matrix [][]byte, rowNum int, j int) (col []int32) {
 	retcol := make([]int32, rowNum)
 	for i := 0; i < rowNum; i++ {
-		retcol[i] = int32(matrix[i][j/8-1] >> (j % 8) & 1)
+		retcol[i] = int32(matrix[i][j/8] >> (j % 8) & 1)
 	}
 
 	return retcol

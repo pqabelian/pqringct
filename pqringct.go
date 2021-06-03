@@ -183,12 +183,19 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *Maste
 	if seed == nil {
 		seed = randomBytes(2 * pp.paramSysBytes)
 	}
-	//
-	randomnessA, err = pp.expandRandomnessA(seed[:pp.paramSysBytes])
+	// this temporary byte slice is for protect seed unmodified
+	tmp:=make([]byte,pp.paramSysBytes)
+	for i := 0; i < pp.paramSysBytes; i++ {
+		tmp[i]=seed[i]
+	}
+	randomnessA, err = pp.expandRandomnessA(tmp)
 	if err != nil {
 		return seed, nil, nil, nil, err
 	}
-	kemPK, kemSK, err = pp.paramKem.CryptoKemKeyPair(seed[pp.paramSysBytes : 2*pp.paramSysBytes])
+	for i := 0; i < pp.paramSysBytes; i++ {
+		tmp[i]=seed[i+pp.paramSysBytes]
+	}
+	kemPK, kemSK, err = pp.paramKem.CryptoKemKeyPair(tmp)
 	if err != nil {
 		return seed, nil, nil, nil, err
 	}
@@ -391,7 +398,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		}
 		msg_hats[J+1] = e
 
-		_, randomnessC, err := pp.sampleRandomnessC()
+		randomnessC, err := pp.sampleRandomnessC()
 		if err != nil {
 			return nil, err
 		}
@@ -423,7 +430,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			u_p_tmp[i] = 0
 			for j := 0; j < pp.paramD; j++ {
 				u_p_tmp[i] = u_p_tmp[i] + int64(e[j])
-				if (binM[i][j]>>j)&1 == 1 {
+				if (binM[i][j/8]>>(j%8))&1 == 1 {
 					u_p_tmp[i] = u_p_tmp[i] + int64(f[j])
 				}
 			}
@@ -511,7 +518,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 		if cbTx.TxWitness.rpulpproof.chseed == nil || cbTx.TxWitness.rpulpproof.zs == nil {
 			return false
 		}
-		// todo check the well-form of ch
+		// todo check the well-form of chseed
 
 		// check the well-formof zs
 		if len(cbTx.TxWitness.rpulpproof.zs) != pp.paramK {
@@ -857,7 +864,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			pp.NTTVec(satmp),
 			pp.paramKa)
 
-		_, randomnessC, err := pp.sampleRandomnessC()
+		randomnessC, err := pp.sampleRandomnessC()
 		if err != nil {
 			return nil, err
 		}
@@ -927,7 +934,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 		msg_hats[n+1] = e
 
-		_, randomnessC, err := pp.sampleRandomnessC()
+		randomnessC, err := pp.sampleRandomnessC()
 		if err != nil {
 			return nil, err
 		}
@@ -1036,7 +1043,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 		msg_hats[n+3] = e
 
-		_, randomnessC, err := pp.sampleRandomnessC()
+		randomnessC, err := pp.sampleRandomnessC()
 		if err != nil {
 			return nil, err
 		}

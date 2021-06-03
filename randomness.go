@@ -82,20 +82,20 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte, []
 
 func randomnessFromEtaC(seed []byte, length int) ([]int32, error) {
 	// 1<<18 -1
-	bytes := make([]byte, (18*length+7)/8)
+	bytes := make([]byte, (19*length+7)/8)
 	xof := sha3.NewShake128()
 	xof.Reset()
-	_, err := xof.Read(seed)
+	_, err := xof.Write(seed)
 	if err != nil {
 		return nil, err
 	}
-	_, err = xof.Write(bytes)
+	_, err = xof.Read(bytes)
 	if err != nil {
 		return nil, err
 	}
 	res := make([]int32, length)
 	pos := 0
-	for pos < len(bytes) {
+	for pos/9*4+3 < length {
 		res[pos/9*4+0] = int32(bytes[pos+0]&0xFF)<<10 | int32(bytes[pos+1])<<2 | int32(bytes[pos+2]&0xC0)>>6
 		res[pos/9*4+1] = int32(bytes[pos+2]&0x3F)<<12 | int32(bytes[pos+3])<<4 | int32(bytes[pos+4]&0xF0)>>4
 		res[pos/9*4+2] = int32(bytes[pos+4]&0x0F)<<14 | int32(bytes[pos+5])<<6 | int32(bytes[pos+6]&0xFC)>>2
@@ -103,7 +103,7 @@ func randomnessFromEtaC(seed []byte, length int) ([]int32, error) {
 		pos += 9
 	}
 	for i := 0; i < length; i += 8 {
-		for j := 0; j < 8; j++ {
+		for j := 0;  j < 8 &&i+j<length; j++ {
 			if (bytes[pos]>>j)&1 == 0 {
 				res[i+j] = -res[i+j]
 			}
@@ -120,11 +120,11 @@ func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
-	_, err := xof.Read(seed)
+	_, err := xof.Write(seed)
 	if err != nil {
 		return nil, err
 	}
-	_, err = xof.Write(bytes)
+	_, err = xof.Read(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -145,11 +145,11 @@ func randomnessFromEtaC2(seed []byte, length int) ([]int32, error) {
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
-	_, err := xof.Read(seed)
+	_, err := xof.Write(seed)
 	if err != nil {
 		return nil, err
 	}
-	_, err = xof.Write(bytes)
+	_, err = xof.Read(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -180,11 +180,11 @@ func randomnessFromZetaA(seed []byte, length int) ([]int32, error) {
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
-	_, err := xof.Read(append(seed, byte(0)))
+	_, err := xof.Write(append(seed, byte(0)))
 	if err != nil {
 		return nil, err
 	}
-	_, err = xof.Write(bytes)
+	_, err = xof.Read(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func randomnessFromZetaA(seed []byte, length int) ([]int32, error) {
 		if err != nil {
 			return nil, err
 		}
-		_, err = xof.Write(bytes)
+		_, err = xof.Read(bytes)
 		if err != nil {
 			return nil, err
 		}
@@ -269,11 +269,11 @@ func randomnessFromZetaC2(seed []byte, length int) ([]int32, error) {
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
-	_, err := xof.Read(append(seed, byte(0)))
+	_, err := xof.Write(append(seed, byte(0)))
 	if err != nil {
 		return nil, err
 	}
-	_, err = xof.Write(bytes)
+	_, err = xof.Read(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -292,11 +292,11 @@ func randomnessFromZetaC2(seed []byte, length int) ([]int32, error) {
 	for len(res) < length {
 		bytes = make([]byte, 2*(length-len(res)))
 		xof.Reset()
-		_, err := xof.Read(append(seed, byte(cnt)))
+		_, err := xof.Write(append(seed, byte(cnt)))
 		if err != nil {
 			return nil, err
 		}
-		_, err = xof.Write(bytes)
+		_, err = xof.Read(bytes)
 		if err != nil {
 			return nil, err
 		}

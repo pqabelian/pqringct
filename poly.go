@@ -111,7 +111,8 @@ func (pp *PublicParameter) NewZeroPolyNTTVec(vecLen int) (r *PolyNTTVec) {
 		polyNTTs[i] = pp.NewZeroPolyNTT()
 	}
 	return &PolyNTTVec{
-		polyNTTs}
+		polyNTTs,
+	}
 }
 
 // PolyNTTAdd performances polynomial addition, and return a result PolyNTT.
