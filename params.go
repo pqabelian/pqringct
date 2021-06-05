@@ -281,28 +281,12 @@ var DefaultPP *PublicParameter
 
 // reduce is private function for helping the overall operation is in Zq which is described by paramQ
 func (pp *PublicParameter) reduce(a int64) int32 {
-	qm := int64(pp.paramQm)
-
 	rst := a % int64(pp.paramQ)
-
-	if rst > qm {
-		rst = rst - qm
-	} else if rst < -qm {
-		rst = rst + qm
+	rst = (rst+int64(pp.paramQ))% int64(pp.paramQ)
+	if rst>int64(pp.paramQm){
+		rst = rst - int64(pp.paramQ)
 	}
-
 	return int32(rst)
-	// another implementation
-	//for a < 0 {
-	//	a = a+int64(pp.paramQ)
-	//}
-	//for a > int64(pp.paramQ){
-	//	a = a - int64(pp.paramQ)
-	//}
-	//if a > int64(pp.paramQm){
-	//	a = a - int64(pp.paramQ)
-	//}
-	//return a
 }
 
 
@@ -409,15 +393,15 @@ func init() {
 		},
 		10,
 		20,
-		1<<15-1,
+		1<<22-1,
 		256,
 
 		10,
 		36,
-		1<<18-1,
+		1<<25-1,
 		128,
 
-		1<<16-1,
+		1<<23-1,
 		256,
 
 		1,

@@ -1,6 +1,7 @@
 package pqringct
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -15,7 +16,6 @@ func TestPublicParameter_MasterKeyGen(t *testing.T) {
 		wantRetSeed []byte
 		wantErr     bool
 	}{
-		// TODO: Add test cases.
 		{
 			"test one",
 			args{
@@ -65,7 +65,6 @@ func TestPublicParameter_txoGenAndTxoReceive(t *testing.T) {
 		genArgs genArgs
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			"test one",
 			genArgs{
@@ -80,7 +79,7 @@ func TestPublicParameter_txoGenAndTxoReceive(t *testing.T) {
 		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 	}
 	pp := DefaultPP
-	_, mpk, msvk, _, err := pp.MasterKeyGen(seed)
+	_, mpk, msvk, mssk, err := pp.MasterKeyGen(seed)
 	var txo  *TXO
 	//var r *PolyNTTVec
 	for _, tt := range tests {
@@ -112,7 +111,6 @@ func TestPublicParameter_txoGenAndTxoReceive(t *testing.T) {
 		wantCoinvale uint64
 		wantErr      bool
 	}{
-		// TODO: Add test cases.
 		{
 			name:"test one",
 			receiveArgs: receiveArgs{
@@ -141,6 +139,42 @@ func TestPublicParameter_txoGenAndTxoReceive(t *testing.T) {
 			}
 		})
 	}
+	type snGenArgs struct {
+		txo  *TXO
+		mpk  *MasterPublicKey
+		msvk *MasterSecretViewKey
+		mssk *MasterSecretSignKey
+	}
+	snGenTests := []struct {
+		name    string
+		args    snGenArgs
+		wantErr bool
+	}{
+		{
+			name: "test one",
+			args: snGenArgs{
+				txo:  txo,
+				mpk:  mpk,
+				msvk: msvk,
+				mssk: mssk,
+			},
+			wantErr:false,
+		},
+	}
+	for _, tt := range snGenTests {
+		t.Run(tt.name, func(t *testing.T) {
+			pp := DefaultPP
+			gotSn, err := pp.TxoSerialNumberGen(tt.args.txo, tt.args.mpk, tt.args.msvk, tt.args.mssk)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TxoSerialNumberGen() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			fmt.Println(gotSn)
+			//if !reflect.DeepEqual(gotSn, tt.wantSn) {
+			//	t.Errorf("TxoSerialNumberGen() gotSn = %v, want %v", gotSn, tt.wantSn)
+			//}
+		})
+	}
 }
 
 func TestPublicParameter_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
@@ -155,18 +189,19 @@ func TestPublicParameter_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 	pp := DefaultPP
 	_, mpk1, _, _, _ := pp.MasterKeyGen(seed1)
 	_, mpk2, _, _, _ := pp.MasterKeyGen(seed2)
-	type args struct {
+	type cbtxGenArgs struct {
 		vin           uint64
 		txOutputDescs []*TxOutputDesc
 	}
 	tests := []struct {
-		name     string
-		args     args
-		wantErr  bool
+		name    string
+		args    cbtxGenArgs
+		wantErr bool
+		want bool
 	}{
 		{
-			"test two",
-			args{
+			"test one",
+			cbtxGenArgs{
 				vin:           512,
 				txOutputDescs: []*TxOutputDesc{
 					{
@@ -176,11 +211,11 @@ func TestPublicParameter_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 				},
 			},
 			false,
+			true,
 		},
-		// TODO: Add test cases.
 		{
-			"test one",
-			args{
+			"test two",
+			cbtxGenArgs{
 				vin:           512,
 				txOutputDescs: []*TxOutputDesc{
 					{
@@ -194,20 +229,21 @@ func TestPublicParameter_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 				},
 			},
 			false,
+			true,
 		},
 	}
-	//var cbTx *CoinbaseTx
+	var cbTx *CoinbaseTx
 	var err error
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err = pp.CoinbaseTxGen(tt.args.vin, tt.args.txOutputDescs)
+			cbTx, err = pp.CoinbaseTxGen(tt.args.vin, tt.args.txOutputDescs)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			//if !reflect.DeepEqual(gotCbTx, tt.wantCbTx) {
-			//	t.Errorf("CoinbaseTxGen() gotCbTx = %v, want %v", gotCbTx, tt.wantCbTx)
-			//}
+			if got := pp.CoinbaseTxVerify(cbTx); got != tt.want {
+				t.Errorf("CoinbaseTxVerify() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

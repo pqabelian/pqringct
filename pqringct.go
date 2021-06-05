@@ -345,8 +345,10 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 				ys[t],
 				pp.PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(ch, t), cmt_rs[0], pp.paramLc),
 				pp.paramLc)
-
-			if pp.NTTInvVec(zs[t]).infNorm() > pp.paramEtaC-pp.paramBetaC {
+			// check the norm
+			tmp:=pp.NTTInvVec(zs[t])
+			norm:=tmp.infNorm()
+			if norm > pp.paramEtaC-pp.paramBetaC {
 				goto cbTxGenJ1Restart
 			}
 		}
@@ -545,8 +547,8 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 
 			ws[t] = pp.PolyNTTVecSub(
 				pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], pp.paramKc, pp.paramLc),
-				pp.PolyNTTVecScaleMul(sigma_t_ch, cbTx.OutputTxos[0].cmt.b, pp.paramLc),
-				pp.paramLc)
+				pp.PolyNTTVecScaleMul(sigma_t_ch, cbTx.OutputTxos[0].cmt.b, pp.paramKc),
+				pp.paramKc)
 			deltas[t] = pp.PolyNTTSub(
 				pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cbTx.TxWitness.rpulpproof.zs[t], pp.paramLc),
 				pp.PolyNTTMul(
@@ -1428,7 +1430,7 @@ func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, ms
 		// TODO: define Const Error Variable
 		return nil, errors.New("not equal")
 	}
-	s_hat := pp.PolyNTTVecAdd(mssk.s, sp, pp.paramKa)
+	s_hat := pp.PolyNTTVecAdd(mssk.s, sp, pp.paramLa)
 
 	keyImg := pp.PolyNTTMatrixMulVector(keyImgMatrix, s_hat, pp.paramMa, pp.paramLa)
 

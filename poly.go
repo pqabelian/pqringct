@@ -337,14 +337,12 @@ var tree []int32 = []int32{
 // NTT performance in-place number-theoretic transform (NTT) in Rq.
 // The input is in standard order, output is in standard order.
 func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
-	// TODO: optimize the NTT algorithm by adjusting the order of zetas
+	//TODO: optimize the NTT algorithm by adjusting the order of zetas
 	coeffs := make([]int64, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = int64(poly.coeffs[i])
+		coeffs[i] = int64(pp.reduce(int64(poly.coeffs[tree[i]])))
 	}
-	for i := 0; i < pp.paramD/2; i++ {
-		coeffs[i], coeffs[tree[i]] = coeffs[tree[i]], coeffs[i]
-	}
+
 	for step := 1; step <= pp.paramD/2; step <<= 1 {
 		for start := 0; start+step < pp.paramD; start += step << 1 {
 			zeta := zetas[0]
@@ -358,7 +356,7 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 
 	coeffs1 := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs1[i] = int32(coeffs[i])
+		coeffs1[i] = pp.reduce(coeffs[i])
 	}
 	return &PolyNTT{coeffs1}
 }
@@ -368,11 +366,9 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
 	coeffs := make([]int64, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = int64(polyntt.coeffs[i])
+		coeffs[i] = int64(polyntt.coeffs[tree[i]])
 	}
-	for i := 0; i < pp.paramD/2; i++ {
-		coeffs[i], coeffs[tree[i]] = coeffs[tree[i]], coeffs[i]
-	}
+
 	for step := 1; step <= pp.paramD/2; step <<= 1 {
 		for start := 0; start+step < pp.paramD; start += step << 1 {
 			zeta := zetas[0]
@@ -383,7 +379,6 @@ func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
 			}
 		}
 	}
-
 	coeffs1 := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
 		coeffs1[i] = pp.reduce(coeffs[i] * int64(pp.paramDInv))

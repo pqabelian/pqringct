@@ -3,6 +3,7 @@ package pqringct
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -92,7 +93,7 @@ func (pp PublicParameter) collectBytesForRPULP1(n int, n1 int, n2 int, binMatrix
 		}
 	}
 	//c_hat[n2+1]
-  	appendPolyNTTToBytes(c_hat_g)
+	appendPolyNTTToBytes(c_hat_g)
 	return tmp
 }
 
@@ -182,7 +183,7 @@ rpUlpProveRestart:
 	c_hat_g := pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], r_hat, pp.paramLc), g)
 
 	// splicing the data to be processed
-	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws,c_hat_g)
+	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws, c_hat_g)
 	seed_rand, err := H(tmp) // todo_DONE
 	if err != nil {
 		return nil, err
@@ -203,6 +204,20 @@ rpUlpProveRestart:
 			delta_hats[t][i] = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], pp.PolyNTTVecSub(ys[t], cmt_ys[t][i], pp.paramLc), pp.paramLc)
 		}
 	}
+	//fmt.Printf("delta_waves =\n")
+	//for i := 0; i < pp.paramK; i++ {
+	//	for j := 0; j < n; j++ {
+	//		fmt.Printf("delta_waves[%d][%d] = %v\n",i,j,delta_waves[i][j])
+	//
+	//	}
+	//}
+	//fmt.Printf("delta_hats =\n")
+	//for i := 0; i < pp.paramK; i++ {
+	//	for j := 0; j < n; j++ {
+	//		fmt.Printf("delta_hats[%d][%d] = %v\n",i,j,delta_hats[i][j])
+	//
+	//	}
+	//}
 
 	//	psi, psi'
 	psi := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], r_hat, pp.paramLc)
@@ -211,28 +226,33 @@ rpUlpProveRestart:
 	for t := 0; t < pp.paramK; t++ {
 		tmp1 := pp.NewZeroPolyNTT()
 		tmp2 := pp.NewZeroPolyNTT()
-
+		// sum(0->n1-1)
 		for i := 0; i < n1; i++ {
+			// <h_i , y_t>
 			tmp := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], ys[t], pp.paramLc)
 
 			tmp1 = pp.PolyNTTAdd(
 				tmp1,
+				// alpha[i] * (2 * m_i - mu) <h_i , y_t>
 				pp.PolyNTTMul(
 					alphas[i],
+					// (2 * m_i - mu) <h_i , y_t>
 					pp.PolyNTTMul(
+						// 2 * m_i - mu
 						pp.PolyNTTSub(
+							//  m_i+m_i
 							pp.PolyNTTAdd(
 								&PolyNTT{msg_hats[i]}, &PolyNTT{msg_hats[i]},
-								),
-								&PolyNTT{pp.paramMu},
 							),
-							tmp,
+							&PolyNTT{pp.paramMu},
 						),
+						tmp,
 					),
-				)
-
+				),
+			)
 			tmp2 = pp.PolyNTTAdd(
 				tmp2,
+				// alpha[i] * <h_i , y_t> * <h_i , y_t>
 				pp.PolyNTTMul(alphas[i],
 					pp.PolyNTTMul(tmp, tmp)))
 		}
@@ -240,7 +260,8 @@ rpUlpProveRestart:
 		psi = pp.PolyNTTSub(psi, pp.PolyNTTMul(betas[t], pp.sigmaInvPolyNTT(tmp1, t)))
 		psip = pp.PolyNTTAdd(psip, pp.PolyNTTMul(betas[t], pp.sigmaInvPolyNTT(tmp2, t)))
 	}
-
+	fmt.Printf("Prove\n")
+	fmt.Printf("psip = %v\n",psip)
 	//	p^(t)_j:
 	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
@@ -272,7 +293,7 @@ rpUlpProveRestart:
 	}
 
 	phi = pp.PolyNTTAdd(phi, g)
-
+	fmt.Printf("phi = %v\n",phi)
 	//	phi'^(\xi)
 	phips := make([]*PolyNTT, pp.paramK)
 	for xi := 0; xi < pp.paramK; xi++ {
@@ -282,9 +303,14 @@ rpUlpProveRestart:
 
 			tmp1 := pp.NewZeroPolyNTT()
 			for tau := 0; tau < pp.paramK; tau++ {
+
 				tmp := pp.NewZeroPolyNTTVec(pp.paramLc)
+
 				for j := 0; j < n2; j++ {
-					tmp = pp.PolyNTTVecAdd(tmp, pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixC[j+1], pp.paramLc), pp.paramLc)
+					tmp = pp.PolyNTTVecAdd(
+						tmp,
+						pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixC[j+1], pp.paramLc),
+						pp.paramLc)
 				}
 
 				tmp1 = pp.PolyNTTAdd(
@@ -307,6 +333,11 @@ rpUlpProveRestart:
 			pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], ys[xi], pp.paramLc))
 	}
 
+	fmt.Printf("phips = \n")
+	for i := 0; i < pp.paramK; i++ {
+		fmt.Printf("phips[%d] = %v \n",i,phips[i])
+	}
+
 	//	seed_ch and ch
 	chseed, err := H(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, psi, psip, phi, phips))
 	if err != nil {
@@ -322,14 +353,13 @@ rpUlpProveRestart:
 	cmt_zs := make([][]*PolyNTTVec, pp.paramK)
 	zs := make([]*PolyNTTVec, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
-		cmt_zs[t]=make([]*PolyNTTVec,pp.paramLc)
+		cmt_zs[t] = make([]*PolyNTTVec, n)
 		sigma_t_ch := pp.sigmaPowerPolyNTT(ch, t)
 		for i := 0; i < n; i++ {
 			cmt_zs[t][i] = pp.PolyNTTVecAdd(
 				cmt_ys[t][i],
 				pp.PolyNTTVecScaleMul(sigma_t_ch, cmt_rs[i], pp.paramLc),
 				pp.paramLc)
-			// can not pass it TODO 20210602
 			if pp.NTTInvVec(cmt_zs[t][i]).infNorm() > pp.paramEtaC-pp.paramBetaC {
 				goto rpUlpProveRestart
 			}
@@ -377,14 +407,27 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	}
 
 	// check the matrix and u_hats
-	if len(binMatrixB) != m*pp.paramD/8 || len(binMatrixB[0]) != n2*pp.paramD {
+	if len(binMatrixB) != pp.paramD {
 		return false
+	} else {
+		for i := 0; i < len(binMatrixB); i++ {
+			if len(binMatrixB[0]) != pp.paramD/8 {
+				return false
+			}
+		}
 	}
-	if len(u_hats) != m*pp.paramD {
+	if len(u_hats) != m {
 		return false
+	} else {
+		for i := 0; i < len(u_hats); i++ {
+			if len(u_hats[0]) != pp.paramD {
+				return false
+			}
+		}
+
 	}
 	// check the well-formness of the \pi
-	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramD || len(rpulppi.psi.coeffs) != pp.paramD || len(rpulppi.phi.coeffs) != pp.paramD || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyNTTs) != n {
+	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramD || len(rpulppi.psi.coeffs) != pp.paramD || len(rpulppi.phi.coeffs) != pp.paramD || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyNTTs) != pp.paramLc {
 		return false
 	}
 	if rpulppi == nil {
@@ -430,7 +473,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 		}
 
 	}
-	chmp, err := pp.expandChallenge(rpulppi.chseed) // TODO_DONE:hanle the err
+	chmp, err := pp.expandChallenge(rpulppi.chseed)
 	if err != nil {
 		return false
 	}
@@ -458,7 +501,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 
 	// splicing the data to be processed
 
-	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, rpulppi.c_waves, cmt_ws, ws,rpulppi.c_hat_g)
+	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, rpulppi.c_waves, cmt_ws, ws, rpulppi.c_hat_g)
 	seed_rand, err := H(tmp)
 	if err != nil {
 		return false
@@ -491,6 +534,20 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 				pp.PolyNTTMul(sigma_chs[t], pp.PolyNTTSub(c_hats[i], rpulppi.c_waves[i])))
 		}
 	}
+	//fmt.Printf("delta_waves =\n")
+	//for i := 0; i < pp.paramK; i++ {
+	//	for j := 0; j < n; j++ {
+	//		fmt.Printf("delta_waves[%d][%d] = %v\n",i,j,delta_waves[i][j])
+	//
+	//	}
+	//}
+	//fmt.Printf("delta_hats =\n")
+	//for i := 0; i < pp.paramK; i++ {
+	//	for j := 0; j < n; j++ {
+	//		fmt.Printf("delta_hats[%d][%d] = %v\n",i,j,delta_hats[i][j])
+	//
+	//	}
+	//}
 
 	// psi'
 	psip := pp.NewZeroPolyNTT()
@@ -499,9 +556,12 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 
 		tmp1 := pp.NewZeroPolyNTT()
 		tmp2 := pp.NewZeroPolyNTT()
+
 		for i := 0; i < n1; i++ {
 			f_t_i := pp.PolyNTTSub(
+				//<h_i,z_t>
 				pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], rpulppi.zs[t], pp.paramLc),
+				// sigma_c_t
 				pp.PolyNTTMul(sigma_chs[t], c_hats[i]))
 
 			tmp := pp.PolyNTTMul(alphas[i], f_t_i)
@@ -527,7 +587,8 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	psip = pp.PolyNTTSub(psip, pp.PolyNTTMul(ch, rpulppi.psi))
 	psip = pp.PolyNTTAdd(psip,
 		pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], rpulppi.zs[0], pp.paramLc))
-
+	fmt.Printf("Verify\n")
+	fmt.Printf("psip = %v\n",psip)
 	//	p^(t)_j:
 	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
@@ -569,18 +630,20 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 
 			tmp1 := pp.NewZeroPolyNTT()
 			for tau := 0; tau < pp.paramK; tau++ {
+
 				tmp := pp.NewZeroPolyNTTVec(pp.paramLc)
+
 				for j := 0; j < n2; j++ {
 					tmp = pp.PolyNTTVecAdd(
 						tmp,
 						pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixC[j+1], pp.paramLc),
-						pp.paramKc)
+						pp.paramLc)
 				}
 
 				tmp1 = pp.PolyNTTAdd(
 					tmp1,
 					pp.sigmaPowerPolyNTT(
-						pp.PolyNTTVecInnerProduct(tmp, rpulppi.zs[(xi-tau)%pp.paramK], pp.paramLc),
+						pp.PolyNTTVecInnerProduct(tmp, rpulppi.zs[(xi-tau+pp.paramK)%pp.paramK], pp.paramLc),
 						tau))
 			}
 
@@ -600,7 +663,10 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 			phips[xi],
 			pp.PolyNTTMul(sigma_chs[xi], constterm))
 	}
-
+	fmt.Printf("phips = \n")
+	for i := 0; i < pp.paramK; i++ {
+		fmt.Printf("phips[%d] = %v \n",i,phips[i])
+	}
 	//	seed_ch and ch
 
 	seed_ch, err := H(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, rpulppi.psi, psip, rpulppi.phi, phips))
@@ -1137,7 +1203,7 @@ func (pp *PublicParameter) generateBits(seed []byte, length int) ([]byte, error)
 		if err != nil {
 			return nil, err
 		}
-		for j := 0; j < 8 && 8*i+j<length; j++ {
+		for j := 0; j < 8 && 8*i+j < length; j++ {
 			res[8*i+j] = buf[i] & (1 << j) >> j
 		}
 	}
@@ -1152,12 +1218,12 @@ func (pp *PublicParameter) rejectionUniformWithZq(seed []byte, length int) []int
 	var pos int
 	var t uint32
 	//q=1111_1111_1111_1111_1110_1110_0000_0001
-	xof:=sha3.NewShake128()
-	cnt:=1
-	for len(res)<length{
-		buf:=make([]byte,(length-len(res))*4)
+	xof := sha3.NewShake128()
+	cnt := 1
+	for len(res) < length {
+		buf := make([]byte, (length-len(res))*4)
 		xof.Reset()
-		_, err := xof.Write(append(seed,byte(cnt)))
+		_, err := xof.Write(append(seed, byte(cnt)))
 		if err != nil {
 			continue
 		}
@@ -1165,7 +1231,7 @@ func (pp *PublicParameter) rejectionUniformWithZq(seed []byte, length int) []int
 		if err != nil {
 			continue
 		}
-		pos=0
+		pos = 0
 		for pos < len(buf) {
 			// 从buf中读取32个bit（4byte）
 			t = uint32(buf[pos])
@@ -1536,7 +1602,7 @@ func rejectionUniformWithinEtaF(seed []byte, length int) ([]int32, error) {
 		pos += 7
 	}
 	for i := 0; i < length; i += 8 {
-		for j := 0; j < 8 && i+j<length; j++ {
+		for j := 0; j < 8 && i+j < length; j++ {
 			if (buf[pos]>>j)&1 == 0 {
 				res[i+j] = -res[i+j]
 			}
@@ -1545,7 +1611,6 @@ func rejectionUniformWithinEtaF(seed []byte, length int) ([]int32, error) {
 	}
 	return res[:length], nil
 }
-
 
 func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
 	// extend seed via sha3.Shake128
@@ -1567,7 +1632,6 @@ func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
 	}
 	return ret, nil
 }
-
 
 /*func (pp *PublicParameter) sigmaPolyNTT(polyNTT *PolyNTT) (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
@@ -1613,7 +1677,6 @@ func (pp *PublicParameter) intMatrixInnerProduct(a [][]int32, b [][]int32, rowNu
 	return rst
 }
 
-
 func (pp *PublicParameter) intVecInnerProduct(a []int32, b []int32, vecLen int) (r int32) {
 	rst := int32(0)
 	for i := 0; i < vecLen; i++ {
@@ -1630,7 +1693,6 @@ func intToBinary(v uint64, bitNum int) (bits []int32) {
 	}
 	return rstbits
 }
-
 
 func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err error) {
 	binM = make([][]byte, rownum)
@@ -1672,7 +1734,6 @@ func (cmt *Commitment) toPolyNTTVec() *PolyNTTVec {
 
 	return rettransMatrix
 }*/
-
 
 func getMatrixColumn(matrix [][]byte, rowNum int, j int) (col []int32) {
 	retcol := make([]int32, rowNum)

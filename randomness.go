@@ -81,8 +81,8 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte, []
 }
 
 func randomnessFromEtaC(seed []byte, length int) ([]int32, error) {
-	// 1<<18 -1
-	bytes := make([]byte, (19*length+7)/8)
+	// 1<<25-1
+	bytes := make([]byte, (26*length+7)/8)
 	xof := sha3.NewShake128()
 	xof.Reset()
 	_, err := xof.Write(seed)
@@ -95,15 +95,19 @@ func randomnessFromEtaC(seed []byte, length int) ([]int32, error) {
 	}
 	res := make([]int32, length)
 	pos := 0
-	for pos/9*4+3 < length {
-		res[pos/9*4+0] = int32(bytes[pos+0]&0xFF)<<10 | int32(bytes[pos+1])<<2 | int32(bytes[pos+2]&0xC0)>>6
-		res[pos/9*4+1] = int32(bytes[pos+2]&0x3F)<<12 | int32(bytes[pos+3])<<4 | int32(bytes[pos+4]&0xF0)>>4
-		res[pos/9*4+2] = int32(bytes[pos+4]&0x0F)<<14 | int32(bytes[pos+5])<<6 | int32(bytes[pos+6]&0xFC)>>2
-		res[pos/9*4+3] = int32(bytes[pos+6]&0x03)<<16 | int32(bytes[pos+7])<<8 | int32(bytes[pos+8]&0xFF)>>0
-		pos += 9
+	for pos/25*8+7 < length {
+		res[pos/25*8+0] = int32(bytes[pos+0]&0xFF)<<17 | int32(bytes[pos+1])<<9 | int32(bytes[pos+2])<<1 | int32(bytes[pos+3]&0x80)>>7
+		res[pos/25*8+1] = int32(bytes[pos+3]&0x7F)<<18 | int32(bytes[pos+4])<<10 | int32(bytes[pos+5])<<2 | int32(bytes[pos+6]&0xC0)>>6
+		res[pos/25*8+2] = int32(bytes[pos+6]&0x3F)<<19 | int32(bytes[pos+7])<<11 | int32(bytes[pos+8])<<3 | int32(bytes[pos+9]&0xE0)>>5
+		res[pos/25*8+3] = int32(bytes[pos+9]&0x1F)<<20 | int32(bytes[pos+10])<<12 | int32(bytes[pos+11])<<4 | int32(bytes[pos+12]&0xF0)>>4
+		res[pos/25*8+4] = int32(bytes[pos+12]&0x0F)<<21 | int32(bytes[pos+13])<<13 | int32(bytes[pos+14])<<5 | int32(bytes[pos+15]&0xF8)>>3
+		res[pos/25*8+5] = int32(bytes[pos+15]&0x07)<<22 | int32(bytes[pos+16])<<14 | int32(bytes[pos+17])<<6 | int32(bytes[pos+18]&0xFC)>>2
+		res[pos/25*8+6] = int32(bytes[pos+18]&0x03)<<23 | int32(bytes[pos+19])<<15 | int32(bytes[pos+20])<<7 | int32(bytes[pos+21]&0xFE)>>1
+		res[pos/25*8+7] = int32(bytes[pos+21]&0x01)<<24 | int32(bytes[pos+22])<<16 | int32(bytes[pos+23])<<8 | int32(bytes[pos+24]&0xFF)>>0
+		pos += 25
 	}
 	for i := 0; i < length; i += 8 {
-		for j := 0;  j < 8 &&i+j<length; j++ {
+		for j := 0; j < 8 && i+j < length; j++ {
 			if (bytes[pos]>>j)&1 == 0 {
 				res[i+j] = -res[i+j]
 			}
@@ -113,8 +117,8 @@ func randomnessFromEtaC(seed []byte, length int) ([]int32, error) {
 	return res[:length], nil
 }
 func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
-	// 1<<15-1
-	bytes := make([]byte, (15*length+7)/8)
+	// 1<<22-1
+	bytes := make([]byte, (23*length+7)/8)
 	if seed == nil {
 		seed = randomBytes(32)
 	}
@@ -130,16 +134,22 @@ func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
 	}
 	res := make([]int32, length)
 	pos := 0
-	for pos < len(bytes) {
-		res[pos/2+0] = int32(bytes[pos+0])<<8 | int32(bytes[pos+1])<<0
-		res[pos/2+1] = int32(bytes[pos+2])<<8 | int32(bytes[pos+3])<<0
-		pos += 4
+	for pos/23*8+7 < length {
+		res[pos/23*8+0] = int32(bytes[pos+0]&0xFF)<<15 | int32(bytes[pos+1])<<7 | int32(bytes[pos+2]&0xFE)>>1
+		res[pos/23*8+1] = int32(bytes[pos+2]&0x01)<<22 | int32(bytes[pos+3])<<14 | int32(bytes[pos+4])<<6 | int32(bytes[pos+5]&0xFC)>>2
+		res[pos/23*8+2] = int32(bytes[pos+5]&0x03)<<21 | int32(bytes[pos+6])<<13 | int32(bytes[pos+7])<<5 | int32(bytes[pos+8]&0xF8)>>3
+		res[pos/23*8+3] = int32(bytes[pos+8]&0x07)<<20 | int32(bytes[pos+9])<<12 | int32(bytes[pos+10])<<4 | int32(bytes[pos+11]&0xF0)>>4
+		res[pos/23*8+4] = int32(bytes[pos+11]&0x0F)<<19 | int32(bytes[pos+12])<<11 | int32(bytes[pos+13])<<3 | int32(bytes[pos+14]&0xE0)>>5
+		res[pos/23*8+5] = int32(bytes[pos+14]&0x1F)<<18 | int32(bytes[pos+15])<<10 | int32(bytes[pos+16])<<2 | int32(bytes[pos+17]&0xC0)>>6
+		res[pos/23*8+6] = int32(bytes[pos+17]&0x3F)<<17 | int32(bytes[pos+18])<<15 | int32(bytes[pos+19])<<1 | int32(bytes[pos+20]&0x80)>>7
+		res[pos/23*8+7] = int32(bytes[pos+20]&0x01)<<16 | int32(bytes[pos+21])<<8 | int32(bytes[pos+22]&0xFF)
+		pos += 23
 	}
 	return res[:length], nil
 }
 func randomnessFromEtaC2(seed []byte, length int) ([]int32, error) {
-	// 1<<16-1
-	bytes := make([]byte, 2*length)
+	// 1<<23-1
+	bytes := make([]byte, (24*length+7)/8)
 	if seed == nil {
 		seed = randomBytes(32)
 	}
@@ -303,14 +313,14 @@ func randomnessFromZetaC2(seed []byte, length int) ([]int32, error) {
 		pos = 0
 		var value int32
 		for pos < len(bytes) {
-			value= int32(bytes[pos+0])<<8 | int32(bytes[pos+1])
-			if value< 1<<16-256 {
-				res[cur]*=value
+			value = int32(bytes[pos+0])<<8 | int32(bytes[pos+1])
+			if value < 1<<16-256 {
+				res[cur] *= value
 				cur++
 			}
-			value= int32(bytes[pos+2])<<8 | int32(bytes[pos+3])
-			if value< 1<<16-256 {
-				res[cur]*=value
+			value = int32(bytes[pos+2])<<8 | int32(bytes[pos+3])
+			if value < 1<<16-256 {
+				res[cur] *= value
 				cur++
 			}
 			pos += 4
