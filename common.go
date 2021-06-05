@@ -2,6 +2,7 @@ package pqringct
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"math"
 )
@@ -12,6 +13,16 @@ const (
 	binaryFreeListMaxItems = 2048
 )
 
+var (
+	// littleEndian is a convenience variable since binary.LittleEndian is
+	// quite long.
+	littleEndian = binary.LittleEndian
+
+	// bigEndian is a convenience variable since binary.BigEndian is quite
+	// long.
+	bigEndian = binary.BigEndian
+)
+
 type binaryFreeList chan []byte
 
 var binarySerializer binaryFreeList = make(chan []byte, binaryFreeListMaxItems)
@@ -20,28 +31,28 @@ var binarySerializer binaryFreeList = make(chan []byte, binaryFreeListMaxItems)
 func writeElement(w io.Writer, element interface{}) error {
 	switch e := element.(type) {
 	case int32:
-		err := binarySerializer.PutUint32(w, binary.LittleEndian, uint32(e))
+		err := binarySerializer.PutUint32(w, littleEndian, uint32(e))
 		if err != nil {
 			return err
 		}
 		return nil
 
 	case uint32:
-		err := binarySerializer.PutUint32(w, binary.LittleEndian, e)
+		err := binarySerializer.PutUint32(w, littleEndian, e)
 		if err != nil {
 			return err
 		}
 		return nil
 
 	case int64:
-		err := binarySerializer.PutUint64(w, binary.LittleEndian, uint64(e))
+		err := binarySerializer.PutUint64(w, littleEndian, uint64(e))
 		if err != nil {
 			return err
 		}
 		return nil
 
 	case uint64:
-		err := binarySerializer.PutUint64(w, binary.LittleEndian, e)
+		err := binarySerializer.PutUint64(w, littleEndian, e)
 		if err != nil {
 			return err
 		}
@@ -75,7 +86,75 @@ func writeElement(w io.Writer, element interface{}) error {
 		return nil
 	}
 
-	return binary.Write(w, binary.LittleEndian, element)
+	return binary.Write(w, littleEndian, element)
+}
+
+// readElement reads the next sequence of bytes from r using little endian
+// depending on the concrete type of element pointed to.
+func readElement(r io.Reader, element interface{}) error {
+	// Attempt to read the element based on the concrete type via fast
+	// type assertions first.
+	switch e := element.(type) {
+	case *int32:
+		rv, err := binarySerializer.Uint32(r, littleEndian)
+		if err != nil {
+			return err
+		}
+		*e = int32(rv)
+		return nil
+
+	case *uint32:
+		rv, err := binarySerializer.Uint32(r, littleEndian)
+		if err != nil {
+			return err
+		}
+		*e = rv
+		return nil
+
+	case *int64:
+		rv, err := binarySerializer.Uint64(r, littleEndian)
+		if err != nil {
+			return err
+		}
+		*e = int64(rv)
+		return nil
+
+	case *uint64:
+		rv, err := binarySerializer.Uint64(r, littleEndian)
+		if err != nil {
+			return err
+		}
+		*e = rv
+		return nil
+
+	case *bool:
+		rv, err := binarySerializer.Uint8(r)
+		if err != nil {
+			return err
+		}
+		if rv == 0x00 {
+			*e = false
+		} else {
+			*e = true
+		}
+		return nil
+	}
+
+	// Fall back to the slower binary.Read if a fast path was not available
+	// above.
+	return binary.Read(r, littleEndian, element)
+}
+
+// readElements reads multiple items from r.  It is equivalent to multiple
+// calls to readElement.
+func readElements(r io.Reader, elements ...interface{}) error {
+	for _, element := range elements {
+		err := readElement(r, element)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // WriteVarInt serializes val to w using a variable number of bytes depending
@@ -106,6 +185,64 @@ func WriteVarInt(w io.Writer, val uint64) error {
 		return err
 	}
 	return binarySerializer.PutUint64(w, binary.LittleEndian, val)
+}
+
+// ReadVarInt reads a variable length integer from r and returns it as a uint64.
+func ReadVarInt(r io.Reader) (uint64, error) {
+	discriminant, err := binarySerializer.Uint8(r)
+	if err != nil {
+		return 0, err
+	}
+
+	var rv uint64
+	switch discriminant {
+	case 0xff:
+		sv, err := binarySerializer.Uint64(r, littleEndian)
+		if err != nil {
+			return 0, err
+		}
+		rv = sv
+
+		// The encoding is not canonical if the value could have been
+		// encoded using fewer bytes.
+		min := uint64(0x100000000)
+		if rv < min {
+			return 0, errors.New("the encoding is not canonical")
+		}
+
+	case 0xfe:
+		sv, err := binarySerializer.Uint32(r, littleEndian)
+		if err != nil {
+			return 0, err
+		}
+		rv = uint64(sv)
+
+		// The encoding is not canonical if the value could have been
+		// encoded using fewer bytes.
+		min := uint64(0x10000)
+		if rv < min {
+			return 0, errors.New("the encoding is not canonical")
+		}
+
+	case 0xfd:
+		sv, err := binarySerializer.Uint16(r, littleEndian)
+		if err != nil {
+			return 0, err
+		}
+		rv = uint64(sv)
+
+		// The encoding is not canonical if the value could have been
+		// encoded using fewer bytes.
+		min := uint64(0xfd)
+		if rv < min {
+			return 0, errors.New("the encoding is not canonical")
+		}
+
+	default:
+		rv = uint64(discriminant)
+	}
+
+	return rv, nil
 }
 
 // Uint8 reads a single byte from the provided reader using a buffer from the
