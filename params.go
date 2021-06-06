@@ -194,9 +194,9 @@ type PublicParameter struct {
 }
 
 // NewPublicParameter construct a PublicParameter with some parameters
-func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramDInv int32, paramQ uint32, paramZeta int32, paramK int,paramKInv int32,paramSigmaPermutations [][]int,paramSigmaInvPermutations [][]int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int,paramCStr []byte, paramEtaF int32, paramKem *kyber.ParameterSet,paramSysBytes int) (*PublicParameter, error) {
-	res := &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramDInv: paramDInv, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK,paramKInv:paramKInv,paramSigmaPermutations:paramSigmaPermutations,paramSigmaInvPermutations:paramSigmaInvPermutations, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa,paramCStr:paramCStr, paramEtaF: paramEtaF, paramKem: paramKem,paramSysBytes:paramSysBytes}
-	res.paramQm=res.paramQ>>1
+func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramDInv int32, paramQ uint32, paramZeta int32, paramK int, paramKInv int32, paramSigmaPermutations [][]int, paramSigmaInvPermutations [][]int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramCStr []byte, paramEtaF int32, paramKem *kyber.ParameterSet, paramSysBytes int) (*PublicParameter, error) {
+	res := &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramDInv: paramDInv, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKInv: paramKInv, paramSigmaPermutations: paramSigmaPermutations, paramSigmaInvPermutations: paramSigmaInvPermutations, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramCStr: paramCStr, paramEtaF: paramEtaF, paramKem: paramKem, paramSysBytes: paramSysBytes}
+	res.paramQm = res.paramQ >> 1
 	seed, err := H(res.paramCStr)
 	if err != nil {
 		return nil, err
@@ -282,13 +282,21 @@ var DefaultPP *PublicParameter
 // reduce is private function for helping the overall operation is in Zq which is described by paramQ
 func (pp *PublicParameter) reduce(a int64) int32 {
 	rst := a % int64(pp.paramQ)
-	rst = (rst+int64(pp.paramQ))% int64(pp.paramQ)
-	if rst>int64(pp.paramQm){
+	rst = (rst + int64(pp.paramQ)) % int64(pp.paramQ)
+	if rst > int64(pp.paramQm) {
 		rst = rst - int64(pp.paramQ)
 	}
 	return int32(rst)
 }
 
+func (pp *PublicParameter) reduceInt64(a int64) int64 {
+	rst := a % int64(pp.paramQ)
+	rst = (rst + int64(pp.paramQ)) % int64(pp.paramQ)
+	if rst > int64(pp.paramQm) {
+		rst = rst - int64(pp.paramQ)
+	}
+	return rst
+}
 
 // init set the default public parameter for package importer
 func init() {
@@ -324,7 +332,6 @@ func init() {
 				48, 113, 50, 115, 52, 117, 54, 119, 56, 121, 58, 123, 60, 125, 62, 127,
 				64, 1, 66, 3, 68, 5, 70, 7, 72, 9, 74, 11, 76, 13, 78, 15,
 				80, 17, 82, 19, 84, 21, 86, 23, 88, 25, 90, 27, 92, 29, 94, 31,
-
 			},
 			{
 				64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
@@ -335,7 +342,6 @@ func init() {
 				16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 				32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 				48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-
 			},
 			{
 				32, 97, 34, 99, 36, 101, 38, 103, 40, 105, 42, 107, 44, 109, 46, 111,
@@ -389,7 +395,6 @@ func init() {
 				64, 1, 66, 3, 68, 5, 70, 7, 72, 9, 74, 11, 76, 13, 78, 15,
 				80, 17, 82, 19, 84, 21, 86, 23, 88, 25, 90, 27, 92, 29, 94, 31,
 			},
-
 		},
 		10,
 		20,
