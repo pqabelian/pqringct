@@ -120,7 +120,14 @@ func TestNTT(t *testing.T) {
 		finalFactors[2*i+1] = factors[i]
 	}
 	fmt.Println("final factors:", finalFactors)
-	fmt.Println("NTT coeffs", coeffs)
+	fmt.Println("(Native) NTT coeffs:", coeffs)
+
+	// SigmaNTT may need the NTT coefficients  to be arranges as 1, 3, 5, ..., 2d-1
+	nttCoeffs := make([]int32, pp.paramD)
+	for i := 0; i < pp.paramD; i++ {
+		nttCoeffs[(finalFactors[i]-1)/2] = coeffs[i]
+	}
+	fmt.Println("Ordered NTT coeffs:", nttCoeffs)
 
 	//	NTTInv
 
@@ -159,6 +166,15 @@ func TestNTT(t *testing.T) {
 			tmpFactors[2*i+1] = factors[i]/2
 		}
 		factors = tmpFactors
+	}
+	finalFactors = make([]int, 2*len(factors))
+	for i := 0; i < len(factors); i++ {
+		finalFactors[2*i] = (factors[i] + pp.paramD)
+		finalFactors[2*i+1] = factors[i]
+	}
+	fmt.Println("final factors:", finalFactors)
+	for i := 0; i < pp.paramD; i++ {
+		coeffs[i] = nttCoeffs[(finalFactors[i]-1)/2]
 	}
 
 	fmt.Println("NTTInv ...")
