@@ -337,12 +337,14 @@ var tree []int32 = []int32{
 // NTT performance in-place number-theoretic transform (NTT) in Rq.
 // The input is in standard order, output is in standard order.
 func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
+	for i := 0; i <len(poly.coeffs) ; i++ {
+		poly.coeffs[i]=DefaultPP.reduce(int64(poly.coeffs[i])*zetas[i])
+	}
 	//TODO: optimize the NTT algorithm by adjusting the order of zetas
 	coeffs := make([]int64, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
 		coeffs[i] = int64(pp.reduce(int64(poly.coeffs[tree[i]])))
 	}
-
 	for step := 1; step <= pp.paramD/2; step <<= 1 {
 		for start := 0; start+step < pp.paramD; start += step << 1 {
 			zeta := zetas[0]
@@ -359,6 +361,18 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 		coeffs1[i] = pp.reduce(coeffs[i])
 	}
 	return &PolyNTT{coeffs1}
+
+	//coeffs := make([]int64, pp.paramD)
+	//for i := 0; i < pp.paramD; i++ {
+	//	for j := 0; j < pp.paramD; j++ {
+	//		coeffs[i] = int64(pp.reduce(coeffs[i] + int64(poly.coeffs[j])*zetas[(i*j)%128]))
+	//	}
+	//}
+	//coeffs1 := make([]int32, pp.paramD)
+	//for i := 0; i < pp.paramD; i++ {
+	//	coeffs1[i] = pp.reduce(coeffs[i])
+	//}
+	//return &PolyNTT{coeffs1}
 }
 
 // NTTInv performance inverse in-place number-theoretic transform (NTT) in Rq.
@@ -383,7 +397,22 @@ func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
 	for i := 0; i < pp.paramD; i++ {
 		coeffs1[i] = pp.reduce(coeffs[i] * int64(pp.paramDInv))
 	}
-	return &Poly{coeffs1}
+	resp:=make([]int32,pp.paramD)
+	for i := 0; i < len(resp); i++ {
+		resp[i]=DefaultPP.reduce(int64(coeffs1[i])*zetas[(2*pp.paramD-i)%(2*pp.paramD)])
+	}
+	return &Poly{resp}
+	//coeffs := make([]int64, pp.paramD)
+	//for i := 0; i < pp.paramD; i++ {
+	//	for j := 0; j < pp.paramD; j++ {
+	//		coeffs[i] = int64(DefaultPP.reduce(coeffs[i] + int64(polyntt.coeffs[j])*zetas[((128-i)*j)%128]))
+	//	}
+	//}
+	//coeffs1 := make([]int32, pp.paramD)
+	//for i := 0; i < pp.paramD; i++ {
+	//	coeffs1[i] = pp.reduce(coeffs[i] * int64(pp.paramDInv))
+	//}
+	//return &Poly{coeffs1}
 }
 
 // NTTVec performances the number-theoretic transform for every polynomial,
