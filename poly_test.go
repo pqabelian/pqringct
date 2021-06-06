@@ -1,6 +1,7 @@
 package pqringct
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -58,4 +59,144 @@ func TestPublicParameter_PolyNTTPower(t *testing.T) {
 			}
 		})
 	}
+}
+
+//var nttcoeffs = make([]int32, DefaultPP.paramD)
+
+func TestNTT(t *testing.T) {
+	pp := DefaultPP
+	originalCoeffs := make([]int32, pp.paramD)
+	for i := 0; i < pp.paramD; i++ {
+		originalCoeffs[i] = int32(i)
+	}
+
+	coeffs := make([]int32, pp.paramD)
+	copy(coeffs, originalCoeffs)
+
+	fmt.Println("original:", originalCoeffs)
+
+	//	NTT
+	fmt.Println("test NTT")
+	segNum := 1
+	segLen := pp.paramD
+	factors := make([]int,1)
+	factors[0] = pp.paramD/2
+
+	for true {
+		//		fmt.Println(factors)
+
+		segLenHalf := segLen/2
+
+		for k := 0; k < segNum; k++ {
+			for i := 0; i < segLenHalf; i++ {
+				tmp := int64(coeffs[k*segLen+i+segLenHalf]) * zetas[factors[k]]
+				tmp1 := pp.reduce( int64(coeffs[k*segLen+i]) - tmp )
+				tmp2 := pp.reduce( int64(coeffs[k*segLen+i]) + tmp )
+
+				coeffs[k*segLen+i] = tmp1
+				coeffs[k*segLen+i+segLenHalf] = tmp2
+				//				fmt.Println(k*segLen+i, k*segLen+i+segLenHalf, k*segLen+i, factors[k])
+			}
+		}
+
+		segNum = segNum<<1
+		segLen = segLen>>1
+		if segNum == pp.paramD {
+			break
+		}
+
+		tmpFactors := make([]int, 2*len(factors))
+		for i := 0; i < len(factors); i++ {
+			tmpFactors[2*i] = (factors[i] + pp.paramD)/2
+			tmpFactors[2*i+1] = factors[i]/2
+		}
+		factors = tmpFactors
+	}
+
+	fmt.Println("final factors:")
+	finalFactors := make([]int, 2*len(factors))
+	for i := 0; i < len(factors); i++ {
+		finalFactors[2*i] = (factors[i] + pp.paramD)
+		finalFactors[2*i+1] = factors[i]
+	}
+	fmt.Println("final factors:", finalFactors)
+	fmt.Println("NTT coeffs", coeffs)
+
+	//	NTTInv
+
+	//	initial the NTT end-status
+	fmt.Println("test NTTInv")
+
+	//	Initialize the ending status of NTT
+	segNum = 1
+	segLen = pp.paramD
+	factors = make([]int,1)
+	factors[0] = pp.paramD/2
+
+	for true {
+		//		fmt.Println(factors)
+
+		//		segLenHalf := segLen/2
+
+		/*		for k := 0; k < segNum; k++ {
+				for i := 0; i < segLenHalf; i++ {
+					tmp := int64(coeffs[k*segLen+i+segLenHalf]) * zetas[factors[k]]
+					coeffs[k*segLen+i] = pp.reduce( int64(coeffs[k*segLen+i]) - tmp )
+					coeffs[k*segLen+i+segLenHalf] = pp.reduce( int64(coeffs[k*segLen+i]) + tmp )
+					//				fmt.Println(k*segLen+i, k*segLen+i+segLenHalf, k*segLen+i, factors[k])
+				}
+			}*/
+
+		segNum = segNum<<1
+		segLen = segLen>>1
+		if segNum == pp.paramD {
+			break
+		}
+
+		tmpFactors := make([]int, 2*len(factors))
+		for i := 0; i < len(factors); i++ {
+			tmpFactors[2*i] = (factors[i] + pp.paramD)/2
+			tmpFactors[2*i+1] = factors[i]/2
+		}
+		factors = tmpFactors
+	}
+
+	fmt.Println("NTTInv ...")
+	//	segNum == pp.paramD, segLen = 1, len(factors) = pp.paramD/2
+
+	twoInv := int64((pp.paramQ+1)/2) - int64(pp.paramQ)
+	fmt.Println("2^{-1}:", twoInv)
+
+	for true {
+		//		fmt.Println(factors)
+		segLenDouble := segLen * 2
+
+		for k := 0; k < segNum/2; k++ {
+			for i := 0; i < segLen; i++ {
+				tmp1 := pp.reduce(pp.reduceInt64(int64(coeffs[k*segLenDouble+i+segLen]) + int64(coeffs[k*segLenDouble+i])) * twoInv)
+				tmp2 := pp.reduce(pp.reduceInt64(pp.reduceInt64(int64(coeffs[k*segLenDouble+i+segLen]) - int64(coeffs[k*segLenDouble+i])) * twoInv) * zetas[2*pp.paramD - factors[k]])
+				coeffs[k*segLenDouble+i] = tmp1
+				coeffs[k*segLenDouble+i+segLen] = tmp2
+
+				//				fmt.Println(k*segLenDouble+i, k*segLenDouble+i+segLen, k*segLenDouble+i, k*segLenDouble+i+segLen )
+			}
+		}
+
+		segNum = segNum>>1
+		segLen = segLen<<1
+		if segNum == 1 {
+			break
+		}
+
+		tmpFactors := make([]int, len(factors)/2)
+		for i := 0; i < len(tmpFactors); i++ {
+			tmpFactors[i] = factors[2*i+1] * 2
+		}
+		factors = tmpFactors
+
+	}
+	fmt.Println("NTTInv Result:", coeffs)
+
+
+
 }
