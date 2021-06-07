@@ -118,7 +118,7 @@ func randomnessFromEtaC(seed []byte, length int) ([]int32, error) {
 }
 func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
 	// 1<<22-1
-	bytes := make([]byte, (23*length+7)/8)
+	bytes := make([]byte, (24*length+7)/8)
 	if seed == nil {
 		seed = randomBytes(32)
 	}
@@ -144,6 +144,14 @@ func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
 		res[pos/23*8+6] = int32(bytes[pos+17]&0x3F)<<17 | int32(bytes[pos+18])<<15 | int32(bytes[pos+19])<<1 | int32(bytes[pos+20]&0x80)>>7
 		res[pos/23*8+7] = int32(bytes[pos+20]&0x01)<<16 | int32(bytes[pos+21])<<8 | int32(bytes[pos+22]&0xFF)
 		pos += 23
+	}
+	for i := 0; i < length; i += 8 {
+		for j := 0; j < 8; j++ {
+			if (bytes[pos]>>j)&1 == 0 {
+				res[i] = -res[i]
+			}
+		}
+		pos++
 	}
 	return res[:length], nil
 }

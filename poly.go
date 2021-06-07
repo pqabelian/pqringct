@@ -158,6 +158,7 @@ func (pp *PublicParameter) PolyNTTPower(a *PolyNTT, e uint) (r *PolyNTT) {
 			cnt= int64(pp.reduce(cnt * cnt))
 			tmp >>= 1
 		}
+		coeffs[i]= int32(res)
 	}
 	return &PolyNTT{coeffs: coeffs}
 }
@@ -323,44 +324,53 @@ var zetas []int64 = []int64{
 }
 
 // tree is the 7-bit reverse mapping, used for ntt and inv_ntt
-var tree []int32 = []int32{
-	0, 64, 32, 96, 16, 80, 48, 112, 8, 72, 40, 104, 24, 88, 56, 120, 4,
-	68, 36, 100, 20, 84, 52, 116, 12, 76, 44, 108, 28, 92, 60, 124, 2,
-	66, 34, 98, 18, 82, 50, 114, 10, 74, 42, 106, 26, 90, 58, 122, 6,
-	70, 38, 102, 22, 86, 54, 118, 14, 78, 46, 110, 30, 94, 62, 126, 1,
-	65, 33, 97, 17, 81, 49, 113, 9, 73, 41, 105, 25, 89, 57, 121, 5,
-	69, 37, 101, 21, 85, 53, 117, 13, 77, 45, 109, 29, 93, 61, 125, 3,
-	67, 35, 99, 19, 83, 51, 115, 11, 75, 43, 107, 27, 91, 59, 123, 7,
-	71, 39, 103, 23, 87, 55, 119, 15, 79, 47, 111, 31, 95, 63, 127,
+//var tree []int32 = []int32{
+//	0, 64, 32, 96, 16, 80, 48, 112, 8, 72, 40, 104, 24, 88, 56, 120, 4,
+//	68, 36, 100, 20, 84, 52, 116, 12, 76, 44, 108, 28, 92, 60, 124, 2,
+//	66, 34, 98, 18, 82, 50, 114, 10, 74, 42, 106, 26, 90, 58, 122, 6,
+//	70, 38, 102, 22, 86, 54, 118, 14, 78, 46, 110, 30, 94, 62, 126, 1,
+//	65, 33, 97, 17, 81, 49, 113, 9, 73, 41, 105, 25, 89, 57, 121, 5,
+//	69, 37, 101, 21, 85, 53, 117, 13, 77, 45, 109, 29, 93, 61, 125, 3,
+//	67, 35, 99, 19, 83, 51, 115, 11, 75, 43, 107, 27, 91, 59, 123, 7,
+//	71, 39, 103, 23, 87, 55, 119, 15, 79, 47, 111, 31, 95, 63, 127,
+//}
+
+//
+var nttFactors []int=[]int{
+	127,63,95,31,111,47,79,15,119,55,87,23,
+	103,39,71,7,123,59,91,27,107,43,75,11,115,
+	51,83,19,99,35,67,3,125,61,93,29,109,45,77,13,
+	117,53,85,21,101,37,69,5,121,57,89,25,105,41,73,
+	9,113,49,81,17,97,33,65,1,
 }
 
 // NTT performance in-place number-theoretic transform (NTT) in Rq.
 // The input is in standard order, output is in standard order.
 func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
-	for i := 0; i <len(poly.coeffs) ; i++ {
-		poly.coeffs[i]=DefaultPP.reduce(int64(poly.coeffs[i])*zetas[i])
-	}
-	//TODO: optimize the NTT algorithm by adjusting the order of zetas
-	coeffs := make([]int64, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = int64(pp.reduce(int64(poly.coeffs[tree[i]])))
-	}
-	for step := 1; step <= pp.paramD/2; step <<= 1 {
-		for start := 0; start+step < pp.paramD; start += step << 1 {
-			zeta := zetas[0]
-			for i := start; i < start+step; i++ {
-				tmp := pp.reduce(coeffs[i+step] * zeta)
-				coeffs[i], coeffs[i+step] = int64(pp.reduce(coeffs[i]+int64(tmp))), int64(pp.reduce(coeffs[i]-int64(tmp)))
-				zeta = zetas[(i-start+1)*(pp.paramD/step)]
-			}
-		}
-	}
-
-	coeffs1 := make([]int32, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
-		coeffs1[i] = pp.reduce(coeffs[i])
-	}
-	return &PolyNTT{coeffs1}
+	//for i := 0; i <len(poly.coeffs) ; i++ {
+	//	poly.coeffs[i]=DefaultPP.reduce(int64(poly.coeffs[i])*zetas[i])
+	//}
+	////TODO: optimize the NTT algorithm by adjusting the order of zetas
+	//coeffs := make([]int64, pp.paramD)
+	//for i := 0; i < pp.paramD; i++ {
+	//	coeffs[i] = int64(pp.reduce(int64(poly.coeffs[tree[i]])))
+	//}
+	//for step := 1; step <= pp.paramD/2; step <<= 1 {
+	//	for start := 0; start+step < pp.paramD; start += step << 1 {
+	//		zeta := zetas[0]
+	//		for i := start; i < start+step; i++ {
+	//			tmp := pp.reduce(coeffs[i+step] * zeta)
+	//			coeffs[i], coeffs[i+step] = int64(pp.reduce(coeffs[i]+int64(tmp))), int64(pp.reduce(coeffs[i]-int64(tmp)))
+	//			zeta = zetas[(i-start+1)*(pp.paramD/step)]
+	//		}
+	//	}
+	//}
+	//
+	//coeffs1 := make([]int32, pp.paramD)
+	//for i := 0; i < pp.paramD; i++ {
+	//	coeffs1[i] = pp.reduce(coeffs[i])
+	//}
+	//return &PolyNTT{coeffs1}
 
 	//coeffs := make([]int64, pp.paramD)
 	//for i := 0; i < pp.paramD; i++ {
@@ -373,35 +383,95 @@ func (pp *PublicParameter) NTT(poly *Poly) (polyntt *PolyNTT) {
 	//	coeffs1[i] = pp.reduce(coeffs[i])
 	//}
 	//return &PolyNTT{coeffs1}
+
+
+	coeffs := make([]int32, pp.paramD)
+	copy(coeffs, poly.coeffs)
+
+	//	NTT
+	segNum := 1
+	segLen := pp.paramD
+	factors := make([]int,1)
+	factors[0] = pp.paramD/2
+
+	for  {
+		//fmt.Println(factors)
+
+		segLenHalf := segLen/2
+
+		for k := 0; k < segNum; k++ {
+			for i := 0; i < segLenHalf; i++ {
+				tmp := int64(coeffs[k*segLen+i+segLenHalf]) * zetas[factors[k]]
+				tmp1 := pp.reduce( int64(coeffs[k*segLen+i]) - tmp )
+				tmp2 := pp.reduce( int64(coeffs[k*segLen+i]) + tmp )
+
+				coeffs[k*segLen+i] = tmp1
+				coeffs[k*segLen+i+segLenHalf] = tmp2
+				//				fmt.Println(k*segLen+i, k*segLen+i+segLenHalf, k*segLen+i, factors[k])
+			}
+		}
+
+		segNum = segNum<<1
+		segLen = segLen>>1
+		if segNum == pp.paramD {
+			break
+		}
+
+		tmpFactors := make([]int, 2*len(factors))
+		for i := 0; i < len(factors); i++ {
+			tmpFactors[2*i] = (factors[i] + pp.paramD)/2
+			tmpFactors[2*i+1] = factors[i]/2
+		}
+		factors = tmpFactors
+	}
+
+	//fmt.Println("final factors:")
+	finalFactors := make([]int, 2*len(factors))
+	for i := 0; i < len(factors); i++ {
+		finalFactors[2*i] = (factors[i] + pp.paramD)
+		finalFactors[2*i+1] = factors[i]
+	}
+	//fmt.Println("final factors:", finalFactors)
+	//fmt.Println("(Native) NTT coeffs:", coeffs)
+
+	// SigmaNTT may need the NTT coefficients  to be arranges as 1, 3, 5, ..., 2d-1
+	nttCoeffs := make([]int32, pp.paramD)
+	for i := 0; i < pp.paramD; i++ {
+		nttCoeffs[(finalFactors[i]-1)/2] = coeffs[i]
+	}
+	//fmt.Println("Ordered NTT coeffs:", nttCoeffs)
+	return &PolyNTT{coeffs: nttCoeffs}
 }
 
 // NTTInv performance inverse in-place number-theoretic transform (NTT) in Rq.
 // The input is in standard order, output is in standard order.
 func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
-	coeffs := make([]int64, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = int64(polyntt.coeffs[tree[i]])
-	}
+	//coeffs := make([]int64, pp.paramD)
+	//for i := 0; i < pp.paramD; i++ {
+	//	coeffs[i] = int64(polyntt.coeffs[tree[i]])
+	//}
+	//
+	//for step := 1; step <= pp.paramD/2; step <<= 1 {
+	//	for start := 0; start+step < pp.paramD; start += step << 1 {
+	//		zeta := zetas[0]
+	//		for i := start; i < start+step; i++ {
+	//			tmp := pp.reduce(coeffs[i+step] * zeta)
+	//			coeffs[i], coeffs[i+step] = int64(pp.reduce(coeffs[i]+int64(tmp))), int64(pp.reduce(coeffs[i]-int64(tmp)))
+	//			zeta = zetas[2*pp.paramD-(i-start+1)*(pp.paramD/step)]
+	//		}
+	//	}
+	//}
+	//coeffs1 := make([]int32, pp.paramD)
+	//for i := 0; i < pp.paramD; i++ {
+	//	coeffs1[i] = pp.reduce(coeffs[i] * int64(pp.paramDInv))
+	//}
+	//resp:=make([]int32,pp.paramD)
+	//for i := 0; i < len(resp); i++ {
+	//	resp[i]=DefaultPP.reduce(int64(coeffs1[i])*zetas[(2*pp.paramD-i)%(2*pp.paramD)])
+	//}
+	//return &Poly{resp}
 
-	for step := 1; step <= pp.paramD/2; step <<= 1 {
-		for start := 0; start+step < pp.paramD; start += step << 1 {
-			zeta := zetas[0]
-			for i := start; i < start+step; i++ {
-				tmp := pp.reduce(coeffs[i+step] * zeta)
-				coeffs[i], coeffs[i+step] = int64(pp.reduce(coeffs[i]+int64(tmp))), int64(pp.reduce(coeffs[i]-int64(tmp)))
-				zeta = zetas[2*pp.paramD-(i-start+1)*(pp.paramD/step)]
-			}
-		}
-	}
-	coeffs1 := make([]int32, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
-		coeffs1[i] = pp.reduce(coeffs[i] * int64(pp.paramDInv))
-	}
-	resp:=make([]int32,pp.paramD)
-	for i := 0; i < len(resp); i++ {
-		resp[i]=DefaultPP.reduce(int64(coeffs1[i])*zetas[(2*pp.paramD-i)%(2*pp.paramD)])
-	}
-	return &Poly{resp}
+
 	//coeffs := make([]int64, pp.paramD)
 	//for i := 0; i < pp.paramD; i++ {
 	//	for j := 0; j < pp.paramD; j++ {
@@ -413,6 +483,54 @@ func (pp *PublicParameter) NTTInv(polyntt *PolyNTT) (poly *Poly) {
 	//	coeffs1[i] = pp.reduce(coeffs[i] * int64(pp.paramDInv))
 	//}
 	//return &Poly{coeffs1}
+	coeffs:=make([]int32,pp.paramD)
+	segNum := pp.paramD
+	segLen := 1
+	factors := nttFactors
+
+	finalFactors := make([]int, 2*len(factors))
+	for i := 0; i < len(factors); i++ {
+		finalFactors[2*i] = (factors[i] + pp.paramD)
+		finalFactors[2*i+1] = factors[i]
+	}
+
+	for i := 0; i < pp.paramD; i++ {
+		coeffs[i]=polyntt.coeffs[(finalFactors[i]-1)/2]
+	}
+
+	twoInv := int64((pp.paramQ+1)/2) - int64(pp.paramQ)
+	//fmt.Println("2^{-1}:", twoInv)
+
+	for {
+		//		fmt.Println(factors)
+		segLenDouble := segLen * 2
+
+		for k := 0; k < segNum/2; k++ {
+			for i := 0; i < segLen; i++ {
+				tmp1 := pp.reduce(pp.reduceInt64(int64(coeffs[k*segLenDouble+i+segLen]) + int64(coeffs[k*segLenDouble+i])) * twoInv)
+				tmp2 := pp.reduce(pp.reduceInt64(pp.reduceInt64(int64(coeffs[k*segLenDouble+i+segLen]) - int64(coeffs[k*segLenDouble+i])) * twoInv) * zetas[2*pp.paramD - factors[k]])
+				coeffs[k*segLenDouble+i] = tmp1
+				coeffs[k*segLenDouble+i+segLen] = tmp2
+
+				//				fmt.Println(k*segLenDouble+i, k*segLenDouble+i+segLen, k*segLenDouble+i, k*segLenDouble+i+segLen )
+			}
+		}
+
+		segNum = segNum>>1
+		segLen = segLen<<1
+		if segNum == 1 {
+			break
+		}
+
+		tmpFactors := make([]int, len(factors)/2)
+		for i := 0; i < len(tmpFactors); i++ {
+			tmpFactors[i] = factors[2*i+1] * 2
+		}
+		factors = tmpFactors
+
+	}
+	//fmt.Println("NTTInv Result:", coeffs)
+	return &Poly{coeffs: coeffs}
 }
 
 // NTTVec performances the number-theoretic transform for every polynomial,
