@@ -2,6 +2,8 @@ package pqringct
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 )
 
@@ -16,6 +18,29 @@ func WriteBytes(w io.Writer, b []byte) error {
 		return err
 	}
 	return nil
+}
+
+func ReadVarBytes(r io.Reader, maxAllowed uint32, fieldName string) ([]byte, error) {
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prevent byte array larger than the max message size.  It would
+	// be possible to cause memory exhaustion and panics without a sane
+	// upper bound on this count.
+	if count > uint64(maxAllowed) {
+		str := fmt.Sprintf("%s is larger than the max allowed size "+
+			"[count %d, max %d]", fieldName, count, maxAllowed)
+		return nil, errors.New(str)
+	}
+
+	b := make([]byte, count)
+	_, err = io.ReadFull(r, b)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 func WritePolyNTT(w io.Writer, polyNTT *PolyNTT) error {
@@ -33,6 +58,27 @@ func WritePolyNTT(w io.Writer, polyNTT *PolyNTT) error {
 	return nil
 }
 
+func ReadPolyNTT(r io.Reader) (*PolyNTT, error) {
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// todo: compare length?
+
+	coeffs0 := make([]int32, count)
+	for i := 0; i < int(count); i++ {
+		err := readElement(r, &coeffs0[i])
+		if err != nil {
+			return nil, errors.New("error when reading polyNTT")
+		}
+	}
+	polyNTT := &PolyNTT{
+		coeffs: coeffs0,
+	}
+	return polyNTT, nil
+}
+
 func WritePolyNTTVec(w io.Writer, polyNTTVec *PolyNTTVec) error {
 	count := len(polyNTTVec.polyNTTs)
 	err := WriteVarInt(w, uint64(count))
@@ -46,6 +92,27 @@ func WritePolyNTTVec(w io.Writer, polyNTTVec *PolyNTTVec) error {
 		}
 	}
 	return nil
+}
+
+func ReadPolyNTTVec(r io.Reader) (*PolyNTTVec, error) {
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// todo: compare length?
+	polyNTTs0 := make([]*PolyNTT, count)
+	for i := 0; i < int(count); i++ {
+		tmp, err := ReadPolyNTT(r)
+		if err != nil {
+			return nil, err
+		}
+		polyNTTs0[i] = tmp
+	}
+	polyNTTVec := &PolyNTTVec{
+		polyNTTs: polyNTTs0,
+	}
+	return polyNTTVec, nil
 }
 
 func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
@@ -120,6 +187,24 @@ func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 	}
 
 	return nil
+}
+
+func ReadRpulpProof(r io.Reader) (*rpulpProof, error) {
+	// read c_waves
+
+	// write c_hat_g
+
+	// write psi
+
+	// write phi
+
+	// write chseed
+
+	// write cmt_zs
+
+	// write zs
+
+	return nil, nil
 }
 
 func WriteCommitment(w io.Writer, cmt *Commitment) error {
@@ -241,9 +326,9 @@ func (coinbaseTx *CoinbaseTx) Serialize(hasWitness bool) ([]byte, error) {
 	return nil, nil
 }
 
-func (coinbaseTx *CoinbaseTx) Deserialize() ([]byte, error) {
+func (coinbaseTx *CoinbaseTx) Deserialize(r io.Reader) error {
 	// todo
-	return nil, nil
+	return nil
 }
 
 func (cbTxWitness *CbTxWitness) SerializeSize() uint32 {
@@ -293,7 +378,7 @@ func (cbTxWitness *CbTxWitness) Serialize(w io.Writer) error {
 	return nil
 }
 
-func (cbTxWitness *CbTxWitness) Deserialize(serializedTxWitness []byte) error {
+func (cbTxWitness *CbTxWitness) Deserialize(r io.Reader) error {
 	// todo
 	return nil
 }
@@ -350,6 +435,10 @@ func (trTx *TransferTx) Serialize(hasWitness bool) ([]byte, error) {
 	return w.Bytes(), nil
 }
 
+func (trTx *TransferTx) Deserialize(r io.Reader) error {
+	return nil
+}
+
 func (txo *TXO) SerializeSize() uint32 {
 	// todo
 	return 1
@@ -376,7 +465,7 @@ func (txo *TXO) Serialize(w io.Writer) error {
 	return nil
 }
 
-func (txo *TXO) Deserialize(serializedTxo []byte) error {
+func (txo *TXO) Deserialize(r io.Reader) error {
 	// todo
 	return nil
 }
@@ -407,6 +496,11 @@ func (trTxInput *TrTxInput) Serialize(w io.Writer) error {
 func (trTxWitness *TrTxWitness) SerializeSize() uint32 {
 	// todo
 	return 1
+}
+
+func (trTxInput *TrTxInput) Deserialize(r io.Reader) error {
+	// todo
+	return nil
 }
 
 func (trTxWitness *TrTxWitness) Serialize(w io.Writer) error {
@@ -477,7 +571,7 @@ func (trTxWitness *TrTxWitness) Serialize(w io.Writer) error {
 	return nil
 }
 
-func (trTxWitness *TrTxWitness) Deserialize(serializedTxWitness []byte) error {
+func (trTxWitness *TrTxWitness) Deserialize(r io.Reader) error {
 	// todo
 	return nil
 }
