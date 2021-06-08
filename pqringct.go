@@ -620,9 +620,9 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 
 // TxoCoinReceive reports whether a transaction output belongs to the given master key pair
 // If true, it will show the coin value, otherwise, the returned value is 0.
-func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *MasterSecretViewKey) (valid bool, coinvale uint64, err error) {
+func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *MasterSecretViewKey) (valid bool, coinvale uint64) {
 	if txo == nil || mpk == nil || msvk == nil {
-		return false, 0, errors.New("nil pointer")
+		return false, 0
 	}
 
 	// todo: check the well-formness of dpk
@@ -631,7 +631,7 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	kappa := msvk.skkem.CryptoKemDec(txo.dpk.ckem)
 	sptmp, err := pp.expandRandomnessA(kappa) // TODO_DONE handle the err
 	if err != nil {
-		return false, 0, err
+		return false, 0
 	}
 	s_p := pp.NTTVec(sptmp)
 	t_hat_p := pp.PolyNTTVecAdd(
@@ -640,26 +640,26 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 		pp.paramKa)
 
 	if pp.PolyNTTVecEqualCheck(txo.dpk.t, t_hat_p) != true {
-		return false, 0, errors.New("not Equal")
+		return false, 0
 	}
 
 	v := uint64(0)
 	// recover value from txo.vc
 	sk, err := pp.expandRandomBitsV(kappa)
 	if err != nil {
-		return false, 0, err
+		return false, 0
 	}
 	for i := 0; i < pp.paramD; i++ {
 		v |= uint64(sk[i]^txo.vc[i]) << i
 	}
 	// check value
 	if v > uint64(1<<pp.paramN-1) {
-		return false, 0, errors.New("the value is more than V")
+		return false, 0
 	}
 	m := intToBinary(v, pp.paramD)
 	cmtrtmp, err := pp.expandRandomnessC(kappa) // TODO_DONE handle the err
 	if err != nil {
-		return false, 0, err
+		return false, 0
 	}
 	cmt_r := pp.NTTVec(cmtrtmp)
 	cmt := &Commitment{}
@@ -669,14 +669,14 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 		&PolyNTT{m})
 
 	if pp.PolyNTTVecEqualCheck(cmt.b, txo.cmt.b) != true {
-		return false, 0, errors.New("cmt.b not Equal")
+		return false, 0
 	}
 
 	if pp.PolyNTTEqualCheck(cmt.c, txo.cmt.c) != true {
-		return false, 0, errors.New("cmt.c not Equal")
+		return false, 0
 	}
 
-	return true, v, nil
+	return true, v
 }
 
 // collectBytesForTransfer is an auxiliary function for TransferTxGen and TransferTxVerify to collect some information into a byte slice
@@ -764,8 +764,8 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			return nil, errors.New("the master view key is not well-formed")
 		}
 
-		b, v, err := pp.TxoCoinReceive(inputDescItem.txoList[inputDescItem.sidx], inputDescItem.mpk, inputDescItem.msvk)
-		if b == false || v != inputDescItem.value || err != nil {
+		b, v := pp.TxoCoinReceive(inputDescItem.txoList[inputDescItem.sidx], inputDescItem.mpk, inputDescItem.msvk)
+		if b == false || v != inputDescItem.value {
 			return nil, errors.New("fail to receive some transaction output")
 		}
 
