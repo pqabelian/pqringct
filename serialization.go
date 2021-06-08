@@ -7,6 +7,10 @@ import (
 	"io"
 )
 
+const (
+	MAXALLOWED uint32 = 4294967295 // 2^32-1
+)
+
 func WriteBytes(w io.Writer, b []byte) error {
 	count := len(b)
 	err := WriteVarInt(w, uint64(count))
@@ -191,20 +195,85 @@ func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 
 func ReadRpulpProof(r io.Reader) (*rpulpProof, error) {
 	// read c_waves
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	c_waves0 := make([]*PolyNTT, count)
+	for i := 0; i < int(count); i++ {
+		c_waves0[i], err = ReadPolyNTT(r)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	// write c_hat_g
+	// read c_hat_g
+	c_hat_g0, err := ReadPolyNTT(r)
+	if err != nil {
+		return nil, err
+	}
 
-	// write psi
+	// read psi
+	psi0, err := ReadPolyNTT(r)
+	if err != nil {
+		return nil, err
+	}
 
-	// write phi
+	// read phi
+	phi0, err := ReadPolyNTT(r)
+	if err != nil {
+		return nil, err
+	}
 
-	// write chseed
+	// read chseed
+	chseed0, err := ReadVarBytes(r, MAXALLOWED, "readRpulpProof")
+	if err != nil {
+		return nil, err
+	}
 
-	// write cmt_zs
+	// read cmt_zs
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	cmt_zs0 := make([][]*PolyNTTVec, count)
+	for i := 0; i < int(count); i++ {
+		count2, err := ReadVarInt(r)
+		if err != nil {
+			return nil, err
+		}
+		cmt_zs0[i] = make([]*PolyNTTVec, count2)
+		for j := 0; j < int(count2); j++ {
+			cmt_zs0[i][j], err = ReadPolyNTTVec(r)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 
-	// write zs
+	// read zs
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	zs0 := make([]*PolyNTTVec, count)
+	for i := 0; i < int(count); i++ {
+		zs0[i], err = ReadPolyNTTVec(r)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	return nil, nil
+	ret := &rpulpProof{
+		c_waves: c_waves0,
+		c_hat_g: c_hat_g0,
+		psi: psi0,
+		phi: phi0,
+		chseed: chseed0,
+		cmt_zs: cmt_zs0,
+		zs: zs0,
+	}
+	return ret, nil
 }
 
 func WriteCommitment(w io.Writer, cmt *Commitment) error {
@@ -223,6 +292,27 @@ func WriteCommitment(w io.Writer, cmt *Commitment) error {
 	return nil
 }
 
+func ReadCommitment(r io.Reader) (*Commitment, error) {
+	// read b
+	b0, err := ReadPolyNTTVec(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// read c
+	c0, err := ReadPolyNTT(r)
+	if err != nil {
+		return nil, err
+	}
+
+	commitment := &Commitment{
+		b: b0,
+		c: c0,
+	}
+
+	return commitment, nil
+}
+
 func WriteDerivedPubKey(w io.Writer, dpk *DerivedPubKey) error {
 	// write ckem
 	err := WriteBytes(w, dpk.ckem)
@@ -237,6 +327,27 @@ func WriteDerivedPubKey(w io.Writer, dpk *DerivedPubKey) error {
 	}
 
 	return nil
+}
+
+func ReadDerivedPubKey(r io.Reader) (*DerivedPubKey, error) {
+	// read ckem
+	ckem0, err := ReadVarBytes(r, MAXALLOWED, "ReadDerivedPubKey")
+	if err != nil {
+		return nil, err
+	}
+
+	// read t
+	t0, err := ReadPolyNTTVec(r)
+	if err != nil {
+		return nil, err
+	}
+
+	derivedPubKey := &DerivedPubKey{
+		ckem: ckem0,
+		t: t0,
+	}
+
+	return derivedPubKey, nil
 }
 
 func WriteElrsSignature(w io.Writer, elrsSig *elrsSignature) error {
@@ -293,6 +404,69 @@ func WriteElrsSignature(w io.Writer, elrsSig *elrsSignature) error {
 	}
 
 	return nil
+}
+
+func ReadElrsSignature(r io.Reader) (*elrsSignature, error) {
+	// read chseed
+	chseed0, err := ReadVarBytes(r, MAXALLOWED, "ReadElrsSignature")
+	if err != nil {
+		return nil, err
+	}
+
+	// read z_as
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	z_as0 := make([][]*PolyNTTVec, count)
+	for i := 0; i < int(count); i++ {
+		count2, err := ReadVarInt(r)
+		if err != nil {
+			return nil, err
+		}
+		z_as0[i] = make([]*PolyNTTVec, count2)
+		for j := 0; j < int(count2); j++ {
+			z_as0[i][j], err = ReadPolyNTTVec(r)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// read z_cs
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	z_cs0 := make([][]*PolyNTTVec, count)
+	for i := 0; i < int(count); i++ {
+		count2, err := ReadVarInt(r)
+		if err != nil {
+			return nil, err
+		}
+		z_cs0[i] = make([]*PolyNTTVec, count2)
+		for j := 0; j < int(count2); j++ {
+			z_cs0[i][j], err = ReadPolyNTTVec(r)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// read keyImg
+	keyImg0, err := ReadPolyNTTVec(r)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &elrsSignature{
+		chseed: chseed0,
+		z_as: z_as0,
+		z_cs: z_cs0,
+		keyImg: keyImg0,
+	}
+
+	return ret, nil
 }
 
 func (coinbaseTx *CoinbaseTx) Serialize(hasWitness bool) ([]byte, error) {
@@ -379,7 +553,48 @@ func (cbTxWitness *CbTxWitness) Serialize(w io.Writer) error {
 }
 
 func (cbTxWitness *CbTxWitness) Deserialize(r io.Reader) error {
-	// todo
+	// read b_hat
+	b_hat0, err := ReadPolyNTTVec(r)
+	if err != nil {
+		return err
+	}
+
+	// read c_hats
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	c_hats0 := make([]*PolyNTT, count)
+	for i :=0; i < int(count); i++ {
+		c_hats0[i], err = ReadPolyNTT(r)
+		if err != nil {
+			return err
+		}
+	}
+
+	// read u_p
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	u_p0 := make([]int32, count)
+	for i :=0; i < int(count); i++ {
+		err := readElement(r, &u_p0[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	// read rpulpproof
+	rpulpproof0, err := ReadRpulpProof(r)
+	if err != nil {
+		return err
+	}
+
+	cbTxWitness.b_hat = b_hat0
+	cbTxWitness.c_hats = c_hats0
+	cbTxWitness.u_p = u_p0
+	cbTxWitness.rpulpproof = rpulpproof0
 	return nil
 }
 
