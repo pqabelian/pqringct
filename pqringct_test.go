@@ -48,8 +48,8 @@ func TestPublicParameter_MasterKeyGen(t *testing.T) {
 			if !reflect.DeepEqual(msvk1, msvk2) {
 				t.Errorf("MasterKeyGen() msvk1 = %v, msvk2 = %v", msvk1, msvk2)
 			}
-			if !reflect.DeepEqual(mssk1,mssk2) {
-				t.Errorf("MasterKeyGen() mssk1 = %v, mssk2 = %v", mssk1,mssk2)
+			if !reflect.DeepEqual(mssk1, mssk2) {
+				t.Errorf("MasterKeyGen() mssk1 = %v, mssk2 = %v", mssk1, mssk2)
 			}
 		})
 	}
@@ -80,7 +80,7 @@ func TestPublicParameter_txoGenAndTxoReceive(t *testing.T) {
 	}
 	pp := DefaultPP
 	_, mpk, msvk, mssk, err := pp.MasterKeyGen(seed)
-	var txo  *TXO
+	var txo *TXO
 	//var r *PolyNTTVec
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestPublicParameter_txoGenAndTxoReceive(t *testing.T) {
 		wantErr      bool
 	}{
 		{
-			name:"test one",
+			name: "test one",
 			receiveArgs: receiveArgs{
 				txo:  txo,
 				mpk:  mpk,
@@ -154,7 +154,7 @@ func TestPublicParameter_txoGenAndTxoReceive(t *testing.T) {
 				msvk: msvk,
 				mssk: mssk,
 			},
-			wantErr:false,
+			wantErr: false,
 		},
 	}
 	for _, tt := range snGenTests {
@@ -175,10 +175,10 @@ func TestPublicParameter_txoGenAndTxoReceive(t *testing.T) {
 
 func TestPublicParameter_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 	// generate key pair
-	seed1:=[]byte{
-		2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,1,
-		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,}
-	seed2:=[]byte{
+	seed1 := []byte{
+		2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 1,
+		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}
+	seed2 := []byte{
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 	}
@@ -193,12 +193,12 @@ func TestPublicParameter_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 		name    string
 		args    cbtxGenArgs
 		wantErr bool
-		want bool
+		want    bool
 	}{
 		{
 			"test one",
 			cbtxGenArgs{
-				vin:           512,
+				vin: 512,
 				txOutputDescs: []*TxOutputDesc{
 					{
 						mpk:   mpk1,
@@ -212,15 +212,15 @@ func TestPublicParameter_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 		{
 			"test two",
 			cbtxGenArgs{
-				vin:           512,
+				vin: 512,
 				txOutputDescs: []*TxOutputDesc{
 					{
 						mpk:   mpk1,
 						value: 500,
 					},
 					{
-						mpk:mpk2,
-						value:12,
+						mpk:   mpk2,
+						value: 12,
 					},
 				},
 			},
@@ -238,6 +238,69 @@ func TestPublicParameter_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 				return
 			}
 			if got := pp.CoinbaseTxVerify(cbTx); got != tt.want {
+				t.Errorf("CoinbaseTxVerify() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPublicParameter_TransferTxGen(t *testing.T) {
+	pp := DefaultPP
+	type args struct {
+		inputDescs  []*TxInputDesc
+		outputDescs []*TxOutputDesc
+		fee         uint64
+		txMemo      []byte
+	}
+	seed1 := []byte{
+		2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 1,
+		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}
+	seed2 := []byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
+	}
+	_, mpk1, _, _, _ := pp.MasterKeyGen(seed1)
+	_, mpk2, _, _, _ := pp.MasterKeyGen(seed2)
+	tests := []struct {
+		name     string
+		args     args
+		wantErr  bool
+		want    bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "test 1",
+			args: args{
+				inputDescs: []*TxInputDesc{
+					{
+
+					},
+				},
+				outputDescs: []*TxOutputDesc{
+					{
+						mpk:   mpk1,
+						value: 500,
+					},
+					{
+						mpk:   mpk2,
+						value: 12,
+					},
+				},
+				fee:         0,
+				txMemo:      nil,
+			},
+			wantErr: false,
+			want:true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotTrTx, err := pp.TransferTxGen(tt.args.inputDescs, tt.args.outputDescs, tt.args.fee, tt.args.txMemo)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TransferTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got := pp.TransferTxVerify(gotTrTx); got != tt.want {
 				t.Errorf("CoinbaseTxVerify() = %v, want %v", got, tt.want)
 			}
 		})

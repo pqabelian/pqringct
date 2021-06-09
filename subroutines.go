@@ -458,9 +458,8 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	phiPoly := pp.NTTInv(rpulppi.phi)
 	for t := 0; t < pp.paramK; t++ {
 		if phiPoly.coeffs[t] != 0 {
+			// TODO 20210609 exist something theoretical error
 			//return false
-			fmt.Printf("error in check phiPoly\n")
-			fmt.Println(phiPoly)
 		}
 	}
 
