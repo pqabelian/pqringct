@@ -839,9 +839,9 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 	}
 
-	msgTrTxCon, err := rettrTx.Serialize(false)
-	if err != nil {
-		return nil, err
+	msgTrTxCon := rettrTx.Serialize(false)
+	if msgTrTxCon == nil {
+		return nil, errors.New("error in rettrTx.Serialize ")
 	}
 	msgTrTxConHash, err := H(msgTrTxCon)
 	if err != nil {
@@ -1206,8 +1206,8 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 	//	todo: check the well-form of TxWitness
 
 	//	check the ring signatures
-	msgTrTxCon, err := trTx.Serialize(false)
-	if err != nil {
+	msgTrTxCon := trTx.Serialize(false)
+	if msgTrTxCon == nil {
 		return false
 	}
 	msgTrTxConHash, err := H(msgTrTxCon)
