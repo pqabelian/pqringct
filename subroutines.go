@@ -178,7 +178,8 @@ rpUlpProveRestart:
 		ws[t] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKc, pp.paramLc)
 	}
 
-	g := pp.NTT(pp.sampleUniformPloyWithLowZeros())
+	tmpg:=pp.sampleUniformPloyWithLowZeros()
+	g := pp.NTT(tmpg)
 	// c_hat(n2+1)
 	c_hat_g := pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], r_hat, pp.paramLc), g)
 
@@ -188,11 +189,11 @@ rpUlpProveRestart:
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("seed_rand=",seed_rand)
 	alphas, betas, gammas, err := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m)
 	if err != nil {
 		return nil, err
 	}
-
 	//	\tilde{\delta}^(t)_i, \hat{\delta}^(t)_i,
 	delta_waves := make([][]*PolyNTT, pp.paramK)
 	delta_hats := make([][]*PolyNTT, pp.paramK)
@@ -293,6 +294,8 @@ rpUlpProveRestart:
 	}
 
 	phi = pp.PolyNTTAdd(phi, g)
+	phiinv := pp.NTTInv(phi)
+	fmt.Println(phiinv)
 	fmt.Printf("phi = %v\n",phi)
 	//	phi'^(\xi)
 	phips := make([]*PolyNTT, pp.paramK)
@@ -455,7 +458,9 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	phiPoly := pp.NTTInv(rpulppi.phi)
 	for t := 0; t < pp.paramK; t++ {
 		if phiPoly.coeffs[t] != 0 {
-			return false
+			//return false
+			fmt.Printf("error in check phiPoly\n")
+			fmt.Println(phiPoly)
 		}
 	}
 
@@ -506,6 +511,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	if err != nil {
 		return false
 	}
+	fmt.Println("seed_rand=",seed_rand)
 	alphas, betas, gammas, err := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m)
 	if err != nil {
 		return false
@@ -1656,7 +1662,8 @@ func (pp *PublicParameter) sigmaPowerPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNT
 func (pp *PublicParameter) sigmaInvPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT) {
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = polyNTT.coeffs[pp.paramSigmaInvPermutations[t][i]]
+		//coeffs[i] = polyNTT.coeffs[pp.paramSigmaInvPermutations[t][i]]
+		coeffs[i] = polyNTT.coeffs[pp.paramSigmaPermutations[(pp.paramK-t)%pp.paramK][i]]
 	}
 	return &PolyNTT{coeffs}
 }
@@ -1736,7 +1743,7 @@ func (cmt *Commitment) toPolyNTTVec() *PolyNTTVec {
 func getMatrixColumn(matrix [][]byte, rowNum int, j int) (col []int32) {
 	retcol := make([]int32, rowNum)
 	for i := 0; i < rowNum; i++ {
-		retcol[i] = int32(matrix[i][j/8] >> (j % 8) & 1)
+		retcol[i] = int32((matrix[i][j/8] >> (j % 8)) & 1)
 	}
 
 	return retcol
@@ -1747,7 +1754,7 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 
 	switch rpulpType {
 	case RpUlpTypeCbTx1:
-
+ 			break
 	case RpUlpTypeCbTx2:
 		n := J
 		n2 := n + 2

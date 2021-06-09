@@ -242,9 +242,9 @@ func TestPublicParameter_sigmaPowerPolyNTTAndSigmaInv(t *testing.T) {
 			}
 		})
 	}
-	sigma1 := pp.sigmaPowerPolyNTT(b, 1)
-	sigma2 := pp.sigmaPowerPolyNTT(b, 2)
-	sigma3 := pp.sigmaPowerPolyNTT(b, 3)
+	sigma1 := sigma(b.coeffs,65)
+	sigma2 := sigma(b.coeffs,129)
+	sigma3 := sigma(b.coeffs,193)
 	//sigma1inv1 := pp.sigmaInvPolyNTT(sigma1, 1)
 	//sigma2inv2 := pp.sigmaInvPolyNTT(sigma2, 2)
 	//sigma3inv3 := pp.sigmaInvPolyNTT(sigma3, 3)
@@ -256,62 +256,74 @@ func TestPublicParameter_sigmaPowerPolyNTTAndSigmaInv(t *testing.T) {
 		{
 			name: "test one",
 			args: args{
-				polyNTT: sigma1,
+				polyNTT: b,
 				t:       1,
 			},
-			wantR: b,
+			wantR: pp.NTT(&Poly{sigma1}),
 		},
 		{
 			name: "test two",
 			args: args{
-				polyNTT: sigma2,
+				polyNTT: b,
 				t:       2,
 			},
-			wantR: b,
+			wantR: pp.NTT(&Poly{sigma2}),
 		},
 		{
 			name: "test three",
 			args: args{
-				polyNTT: sigma3,
+				polyNTT: b,
 				t:       3,
 			},
-			wantR: b,
+			wantR: pp.NTT(&Poly{sigma3}),
 		},
 	}
 	for _, tt := range sigmainvTests {
 		t.Run(tt.name, func(t *testing.T) {
-			if gotR := pp.sigmaInvPolyNTT(tt.args.polyNTT, tt.args.t); !reflect.DeepEqual(gotR, tt.wantR) {
+			if gotR := pp.sigmaPowerPolyNTT(tt.args.polyNTT, tt.args.t); !reflect.DeepEqual(gotR, tt.wantR) {
 				t.Errorf("sigmaPowerPolyNTT() = \n%v\n, want\n %v\n", gotR, tt.wantR)
 			}
 		})
 	}
 }
 func TestPublicParameter_Tree(t *testing.T) {
-	sigma65ntt := []int{32, 97, 34, 99, 36, 101, 38, 103, 40, 105, 42, 107, 44, 109, 46, 111,
-		48, 113, 50, 115, 52, 117, 54, 119, 56, 121, 58, 123, 60, 125, 62, 127,
-		64, 1, 66, 3, 68, 5, 70, 7, 72, 9, 74, 11, 76, 13, 78, 15,
-		80, 17, 82, 19, 84, 21, 86, 23, 88, 25, 90, 27, 92, 29, 94, 31,
-		96, 33, 98, 35, 100, 37, 102, 39, 104, 41, 106, 43, 108, 45, 110, 47,
-		112, 49, 114, 51, 116, 53, 118, 55, 120, 57, 122, 59, 124, 61, 126, 63,
-		0, 65, 2, 67, 4, 69, 6, 71, 8, 73, 10, 75, 12, 77, 14, 79,
-		16, 81, 18, 83, 20, 85, 22, 87, 24, 89, 26, 91, 28, 93, 30, 95}
-	may := []int{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-		8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7,
-		48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-		40, 41, 42, 43, 44, 45, 46, 47, 32, 33, 34, 35, 36, 37, 38, 39,
-		88, 89, 90, 91, 92, 93, 94, 95, 80, 81, 82, 83, 84, 85, 86, 87,
-		64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
-		120, 121, 122, 123, 124, 125, 126, 127, 112, 113, 114, 115, 116, 117, 118, 119,
-		96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111}
-	m:=map[int]int{}
-	for i := 0; i < len(sigma65ntt); i++ {
-		m[sigma65ntt[i]]=i
-	}
-	for i := 0; i < len(may); i++ {
-		if loc,ok:=m[may[i]];ok{
-			fmt.Printf("%d, ",loc)
-		}else{
-			fmt.Printf("error in %d",i)
-		}
-	}
+	//sigma65ntt := []int{32, 97, 34, 99, 36, 101, 38, 103, 40, 105, 42, 107, 44, 109, 46, 111,
+	//	48, 113, 50, 115, 52, 117, 54, 119, 56, 121, 58, 123, 60, 125, 62, 127,
+	//	64, 1, 66, 3, 68, 5, 70, 7, 72, 9, 74, 11, 76, 13, 78, 15,
+	//	80, 17, 82, 19, 84, 21, 86, 23, 88, 25, 90, 27, 92, 29, 94, 31,
+	//	96, 33, 98, 35, 100, 37, 102, 39, 104, 41, 106, 43, 108, 45, 110, 47,
+	//	112, 49, 114, 51, 116, 53, 118, 55, 120, 57, 122, 59, 124, 61, 126, 63,
+	//	0, 65, 2, 67, 4, 69, 6, 71, 8, 73, 10, 75, 12, 77, 14, 79,
+	//	16, 81, 18, 83, 20, 85, 22, 87, 24, 89, 26, 91, 28, 93, 30, 95}
+	//may := []int{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+	//	8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7,
+	//	48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+	//	40, 41, 42, 43, 44, 45, 46, 47, 32, 33, 34, 35, 36, 37, 38, 39,
+	//	88, 89, 90, 91, 92, 93, 94, 95, 80, 81, 82, 83, 84, 85, 86, 87,
+	//	64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+	//	120, 121, 122, 123, 124, 125, 126, 127, 112, 113, 114, 115, 116, 117, 118, 119,
+	//	96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111}
+	//m:=map[int]int{}
+	//for i := 0; i < len(sigma65ntt); i++ {
+	//	m[sigma65ntt[i]]=i
+	//}
+	//for i := 0; i < len(may); i++ {
+	//	if loc,ok:=m[may[i]];ok{
+	//		fmt.Printf("%d, ",loc)
+	//	}else{
+	//		fmt.Printf("error in %d",i)
+	//	}
+	//}
+	pp := DefaultPP
+	a1, _ := randomnessFromEtaA(nil, pp.paramD)
+	a := &Poly{a1}
+	fmt.Println("a = ",a1)
+	sigmaA:=sigma(a1,193)
+	fmt.Println("sigma(a)",sigmaA)
+	ntt_sigmaA:=pp.NTT(&Poly{coeffs: sigmaA})
+	fmt.Println("ntt(sigma(a))",ntt_sigmaA)
+	nttA := pp.NTT(a)
+	fmt.Println("ntt(a)",nttA.coeffs)
+	sigmanttNTTA := pp.sigmaPowerPolyNTT(nttA,3)
+	fmt.Println("sigma_NTT(ntt(a)",sigmanttNTTA)
 }
