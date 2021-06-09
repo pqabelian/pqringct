@@ -1671,23 +1671,23 @@ func (pp *PublicParameter) sigmaInvPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT)
 This method allow the vectors to be 2D, i.e. matrix
 */
 func (pp *PublicParameter) intMatrixInnerProduct(a [][]int32, b [][]int32, rowNum int, colNum int) (r int32) {
-	rst := int32(0)
+	rst := int64(0)
 	for i := 0; i < rowNum; i++ {
 		for j := 0; j < colNum; j++ {
-			rst = pp.reduce(int64(rst) + int64(pp.reduce(int64(a[i][j])*int64(b[i][j]))))
+			rst = pp.reduceInt64(rst + pp.reduceInt64(int64(a[i][j])*int64(b[i][j])))
 		}
 	}
 
-	return rst
+	return int32(rst)
 }
 
 func (pp *PublicParameter) intVecInnerProduct(a []int32, b []int32, vecLen int) (r int32) {
-	rst := int32(0)
+	rst := int64(0)
 	for i := 0; i < vecLen; i++ {
-		rst = pp.reduce(int64(rst) + int64(pp.reduce(int64(a[i])*int64(b[i]))))
+		rst = pp.reduceInt64(rst + pp.reduceInt64(int64(a[i])*int64(b[i])))
 	}
 
-	return rst
+	return int32(rst)
 }
 
 func intToBinary(v uint64, bitNum int) (bits []int32) {
