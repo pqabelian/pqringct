@@ -37,7 +37,51 @@ func TestPublicParameter_NTTAndNTTInv(t *testing.T) {
 		})
 	}
 }
+func PolyMul(a *Poly, b *Poly) *Poly {
+	pp := DefaultPP
+	//res := make([]int64, 2*pp.paramD-1)
+	//for i := 0; i < len(res); i++ {
+	//	for j := 0; j <= i; j++ {
+	//		if j<pp.paramD &&i-j < pp.paramD {
+	//			res[i]=pp.reduceInt64(res[i]+int64(a.coeffs[j])*int64(b.coeffs[i-j]))
+	//		}
+	//	}
+	//}
+	//for i := pp.paramD; i < len(res); i++ {
+	//	res[i-pp.paramD]=pp.reduceInt64(res[i-pp.paramD]-res[i])
+	//}
+	//ret:=pp.NewPoly()
+	//for i := 0; i < pp.paramD; i++ {
+	//	ret.coeffs[i]=pp.reduce(res[i])
+	//}
+	//return ret
 
+	res:=pp.NewZeroPoly()
+	for i := 0; i < pp.paramD; i++ {
+		for j := 0; j < pp.paramD; j++ {
+			if i+j >=pp.paramD{
+				res.coeffs[(i+j)%pp.paramD]=pp.reduce(int64(res.coeffs[(i+j)%pp.paramD])-int64(a.coeffs[i])*int64(b.coeffs[j]))
+			}else{
+				res.coeffs[(i+j)%pp.paramD]=pp.reduce(int64(res.coeffs[(i+j)%pp.paramD])+int64(a.coeffs[i])*int64(b.coeffs[j]))
+			}
+		}
+	}
+	return res
+}
+func TestPublicParameter_PolyNTTMul(t *testing.T) {
+	pp := DefaultPP
+	a, _ := randomnessFromEtaA(nil, pp.paramD)
+	b, _ := randomnessFromEtaA(nil, pp.paramD)
+	nttA := pp.NTT(&Poly{coeffs: a})
+	nttB := pp.NTT(&Poly{coeffs: b})
+	nttC := pp.PolyNTTMul(nttA, nttB)
+	got := pp.NTTInv(nttC)
+	want := PolyMul(&Poly{coeffs: a}, &Poly{coeffs: b})
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("error")
+	}
+
+}
 func TestPublicParameter_PolyNTTPower(t *testing.T) {
 
 	type args struct {
@@ -227,8 +271,8 @@ func TestPublicParameter_PolyNTTPower1(t *testing.T) {
 	a := &Poly{a1}
 	b := pp.NTT(a)
 	var x uint
-	for k := 0; k <100; k++ {
-		x= uint(k)
+	for k := 0; k < 100; k++ {
+		x = uint(k)
 		res := make([]int32, pp.paramD)
 		res[0] = 1
 		wantRes := pp.NTT(&Poly{res})
@@ -258,4 +302,18 @@ func TestPublicParameter_PolyNTTPower1(t *testing.T) {
 			})
 		}
 	}
+}
+func TestPublicParameter_NewPoly(t *testing.T) {
+	pp := DefaultPP
+	for i := 0; i < pp.paramD; i++ {
+		cnt := (i * 65) / 128
+		remainder := (i * 65) % 128
+		if cnt&1 == 1 {
+			fmt.Printf("-")
+		}
+		fmt.Printf("%d, ", remainder)
+	}
+	fmt.Println()
+	fmt.Printf("%032b\n", 0)
+	fmt.Printf("%032b\n", -0)
 }
