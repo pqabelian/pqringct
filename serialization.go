@@ -472,35 +472,35 @@ func ReadElrsSignature(r io.Reader) (*elrsSignature, error) {
 	return ret, nil
 }
 
-func (coinbaseTx *CoinbaseTx) Serialize(hasWitness bool) ([]byte, error) {
+func (coinbaseTx *CoinbaseTx) Serialize(hasWitness bool) []byte {
 	// write Vin
 	w := new(bytes.Buffer)
 	err := writeElement(w, coinbaseTx.Vin)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
 	// write OutputTxos
 	count := len(coinbaseTx.OutputTxos)
 	err = WriteVarInt(w, uint64(count))
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	for i := 0; i < count; i++ {
-		err := coinbaseTx.OutputTxos[i].Serialize(w)
+		err := coinbaseTx.OutputTxos[i].Serialize0(w)
 		if err != nil {
-			return nil, err
+			return nil
 		}
 	}
 
 	// write TxWitness
 	if hasWitness {
-		err := coinbaseTx.TxWitness.Serialize(w)
+		err := coinbaseTx.TxWitness.Serialize0(w)
 		if err != nil {
-			return nil, err
+			return nil
 		}
 	}
-	return w.Bytes(), nil
+	return w.Bytes()
 }
 
 func (coinbaseTx *CoinbaseTx) Deserialize(r io.Reader) error {
@@ -543,7 +543,16 @@ func (cbTxWitness *CbTxWitness) SerializeSize() uint32 {
 	return 1
 }
 
-func (cbTxWitness *CbTxWitness) Serialize(w io.Writer) error {
+func (cbTxWitness *CbTxWitness) Serialize() []byte {
+	w := new(bytes.Buffer)
+	err := cbTxWitness.Serialize0(w)
+	if err != nil {
+		return nil
+	}
+	return w.Bytes()
+}
+
+func (cbTxWitness *CbTxWitness) Serialize0(w io.Writer) error {
 	// write b_hat
 	err := WritePolyNTTVec(w, cbTxWitness.b_hat)
 	if err != nil {
@@ -632,19 +641,19 @@ func (cbTxWitness *CbTxWitness) Deserialize(r io.Reader) error {
 	return nil
 }
 
-func (trTx *TransferTx) Serialize(hasWitness bool) ([]byte, error) {
+func (trTx *TransferTx) Serialize(hasWitness bool) []byte {
 	w := new(bytes.Buffer)
 
 	// write inputs
 	count := len(trTx.Inputs)
 	err := WriteVarInt(w, uint64(count))
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	for _, input := range trTx.Inputs {
-		err := input.Serialize(w)
+		err := input.Serialize0(w)
 		if err != nil {
-			return nil, err
+			return nil
 		}
 	}
 
@@ -652,36 +661,36 @@ func (trTx *TransferTx) Serialize(hasWitness bool) ([]byte, error) {
 	count = len(trTx.OutputTxos)
 	err = WriteVarInt(w, uint64(count))
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	for _, output := range trTx.OutputTxos {
-		err := output.Serialize(w)
+		err := output.Serialize0(w)
 		if err != nil {
-			return nil, err
+			return nil
 		}
 	}
 
 	// write txFee
 	err = writeElement(w, trTx.Fee)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
 	// write txMemo
 	err = WriteBytes(w, trTx.TxMemo)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
 	// write txWitness
 	if hasWitness {
-		err := trTx.TxWitness.Serialize(w)
+		err := trTx.TxWitness.Serialize0(w)
 		if err != nil {
-			return nil, err
+			return nil
 		}
 	}
 
-	return w.Bytes(), nil
+	return w.Bytes()
 }
 
 func (trTx *TransferTx) Deserialize(r io.Reader) error {
@@ -747,7 +756,18 @@ func (txo *TXO) SerializeSize() uint32 {
 	return 1
 }
 
-func (txo *TXO) Serialize(w io.Writer) error {
+func (txo *TXO) Serialize() []byte {
+	w := new(bytes.Buffer)
+	err := txo.Serialize0(w)
+	if err != nil {
+		return nil
+	}
+	
+	return w.Bytes()
+}
+
+
+func (txo *TXO) Serialize0(w io.Writer) error {
 	// write DerivedPubKey
 	err := WriteDerivedPubKey(w, txo.dpk)
 	if err != nil {
@@ -794,7 +814,17 @@ func (txo *TXO) Deserialize(r io.Reader) error {
 	return nil
 }
 
-func (trTxInput *TrTxInput) Serialize(w io.Writer) error {
+func (trTxInput *TrTxInput) Serialize() []byte {
+	w := new(bytes.Buffer)
+	err := trTxInput.Serialize0(w)
+	if err != nil {
+		return nil
+	}
+
+	return w.Bytes()
+}
+
+func (trTxInput *TrTxInput) Serialize0(w io.Writer) error {
 	// write txoList
 	count := len(trTxInput.TxoList)
 	err := WriteVarInt(w, uint64(count))
@@ -802,7 +832,7 @@ func (trTxInput *TrTxInput) Serialize(w io.Writer) error {
 		return err
 	}
 	for _, txo := range trTxInput.TxoList {
-		err := txo.Serialize(w)
+		err := txo.Serialize0(w)
 		if err != nil {
 			return err
 		}
@@ -848,7 +878,17 @@ func (trTxInput *TrTxInput) Deserialize(r io.Reader) error {
 	return nil
 }
 
-func (trTxWitness *TrTxWitness) Serialize(w io.Writer) error {
+func (trTxWitness *TrTxWitness) Serialize() []byte {
+	w := new(bytes.Buffer)
+	err := trTxWitness.Serialize0(w)
+	if err != nil {
+		return nil
+	}
+
+	return w.Bytes()
+}
+
+func (trTxWitness *TrTxWitness) Serialize0(w io.Writer) error {
 	// write b_hat
 	err := WritePolyNTTVec(w, trTxWitness.b_hat)
 	if err != nil {
