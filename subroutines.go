@@ -1645,28 +1645,18 @@ func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
  t: 0~(k-1)
 */
 func (pp *PublicParameter) sigmaPowerPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT) {
-	e:=1
-	for i := 0; i < t; i++ {
-		e*=65
-	}
-	nttPower := pp.PolyNTTPower(polyNTT, uint(e))
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = nttPower.coeffs[pp.paramSigmaPermutations[t][i]]
+		coeffs[i] = polyNTT.coeffs[pp.paramSigmaPermutations[t][i]]
 	}
 	return &PolyNTT{coeffs}
 }
 
 // sigmaInvPolyNTT performances the sigma transformation where the sigma is defined as sigma_65 in {Z_256}^*
 func (pp *PublicParameter) sigmaInvPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT) {
-	e:=1
-	for i := 0; i < t; i++ {
-		e*=193
-	}
-	nttPower := pp.PolyNTTPower(polyNTT, uint(e))
 	coeffs := make([]int32, pp.paramD)
 	for i := 0; i < pp.paramD; i++ {
-		coeffs[i] = nttPower.coeffs[pp.paramSigmaInvPermutations[t][i]]
+		coeffs[i] = polyNTT.coeffs[pp.paramSigmaInvPermutations[t][i]]
 	}
 	return &PolyNTT{coeffs}
 }

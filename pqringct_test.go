@@ -126,11 +126,7 @@ func TestPublicParameter_txoGenAndTxoReceive(t *testing.T) {
 	for _, tt := range receiveTests {
 		t.Run(tt.name, func(t *testing.T) {
 			pp := DefaultPP
-			gotValid, gotCoinvale, err := pp.TxoCoinReceive(tt.receiveArgs.txo, tt.receiveArgs.mpk, tt.receiveArgs.msvk)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TxoCoinReceive() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			gotValid, gotCoinvale := pp.TxoCoinReceive(tt.receiveArgs.txo, tt.receiveArgs.mpk, tt.receiveArgs.msvk)
 			if gotValid != tt.wantValid {
 				t.Errorf("TxoCoinReceive() gotValid = %v, want %v", gotValid, tt.wantValid)
 			}
