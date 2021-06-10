@@ -134,16 +134,12 @@ func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
 	}
 	res := make([]int32, length)
 	pos := 0
-	for pos/23*8+7 < length {
-		res[pos/23*8+0] = int32(bytes[pos+0]&0xFF)<<15 | int32(bytes[pos+1])<<7 | int32(bytes[pos+2]&0xFE)>>1
-		res[pos/23*8+1] = int32(bytes[pos+2]&0x01)<<22 | int32(bytes[pos+3])<<14 | int32(bytes[pos+4])<<6 | int32(bytes[pos+5]&0xFC)>>2
-		res[pos/23*8+2] = int32(bytes[pos+5]&0x03)<<21 | int32(bytes[pos+6])<<13 | int32(bytes[pos+7])<<5 | int32(bytes[pos+8]&0xF8)>>3
-		res[pos/23*8+3] = int32(bytes[pos+8]&0x07)<<20 | int32(bytes[pos+9])<<12 | int32(bytes[pos+10])<<4 | int32(bytes[pos+11]&0xF0)>>4
-		res[pos/23*8+4] = int32(bytes[pos+11]&0x0F)<<19 | int32(bytes[pos+12])<<11 | int32(bytes[pos+13])<<3 | int32(bytes[pos+14]&0xE0)>>5
-		res[pos/23*8+5] = int32(bytes[pos+14]&0x1F)<<18 | int32(bytes[pos+15])<<10 | int32(bytes[pos+16])<<2 | int32(bytes[pos+17]&0xC0)>>6
-		res[pos/23*8+6] = int32(bytes[pos+17]&0x3F)<<17 | int32(bytes[pos+18])<<15 | int32(bytes[pos+19])<<1 | int32(bytes[pos+20]&0x80)>>7
-		res[pos/23*8+7] = int32(bytes[pos+20]&0x01)<<16 | int32(bytes[pos+21])<<8 | int32(bytes[pos+22]&0xFF)
-		pos += 23
+	for pos/11*8+7 < length {
+		res[pos/11*8+0] = int32(bytes[pos+0]&0xFF)<<14 | int32(bytes[pos+1])<<6 | int32(bytes[pos+2]&0xFC)>>2
+		res[pos/11*8+1] = int32(bytes[pos+2]&0x03)<<20 | int32(bytes[pos+3])<<12 | int32(bytes[pos+4])<<4 | int32(bytes[pos+5]&0xF0)>>4
+		res[pos/11*8+2] = int32(bytes[pos+5]&0x0F)<<18 | int32(bytes[pos+6])<<10 | int32(bytes[pos+7])<<2 | int32(bytes[pos+8]&0xC0)>>6
+		res[pos/11*8+3] = int32(bytes[pos+8]&0x3F)<<16 | int32(bytes[pos+9])<<8 | int32(bytes[pos+10]&0xFF)>>0
+		pos += 11
 	}
 	for i := 0; i < length; i += 8 {
 		for j := 0; j < 8; j++ {
@@ -173,10 +169,16 @@ func randomnessFromEtaC2(seed []byte, length int) ([]int32, error) {
 	}
 	res := make([]int32, length)
 	pos := 0
-	for pos < len(bytes) {
-		res[pos/2+0] = int32(bytes[pos+0])<<8 | int32(bytes[pos+1])<<0
-		res[pos/2+1] = int32(bytes[pos+2])<<8 | int32(bytes[pos+3])<<0
-		pos += 4
+	for pos/23*8+7 < length {
+		res[pos/23*8+0] = int32(bytes[pos+0]&0xFF)<<15 | int32(bytes[pos+1])<<7 | int32(bytes[pos+2]&0xFE)>>1
+		res[pos/23*8+1] = int32(bytes[pos+2]&0x01)<<22 | int32(bytes[pos+3])<<14 | int32(bytes[pos+4])<<6 | int32(bytes[pos+5]&0xFC)>>2
+		res[pos/23*8+2] = int32(bytes[pos+5]&0x03)<<21 | int32(bytes[pos+6])<<13 | int32(bytes[pos+7])<<5 | int32(bytes[pos+8]&0xF8)>>3
+		res[pos/23*8+3] = int32(bytes[pos+8]&0x07)<<20 | int32(bytes[pos+9])<<12 | int32(bytes[pos+10])<<4 | int32(bytes[pos+11]&0xF0)>>4
+		res[pos/23*8+4] = int32(bytes[pos+11]&0x0F)<<19 | int32(bytes[pos+12])<<11 | int32(bytes[pos+13])<<3 | int32(bytes[pos+14]&0xE0)>>5
+		res[pos/23*8+5] = int32(bytes[pos+14]&0x1F)<<18 | int32(bytes[pos+15])<<10 | int32(bytes[pos+16])<<2 | int32(bytes[pos+17]&0xC0)>>6
+		res[pos/23*8+6] = int32(bytes[pos+17]&0x3F)<<17 | int32(bytes[pos+18])<<15 | int32(bytes[pos+19])<<1 | int32(bytes[pos+20]&0x80)>>7
+		res[pos/23*8+7] = int32(bytes[pos+20]&0x01)<<16 | int32(bytes[pos+21])<<8 | int32(bytes[pos+22]&0xFF)
+		pos += 23
 	}
 	for i := 0; i < length; i += 8 {
 		for j := 0; j < 8; j++ {

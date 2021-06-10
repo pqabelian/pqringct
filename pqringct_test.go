@@ -259,8 +259,32 @@ func TestPublicParameter_TransferTxGen(t *testing.T) {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 	}
-	_, mpk1, _, _, _ := pp.MasterKeyGen(seed1)
+	_, mpk1, msvk1, mssk1, _ := pp.MasterKeyGen(seed1)
 	_, mpk2, _, _, _ := pp.MasterKeyGen(seed2)
+	cbTx1,err:=pp.CoinbaseTxGen(512,[]*TxOutputDesc{
+		{
+			mpk: mpk1,
+			value: 500,
+		},
+		{
+			mpk:mpk2,
+			value:12,
+		},
+	})
+	cbTx2,err:=pp.CoinbaseTxGen(512,[]*TxOutputDesc{
+		{
+			mpk: mpk1,
+			value: 500,
+		},
+		{
+			mpk:mpk2,
+			value:12,
+		},
+	})
+
+	if err!=nil{
+		t.Errorf(err.Error())
+	}
 	tests := []struct {
 		name     string
 		args     args
@@ -272,22 +296,64 @@ func TestPublicParameter_TransferTxGen(t *testing.T) {
 			name: "test 1",
 			args: args{
 				inputDescs: []*TxInputDesc{
-					{
-
+					&TxInputDesc{
+						txoList: cbTx1.OutputTxos,
+						sidx:    0,
+						mpk:     mpk1,
+						msvk:    msvk1,
+						mssk:    mssk1,
+						value:   500,
 					},
 				},
 				outputDescs: []*TxOutputDesc{
 					{
 						mpk:   mpk1,
-						value: 500,
+						value: 400,
 					},
 					{
 						mpk:   mpk2,
-						value: 12,
+						value: 90,
 					},
 				},
-				fee:         0,
-				txMemo:      nil,
+				fee:         10,
+				txMemo:      []byte{},
+			},
+			wantErr: false,
+			want:true,
+		},
+		{
+			name: "test 2",
+			args: args{
+				inputDescs: []*TxInputDesc{
+					&TxInputDesc{
+						txoList: cbTx1.OutputTxos,
+						sidx:    0,
+						mpk:     mpk1,
+						msvk:    msvk1,
+						mssk:    mssk1,
+						value:   500,
+					},
+					&TxInputDesc{
+						txoList: cbTx2.OutputTxos,
+						sidx:    0,
+						mpk:     mpk1,
+						msvk:    msvk1,
+						mssk:    mssk1,
+						value:   500,
+					},
+				},
+				outputDescs: []*TxOutputDesc{
+					{
+						mpk:   mpk1,
+						value: 800,
+					},
+					{
+						mpk:   mpk2,
+						value: 190,
+					},
+				},
+				fee:         10,
+				txMemo:      []byte{},
 			},
 			wantErr: false,
 			want:true,

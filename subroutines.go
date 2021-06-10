@@ -185,7 +185,7 @@ rpUlpProveRestart:
 
 	// splicing the data to be processed
 	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws, c_hat_g)
-	seed_rand, err := H(tmp) // todo_DONE
+	seed_rand, err := Hash(tmp) // todo_DONE
 	if err != nil {
 		return nil, err
 	}
@@ -294,9 +294,9 @@ rpUlpProveRestart:
 	}
 
 	phi = pp.PolyNTTAdd(phi, g)
-	phiinv := pp.NTTInv(phi)
-	fmt.Println(phiinv)
-	fmt.Printf("phi = %v\n",phi)
+	//phiinv := pp.NTTInv(phi)
+	//fmt.Println(phiinv)
+	//fmt.Printf("phi = %v\n",phi)
 	//	phi'^(\xi)
 	phips := make([]*PolyNTT, pp.paramK)
 	for xi := 0; xi < pp.paramK; xi++ {
@@ -342,7 +342,7 @@ rpUlpProveRestart:
 	}
 
 	//	seed_ch and ch
-	chseed, err := H(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, psi, psip, phi, phips))
+	chseed, err := Hash(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, psi, psip, phi, phips))
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +506,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	// splicing the data to be processed
 
 	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, rpulppi.c_waves, cmt_ws, ws, rpulppi.c_hat_g)
-	seed_rand, err := H(tmp)
+	seed_rand, err := Hash(tmp)
 	if err != nil {
 		return false
 	}
@@ -674,7 +674,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	}
 	//	seed_ch and ch
 
-	seed_ch, err := H(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, rpulppi.psi, psip, rpulppi.phi, phips))
+	seed_ch, err := Hash(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, rpulppi.psi, psip, rpulppi.phi, phips))
 	if err != nil {
 		return false
 	}
@@ -716,7 +716,7 @@ func (pp PublicParameter) collectBytesForELR(msg []byte, ringSize int, t_as []*P
 		}
 	}
 	// w_hat_(a,j-1)^(k-1)
-	for i := 0; i < pp.paramKa; i++ {
+	for i := 0; i < pp.paramMa; i++ {
 		appendPolyNTTToBytes(w_hat_as[pp.paramK-1].polyNTTs[i])
 	}
 	// I
@@ -804,7 +804,7 @@ func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg [
 
 	retz_as := make([][]*PolyNTTVec, pp.paramK)
 	retz_cs := make([][]*PolyNTTVec, pp.paramK)
-	for j := 0; j < ringSize; j++ {
+	for j := 0; j < pp.paramK; j++ { //TODO
 		retz_as[j] = make([]*PolyNTTVec, pp.paramLa)
 		retz_cs[j] = make([]*PolyNTTVec, pp.paramLc)
 	}
@@ -842,7 +842,7 @@ elrsSignRestart:
 
 	for j := (sidx + 1) % ringSize; ; {
 
-		seedj, err = H(pp.collectBytesForELR(msg, ringSize, t_as, w_as, w_cs, w_hat_as, retkeyImg))
+		seedj, err = Hash(pp.collectBytesForELR(msg, ringSize, t_as, w_as, w_cs, w_hat_as, retkeyImg))
 		if err != nil {
 			return nil, err
 		}
@@ -893,9 +893,12 @@ elrsSignRestart:
 		}
 	}
 
-	seedj, err = H(pp.collectBytesForELR(msg, ringSize, t_as, w_as, w_cs, w_hat_as, retkeyImg))
+	seedj, err = Hash(pp.collectBytesForELR(msg, ringSize, t_as, w_as, w_cs, w_hat_as, retkeyImg))
 	if err != nil {
 		return nil, err
+	}
+	if sidx==0{
+		retchseed=seedj
 	}
 	chtmp, err := pp.expandChallenge(seedj)
 	if err != nil {
@@ -915,6 +918,11 @@ elrsSignRestart:
 		if pp.NTTInvVec(retz_cs[tau][sidx]).infNorm() > pp.paramEtaC2-pp.paramBetaC2 {
 			goto elrsSignRestart
 		}
+	}
+	// slice the z_as and z_cs
+	for i := 0; i < pp.paramK; i++ {
+		retz_as[i]=retz_as[i][:ringSize]
+		retz_cs[i]=retz_cs[i][:ringSize]
 	}
 
 	retelrssig := &elrsSignature{
@@ -1028,43 +1036,44 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 				pp.paramMa)
 		}
 
-		seedj_tmp := make([]byte, 0, len(msg)+ringSize*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKc*pp.paramD*4+pp.paramKa*pp.paramD*4+pp.paramMa*pp.paramD*4)
-		appendPolyNTTToBytes := func(a *PolyNTT) {
-			for k := 0; k < pp.paramD; k++ {
-				seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>0))
-				seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>8))
-				seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>16))
-				seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>24))
-			}
-		}
-		// M
-		for i := 0; i < len(msg); i++ {
-			seedj_tmp = append(seedj_tmp, msg...)
-		}
-		// List
-		for i := 0; i < ringSize; i++ {
-			for ii := 0; ii < pp.paramKa; ii++ {
-				appendPolyNTTToBytes(t_as[i].polyNTTs[ii])
-			}
-		}
-		// w_(a,j-1)^(t)   w_(c,j-1)^(t)
-		for i := 0; i < pp.paramK; i++ {
-			for ii := 0; ii < pp.paramKa; ii++ {
-				appendPolyNTTToBytes(w_as[i].polyNTTs[ii])
-			}
-			for ii := 0; ii < pp.paramKc+1; ii++ {
-				appendPolyNTTToBytes(w_cs[i].polyNTTs[ii])
-			}
-		}
-		// w_hat_(a,j-1)^(k-1)
-		for i := 0; i < pp.paramKa; i++ {
-			appendPolyNTTToBytes(w_hat_as[pp.paramK-1].polyNTTs[i])
-		}
-		// I
-		for i := 0; i < pp.paramMa; i++ {
-			appendPolyNTTToBytes(elrssig.keyImg.polyNTTs[i])
-		}
-		seedj, err = H(seedj_tmp) // todo_DONE
+		//seedj_tmp := make([]byte, 0, len(msg)+ringSize*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKc*pp.paramD*4+pp.paramKa*pp.paramD*4+pp.paramMa*pp.paramD*4)
+		//appendPolyNTTToBytes := func(a *PolyNTT) {
+		//	for k := 0; k < pp.paramD; k++ {
+		//		seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>0))
+		//		seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>8))
+		//		seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>16))
+		//		seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>24))
+		//	}
+		//}
+		//// M
+		//for i := 0; i < len(msg); i++ {
+		//	seedj_tmp = append(seedj_tmp, msg...)
+		//}
+		//// List
+		//for i := 0; i < ringSize; i++ {
+		//	for ii := 0; ii < pp.paramKa; ii++ {
+		//		appendPolyNTTToBytes(t_as[i].polyNTTs[ii])
+		//	}
+		//}
+		//// w_(a,j-1)^(t)   w_(c,j-1)^(t)
+		//for i := 0; i < pp.paramK; i++ {
+		//	for ii := 0; ii < pp.paramKa; ii++ {
+		//		appendPolyNTTToBytes(w_as[i].polyNTTs[ii])
+		//	}
+		//	for ii := 0; ii < pp.paramKc+1; ii++ {
+		//		appendPolyNTTToBytes(w_cs[i].polyNTTs[ii])
+		//	}
+		//}
+		//// w_hat_(a,j-1)^(k-1)
+		//for i := 0; i < pp.paramKa; i++ {
+		//	appendPolyNTTToBytes(w_hat_as[pp.paramK-1].polyNTTs[i])
+		//}
+		//// I
+		//for i := 0; i < pp.paramMa; i++ {
+		//	appendPolyNTTToBytes(elrssig.keyImg.polyNTTs[i])
+		//}
+		seedj_tmp:=pp.collectBytesForELR(msg,ringSize,t_as,w_as,w_cs,w_hat_as,elrssig.keyImg)
+		seedj, err = Hash(seedj_tmp) // todo_DONE
 		if err != nil {
 			return false
 		}

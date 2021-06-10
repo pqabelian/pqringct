@@ -197,7 +197,7 @@ type PublicParameter struct {
 func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramDInv int32, paramQ uint32, paramZeta int32, paramK int, paramKInv int32, paramSigmaPermutations [][]int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramCStr []byte, paramEtaF int32, paramKem *kyber.ParameterSet, paramSysBytes int) (*PublicParameter, error) {
 	res := &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramD: paramD, paramDInv: paramDInv, paramQ: paramQ, paramZeta: paramZeta, paramK: paramK, paramKInv: paramKInv, paramSigmaPermutations: paramSigmaPermutations, paramKa: paramKa, paramLa: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKc: paramKc, paramLc: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramCStr: paramCStr, paramEtaF: paramEtaF, paramKem: paramKem, paramSysBytes: paramSysBytes}
 	res.paramQm = res.paramQ >> 1
-	seed, err := H(res.paramCStr)
+	seed, err := Hash(res.paramCStr)
 	if err != nil {
 		return nil, err
 	}
