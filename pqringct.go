@@ -108,7 +108,7 @@ type elrsSignature struct {
 }
 
 func (pp *PublicParameter) GetMasterPublicKeyByteLen() uint32 {
-	return uint32(pp.paramKem.CryptoPublicKeyBytes() +4+ pp.paramKa*pp.paramD*4)
+	return uint32(pp.paramKem.CryptoPublicKeyBytes() + 4 + pp.paramKa*pp.paramD*4)
 }
 
 func (pp *PublicParameter) GetTxoByteLen() uint32 {
@@ -428,7 +428,8 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			for j := 0; j < J; j++ {
 				tmp = tmp + msg_hats[j][i-1]
 			}
-			f[i] = (tmp + f[i-1] - u[i-1]) >> 1
+			//f[i] = (tmp + f[i-1] - u[i-1]) >> 1
+			f[i] = (tmp + f[i-1] - u[i-1]) / 2
 		}
 		msg_hats[J] = f
 
