@@ -42,7 +42,7 @@ func TestPublicParameter_MasterKeyGen(t *testing.T) {
 				return
 			}
 			// using for mining
-			bytesss:=mpk1.Serialize()
+			bytesss := mpk1.Serialize()
 			fmt.Println(mpk1.SerializeSize())
 			fmt.Println()
 			b := make([]byte, 2+len(bytesss))
@@ -50,7 +50,7 @@ func TestPublicParameter_MasterKeyGen(t *testing.T) {
 			copy(b[2:], bytesss[:])
 			first := sha256.Sum256(b)
 			second := sha256.Sum256(first[:])
-			fmt.Println(hex.EncodeToString(append(b,second[:]...)))
+			fmt.Println(hex.EncodeToString(append(b, second[:]...)))
 			if !reflect.DeepEqual(gotRetSeed, tt.wantRetSeed) {
 				t.Errorf("MasterKeyGen() gotRetSeed = %v, want %v", gotRetSeed, tt.wantRetSeed)
 			}
@@ -396,5 +396,53 @@ func TestMasterPublicKey_Serialize(t *testing.T) {
 	_ = mpk2.Deserialize(mpk.Serialize())
 	if !reflect.DeepEqual(mpk2, mpk) {
 		t.Errorf("Serialize() and Deserialize() do not match")
+	}
+}
+
+func TestRpf(t *testing.T) {
+	pp := DefaultPP
+	seed1, mpk1, _, _, err1 := pp.MasterKeyGen(nil)
+	if err1 != nil {
+		return
+	}
+	fmt.Println("seed1:", seed1)
+
+	seed2, mpk2, _, _, err2 := pp.MasterKeyGen(nil)
+	if err2 != nil {
+		return
+	}
+	fmt.Println("seed2:", seed2)
+
+	seed3, mpk3, _, _, err3 := pp.MasterKeyGen(nil)
+	if err3 != nil {
+		return
+	}
+	fmt.Println("seed3:", seed3)
+
+	txoutputDescs := make([]*TxOutputDesc, 3)
+	txoutputDescs[0] = &TxOutputDesc{
+		mpk1,
+		24,
+	}
+
+	txoutputDescs[1] = &TxOutputDesc{
+		mpk2,
+		25,
+	}
+
+	txoutputDescs[2] = &TxOutputDesc{
+		mpk3,
+		25,
+	}
+
+	cbtx, err := pp.CoinbaseTxGen(74, txoutputDescs)
+	if err != nil {
+		return
+	}
+	fmt.Println(cbtx)
+
+	bl := pp.CoinbaseTxVerify(cbtx)
+	if bl {
+		fmt.Println("OK")
 	}
 }
