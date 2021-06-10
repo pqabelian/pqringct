@@ -1510,10 +1510,10 @@ func (mpk *MasterPublicKey) Serialize() []byte {
 	res = append(res, byte((length>>0)&0xFF))
 	for i := 0; i < length; i++ {
 		for j := 0; j < len(mpk.t.polyNTTs[i].coeffs); j++ {
-			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[i]>>24)&0xFF))
-			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[i]>>16)&0xFF))
-			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[i]>>8)&0xFF))
-			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[i]>>0)&0xFF))
+			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[j]>>24)&0xFF))
+			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[j]>>16)&0xFF))
+			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[j]>>8)&0xFF))
+			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[j]>>0)&0xFF))
 		}
 	}
 	return res
@@ -1535,11 +1535,11 @@ func (mpk *MasterPublicKey) Deserialize(mpkSer []byte) error {
 	pos += 4
 	tmp := make([]*PolyNTT, length)
 	for i := 0; i < length; i++ {
+		tmp[i] = new(PolyNTT)
+		tmp[i].coeffs = make([]int32, DefaultPP.paramD)
 		for j := 0; j < DefaultPP.paramD; j++ {
-			tmp[i].coeffs[j] |= int32(mpkSer[pos+0]) << 24
-			tmp[i].coeffs[j] |= int32(mpkSer[pos+1]) << 16
-			tmp[i].coeffs[j] |= int32(mpkSer[pos+2]) << 8
-			tmp[i].coeffs[j] |= int32(mpkSer[pos+3]) << 0
+			tmp[i].coeffs[j] = int32(mpkSer[pos+0])<<24 | int32(mpkSer[pos+1])<<16 | int32(mpkSer[pos+2])<<8 | int32(mpkSer[pos+3])<<0
+			pos += 4
 		}
 	}
 	mpk.t = &PolyNTTVec{polyNTTs: tmp}

@@ -261,34 +261,34 @@ func TestPublicParameter_TransferTxGen(t *testing.T) {
 	}
 	_, mpk1, msvk1, mssk1, _ := pp.MasterKeyGen(seed1)
 	_, mpk2, _, _, _ := pp.MasterKeyGen(seed2)
-	cbTx1,err:=pp.CoinbaseTxGen(512,[]*TxOutputDesc{
+	cbTx1, err := pp.CoinbaseTxGen(512, []*TxOutputDesc{
 		{
-			mpk: mpk1,
+			mpk:   mpk1,
 			value: 500,
 		},
 		{
-			mpk:mpk2,
-			value:12,
+			mpk:   mpk2,
+			value: 12,
 		},
 	})
-	cbTx2,err:=pp.CoinbaseTxGen(512,[]*TxOutputDesc{
+	cbTx2, err := pp.CoinbaseTxGen(512, []*TxOutputDesc{
 		{
-			mpk: mpk1,
+			mpk:   mpk1,
 			value: 500,
 		},
 		{
-			mpk:mpk2,
-			value:12,
+			mpk:   mpk2,
+			value: 12,
 		},
 	})
 
-	if err!=nil{
+	if err != nil {
 		t.Errorf(err.Error())
 	}
 	tests := []struct {
-		name     string
-		args     args
-		wantErr  bool
+		name    string
+		args    args
+		wantErr bool
 		want    bool
 	}{
 		// TODO: Add test cases.
@@ -315,11 +315,11 @@ func TestPublicParameter_TransferTxGen(t *testing.T) {
 						value: 90,
 					},
 				},
-				fee:         10,
-				txMemo:      []byte{},
+				fee:    10,
+				txMemo: []byte{},
 			},
 			wantErr: false,
-			want:true,
+			want:    true,
 		},
 		{
 			name: "test 2",
@@ -352,11 +352,11 @@ func TestPublicParameter_TransferTxGen(t *testing.T) {
 						value: 190,
 					},
 				},
-				fee:         10,
-				txMemo:      []byte{},
+				fee:    10,
+				txMemo: []byte{},
 			},
 			wantErr: false,
-			want:true,
+			want:    true,
 		},
 	}
 	for _, tt := range tests {
@@ -370,5 +370,18 @@ func TestPublicParameter_TransferTxGen(t *testing.T) {
 				t.Errorf("CoinbaseTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestMasterPublicKey_Serialize(t *testing.T) {
+	pp := DefaultPP
+	seed := []byte{
+		2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 1,
+		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}
+	_, mpk, _, _, _ := pp.MasterKeyGen(seed)
+	mpk2 := new(MasterPublicKey)
+	_ = mpk2.Deserialize(mpk.Serialize())
+	if !reflect.DeepEqual(mpk2, mpk) {
+		t.Errorf("Serialize() and Deserialize() do not match")
 	}
 }
