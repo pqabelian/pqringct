@@ -399,7 +399,7 @@ func TestMasterPublicKey_Serialize(t *testing.T) {
 	}
 }
 
-func TestRpf(t *testing.T) {
+func TestCoinbase3out(t *testing.T) {
 	pp := DefaultPP
 	seed1, mpk1, _, _, err1 := pp.MasterKeyGen(nil)
 	if err1 != nil {
@@ -436,6 +436,32 @@ func TestRpf(t *testing.T) {
 	}
 
 	cbtx, err := pp.CoinbaseTxGen(74, txoutputDescs)
+	if err != nil {
+		return
+	}
+	fmt.Println(cbtx)
+
+	bl := pp.CoinbaseTxVerify(cbtx)
+	if bl {
+		fmt.Println("OK")
+	}
+}
+
+func TestCoinbase1out(t *testing.T) {
+	pp := DefaultPP
+	seed1, mpk1, _, _, err1 := pp.MasterKeyGen(nil)
+	if err1 != nil {
+		return
+	}
+	fmt.Println("seed1:", seed1)
+
+	txoutputDescs := make([]*TxOutputDesc, 1)
+	txoutputDescs[0] = &TxOutputDesc{
+		mpk1,
+		25,
+	}
+
+	cbtx, err := pp.CoinbaseTxGen(25, txoutputDescs)
 	if err != nil {
 		return
 	}
