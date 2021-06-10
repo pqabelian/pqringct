@@ -138,73 +138,105 @@ func ReadPolyNTTVec(r io.Reader) (*PolyNTTVec, error) {
 
 func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 	// write c_waves
-	count := len(proof.c_waves)
-	err := WriteVarInt(w, uint64(count))
-	if err != nil {
-		return err
-	}
-	for i := 0; i < count; i++ {
-		err := WritePolyNTT(w, proof.c_waves[i])
+	if proof.c_waves != nil {
+		count := len(proof.c_waves)
+		err := WriteVarInt(w, uint64(count))
 		if err != nil {
 			return err
 		}
-	}
-
-	// write c_hat_g
-	err = WritePolyNTT(w, proof.c_hat_g)
-	if err != nil {
-		return err
-	}
-
-	// write psi
-	err = WritePolyNTT(w, proof.psi)
-	if err != nil {
-		return err
-	}
-
-	// write phi
-	err = WritePolyNTT(w, proof.phi)
-	if err != nil {
-		return err
-	}
-
-	// write chseed
-	err = WriteBytes(w, proof.chseed)
-	if err != nil {
-		return err
-	}
-
-	// write cmt_zs
-	count = len(proof.cmt_zs)
-	err = WriteVarInt(w, uint64(count))
-	if err != nil {
-		return err
-	}
-	for i := 0; i < count; i++ {
-		count2 := len(proof.cmt_zs[i])
-		err = WriteVarInt(w, uint64(count2))
-		if err != nil {
-			return err
-		}
-		for j := 0; j < count2; j++ {
-			err = WritePolyNTTVec(w, proof.cmt_zs[i][j])
+		for i := 0; i < count; i++ {
+			err := WritePolyNTT(w, proof.c_waves[i])
 			if err != nil {
 				return err
 			}
 		}
+	}else{
+		WriteNULL(w)
 	}
 
-	// write zs
-	count = len(proof.zs)
-	err = WriteVarInt(w, uint64(count))
-	if err != nil {
-		return err
-	}
-	for i := 0; i < count; i++ {
-		err := WritePolyNTTVec(w, proof.zs[i])
+	// write c_hat_g
+	if proof.c_hat_g != nil {
+		WriteNotNULL(w)
+		err := WritePolyNTT(w, proof.c_hat_g)
 		if err != nil {
 			return err
 		}
+	}else{
+		WriteNULL(w)
+	}
+
+	// write psi
+	if proof.psi != nil {
+		WriteNotNULL(w)
+		err := WritePolyNTT(w, proof.psi)
+		if err != nil {
+			return err
+		}
+	}else{
+		WriteNULL(w)
+	}
+
+	// write phi
+	if proof.phi != nil {
+		WriteNotNULL(w)
+		err := WritePolyNTT(w, proof.phi)
+		if err != nil {
+			return err
+		}
+	}else{
+		WriteNULL(w)
+	}
+
+	// write chseed
+	if proof.chseed != nil {
+		WriteNotNULL(w)
+		err := WriteBytes(w, proof.chseed)
+		if err != nil {
+			return err
+		}
+	}else{
+		WriteNULL(w)
+	}
+
+	// write cmt_zs
+	if proof.cmt_zs != nil {
+		count := len(proof.cmt_zs)
+		err := WriteVarInt(w, uint64(count))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < count; i++ {
+			count2 := len(proof.cmt_zs[i])
+			err = WriteVarInt(w, uint64(count2))
+			if err != nil {
+				return err
+			}
+			for j := 0; j < count2; j++ {
+				err = WritePolyNTTVec(w, proof.cmt_zs[i][j])
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}else{
+		WriteNULL(w)
+	}
+
+	// write zs
+	if proof.zs != nil {
+		count := len(proof.zs)
+		err := WriteVarInt(w, uint64(count))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < count; i++ {
+			err := WritePolyNTTVec(w, proof.zs[i])
+			if err != nil {
+				return err
+			}
+		}
+	}else{
+		WriteNULL(w)
 	}
 
 	return nil
@@ -216,36 +248,67 @@ func ReadRpulpProof(r io.Reader) (*rpulpProof, error) {
 	if err != nil {
 		return nil, err
 	}
-	c_waves0 := make([]*PolyNTT, count)
-	for i := 0; i < int(count); i++ {
-		c_waves0[i], err = ReadPolyNTT(r)
+	var c_waves0 []*PolyNTT = nil
+	if count != 0 {
+		c_waves0 = make([]*PolyNTT, count)
+		for i := 0; i < int(count); i++ {
+			c_waves0[i], err = ReadPolyNTT(r)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// read c_hat_g
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	var c_hat_g0 *PolyNTT = nil
+	if count != 0{
+		c_hat_g0, err = ReadPolyNTT(r)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// read c_hat_g
-	c_hat_g0, err := ReadPolyNTT(r)
+	// read psi
+	count, err = ReadVarInt(r)
 	if err != nil {
 		return nil, err
 	}
-
-	// read psi
-	psi0, err := ReadPolyNTT(r)
-	if err != nil {
-		return nil, err
+	var psi0 *PolyNTT = nil
+	if count != 0 {
+		psi0, err = ReadPolyNTT(r)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// read phi
-	phi0, err := ReadPolyNTT(r)
+	count, err = ReadVarInt(r)
 	if err != nil {
 		return nil, err
 	}
+	var phi0 *PolyNTT = nil
+	if count != 0 {
+		phi0, err = ReadPolyNTT(r)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	// read chseed
-	chseed0, err := ReadVarBytes(r, MAXALLOWED, "readRpulpProof")
+	count, err = ReadVarInt(r)
 	if err != nil {
 		return nil, err
+	}
+	var chseed0 []byte = nil
+	if count != 0 {
+		chseed0, err = ReadVarBytes(r, MAXALLOWED, "readRpulpProof")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// read cmt_zs
@@ -253,17 +316,20 @@ func ReadRpulpProof(r io.Reader) (*rpulpProof, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmt_zs0 := make([][]*PolyNTTVec, count)
-	for i := 0; i < int(count); i++ {
-		count2, err := ReadVarInt(r)
-		if err != nil {
-			return nil, err
-		}
-		cmt_zs0[i] = make([]*PolyNTTVec, count2)
-		for j := 0; j < int(count2); j++ {
-			cmt_zs0[i][j], err = ReadPolyNTTVec(r)
+	var cmt_zs0 [][]*PolyNTTVec = nil
+	if count != 0 {
+		cmt_zs0 = make([][]*PolyNTTVec, count)
+		for i := 0; i < int(count); i++ {
+			count2, err := ReadVarInt(r)
 			if err != nil {
 				return nil, err
+			}
+			cmt_zs0[i] = make([]*PolyNTTVec, count2)
+			for j := 0; j < int(count2); j++ {
+				cmt_zs0[i][j], err = ReadPolyNTTVec(r)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -273,11 +339,14 @@ func ReadRpulpProof(r io.Reader) (*rpulpProof, error) {
 	if err != nil {
 		return nil, err
 	}
-	zs0 := make([]*PolyNTTVec, count)
-	for i := 0; i < int(count); i++ {
-		zs0[i], err = ReadPolyNTTVec(r)
-		if err != nil {
-			return nil, err
+	var zs0 []*PolyNTTVec = nil
+	if count != 0 {
+		zs0 = make([]*PolyNTTVec, count)
+		for i := 0; i < int(count); i++ {
+			zs0[i], err = ReadPolyNTTVec(r)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
