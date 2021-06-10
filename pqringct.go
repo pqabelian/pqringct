@@ -108,7 +108,7 @@ type elrsSignature struct {
 }
 
 func (pp *PublicParameter) GetMasterPublicKeyByteLen() uint32 {
-	return uint32(pp.paramKem.CryptoPublicKeyBytes() + pp.paramKa*pp.paramD*4)
+	return uint32(pp.paramKem.CryptoPublicKeyBytes() +4+ pp.paramKa*pp.paramD*4)
 }
 
 func (pp *PublicParameter) GetTxoByteLen() uint32 {
