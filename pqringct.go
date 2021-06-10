@@ -107,12 +107,18 @@ type elrsSignature struct {
 	keyImg *PolyNTTVec
 }
 
-func (pp *PublicParameter) GetMasterPublicKeyByteLen() int {
-	return 1 // todo
+func (pp *PublicParameter) GetMasterPublicKeyByteLen() uint32 {
+	return uint32(pp.paramKem.CryptoPublicKeyBytes() + pp.paramLa*pp.paramD*4)
 }
 
-func (pp *PublicParameter) GetTxoByteLen() int {
-	return 1 // todo
+func (pp *PublicParameter) GetTxoByteLen() uint32 {
+	return uint32(
+		pp.paramKem.CryptoCiphertextBytes() + // dpk.ckem
+			pp.paramKa*pp.paramD*4 + // dpk.t
+			pp.paramKc*pp.paramD*4 + // cmt.b
+			pp.paramD*4 + // cmt.c
+			pp.paramD*4, // vc
+	)
 }
 
 /*type ValueCommitment struct {
