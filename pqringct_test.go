@@ -1,6 +1,9 @@
 package pqringct
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
@@ -38,6 +41,16 @@ func TestPublicParameter_MasterKeyGen(t *testing.T) {
 				t.Errorf("MasterKeyGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			// using for mining
+			bytesss:=mpk1.Serialize()
+			fmt.Println(mpk1.SerializeSize())
+			fmt.Println()
+			b := make([]byte, 2+len(bytesss))
+			binary.BigEndian.PutUint16(b, uint16(1))
+			copy(b[2:], bytesss[:])
+			first := sha256.Sum256(b)
+			second := sha256.Sum256(first[:])
+			fmt.Println(hex.EncodeToString(append(b,second[:]...)))
 			if !reflect.DeepEqual(gotRetSeed, tt.wantRetSeed) {
 				t.Errorf("MasterKeyGen() gotRetSeed = %v, want %v", gotRetSeed, tt.wantRetSeed)
 			}

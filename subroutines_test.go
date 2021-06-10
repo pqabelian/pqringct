@@ -242,9 +242,9 @@ func TestPublicParameter_sigmaPowerPolyNTTAndSigmaInv(t *testing.T) {
 			}
 		})
 	}
-	sigma1 := sigma(b.coeffs,65)
-	sigma2 := sigma(b.coeffs,129)
-	sigma3 := sigma(b.coeffs,193)
+	sigma1 := sigma(b.coeffs, 65)
+	sigma2 := sigma(b.coeffs, 129)
+	sigma3 := sigma(b.coeffs, 193)
 	//sigma1inv1 := pp.sigmaInvPolyNTT(sigma1, 1)
 	//sigma2inv2 := pp.sigmaInvPolyNTT(sigma2, 2)
 	//sigma3inv3 := pp.sigmaInvPolyNTT(sigma3, 3)
@@ -317,13 +317,54 @@ func TestPublicParameter_Tree(t *testing.T) {
 	pp := DefaultPP
 	a1, _ := randomnessFromEtaA(nil, pp.paramD)
 	a := &Poly{a1}
-	fmt.Println("a = ",a1)
-	sigmaA:=sigma(a1,193)
-	fmt.Println("sigma(a)",sigmaA)
-	ntt_sigmaA:=pp.NTT(&Poly{coeffs: sigmaA})
-	fmt.Println("ntt(sigma(a))",ntt_sigmaA)
+	fmt.Println("a = ", a1)
+	sigmaA := sigma(a1, 193)
+	fmt.Println("sigma(a)", sigmaA)
+	ntt_sigmaA := pp.NTT(&Poly{coeffs: sigmaA})
+	fmt.Println("ntt(sigma(a))", ntt_sigmaA)
 	nttA := pp.NTT(a)
-	fmt.Println("ntt(a)",nttA.coeffs)
-	sigmanttNTTA := pp.sigmaPowerPolyNTT(nttA,3)
-	fmt.Println("sigma_NTT(ntt(a)",sigmanttNTTA)
+	fmt.Println("ntt(a)", nttA.coeffs)
+	sigmanttNTTA := pp.sigmaPowerPolyNTT(nttA, 3)
+	fmt.Println("sigma_NTT(ntt(a)", sigmanttNTTA)
+}
+
+func Test_expandBinaryMatrix(t *testing.T) {
+	type args struct {
+		seed   []byte
+		rownum int
+		colnum int
+	}
+	tests := []struct {
+		name     string
+		args     args
+		wantBinM [][]byte
+		wantErr  bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "test1",
+			args: args{
+				seed: []byte{
+					48, 113, 50, 115, 52, 117, 54, 119, 56, 121, 58, 123, 60, 125, 62, 127,
+					64, 1, 66, 3, 68, 5, 70, 7, 72, 9, 74, 11, 76, 13, 78, 15,
+				},
+				rownum: 128,
+				colnum: 128,
+			},
+			wantBinM: [][]byte{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotBinM, err := expandBinaryMatrix(tt.args.seed, tt.args.rownum, tt.args.colnum)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("expandBinaryMatrix() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotBinM, tt.wantBinM) {
+				t.Errorf("expandBinaryMatrix() gotBinM = %v, want %v", gotBinM, tt.wantBinM)
+			}
+		})
+	}
 }

@@ -1710,8 +1710,8 @@ func intToBinary(v uint64, bitNum int) (bits []int32) {
 func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err error) {
 	binM = make([][]byte, rownum)
 	XOF := sha3.NewShake128()
-	buf := make([]byte, (colnum+7)/8)
 	for i := 0; i < rownum; i++ {
+		buf := make([]byte, (colnum+7)/8)
 		binM[i] = make([]byte, (colnum+7)/8)
 		XOF.Reset()
 		_, err = XOF.Write(append(seed, byte(i)))
