@@ -352,7 +352,7 @@ func Test_expandBinaryMatrix(t *testing.T) {
 				colnum: 128,
 			},
 			wantBinM: [][]byte{},
-			wantErr: false,
+			wantErr:  false,
 		},
 	}
 	for _, tt := range tests {
@@ -364,6 +364,43 @@ func Test_expandBinaryMatrix(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotBinM, tt.wantBinM) {
 				t.Errorf("expandBinaryMatrix() gotBinM = %v, want %v", gotBinM, tt.wantBinM)
+			}
+		})
+	}
+}
+
+func Test_rejectionUniformWithinEtaF(t *testing.T) {
+	type args struct {
+		seed   []byte
+		length int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []int32
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "test1",
+			args: args{
+				seed: []byte{
+					48, 113, 50, 115, 52, 117, 54, 119, 56, 121, 58, 123, 60, 125, 62, 127,
+					64, 1, 66, 3, 68, 5, 70, 7, 72, 9, 74, 11, 76, 13, 78, 15,
+				},
+				length: 128,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := rejectionUniformWithinEtaF(tt.args.seed, tt.args.length)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("rejectionUniformWithinEtaF() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("rejectionUniformWithinEtaF() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

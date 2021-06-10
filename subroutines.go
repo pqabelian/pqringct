@@ -1599,11 +1599,11 @@ func rejectionUniformWithinEtaF(seed []byte, length int) ([]int32, error) {
 	buf := make([]byte, (29*length+7)/8)
 	xof := sha3.NewShake128()
 	xof.Reset()
-	_, err := xof.Write(buf)
+	_, err := xof.Write(seed)
 	if err != nil {
 		return nil, err
 	}
-	_, err = xof.Read(seed)
+	_, err = xof.Read(buf)
 
 	if err != nil {
 		return nil, err
