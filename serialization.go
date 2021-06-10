@@ -50,6 +50,20 @@ func ReadVarBytes(r io.Reader, maxAllowed uint32, fieldName string) ([]byte, err
 	return b, nil
 }
 
+func WriteNULL(w io.Writer) {
+	err := WriteVarInt(w, uint64(0))
+	if err != nil {
+		panic(err)
+	}
+}
+
+func WriteNotNULL(w io.Writer) {
+	err := WriteVarInt(w, uint64(1))
+	if err != nil {
+		panic(err)
+	}
+}
+
 func WritePolyNTT(w io.Writer, polyNTT *PolyNTT) error {
 	count := len(polyNTT.coeffs)
 	err := WriteVarInt(w, uint64(count))
@@ -554,41 +568,59 @@ func (cbTxWitness *CbTxWitness) Serialize() []byte {
 
 func (cbTxWitness *CbTxWitness) Serialize0(w io.Writer) error {
 	// write b_hat
-	err := WritePolyNTTVec(w, cbTxWitness.b_hat)
-	if err != nil {
-		 return err
+	if cbTxWitness.b_hat != nil {
+		WriteNotNULL(w)
+		err := WritePolyNTTVec(w, cbTxWitness.b_hat)
+		if err != nil {
+			return err
+		}
+	}else{
+		WriteNULL(w)
 	}
 
 	// write c_hats
-	count := len(cbTxWitness.c_hats)
-	err = WriteVarInt(w, uint64(count))
-	if err != nil {
-		return err
-	}
-	for i := 0; i < count; i++ {
-		err := WritePolyNTT(w, cbTxWitness.c_hats[i])
+	if cbTxWitness.c_hats != nil {
+		count := len(cbTxWitness.c_hats)
+		err := WriteVarInt(w, uint64(count))
 		if err != nil {
 			return err
 		}
+		for i := 0; i < count; i++ {
+			err := WritePolyNTT(w, cbTxWitness.c_hats[i])
+			if err != nil {
+				return err
+			}
+		}
+	}else {
+		WriteNULL(w)
 	}
 
 	// write u_p
-	count = len(cbTxWitness.u_p)
-	err = WriteVarInt(w, uint64(count))
-	if err != nil {
-		return err
-	}
-	for i := 0; i < count; i++ {
-		err := writeElement(w, cbTxWitness.u_p[i])
+	if cbTxWitness.u_p != nil {
+		count := len(cbTxWitness.u_p)
+		err := WriteVarInt(w, uint64(count))
 		if err != nil {
 			return err
 		}
+		for i := 0; i < count; i++ {
+			err := writeElement(w, cbTxWitness.u_p[i])
+			if err != nil {
+				return err
+			}
+		}
+	}else{
+		WriteNULL(w)
 	}
 
 	// write rpulpproof
-	err = WriteRpulpProof(w, cbTxWitness.rpulpproof)
-	if err != nil {
-		return err
+	if cbTxWitness.rpulpproof != nil {
+		WriteNotNULL(w)
+		err := WriteRpulpProof(w, cbTxWitness.rpulpproof)
+		if err != nil {
+			return err
+		}
+	}else{
+		WriteNULL(w)
 	}
 
 	return nil
@@ -596,21 +628,31 @@ func (cbTxWitness *CbTxWitness) Serialize0(w io.Writer) error {
 
 func (cbTxWitness *CbTxWitness) Deserialize(r io.Reader) error {
 	// read b_hat
-	b_hat0, err := ReadPolyNTTVec(r)
-	if err != nil {
-		return err
-	}
-
-	// read c_hats
 	count, err := ReadVarInt(r)
 	if err != nil {
 		return err
 	}
-	c_hats0 := make([]*PolyNTT, count)
-	for i :=0; i < int(count); i++ {
-		c_hats0[i], err = ReadPolyNTT(r)
+	var b_hat0 *PolyNTTVec = nil
+	if count != 0 {
+		b_hat0, err = ReadPolyNTTVec(r)
 		if err != nil {
 			return err
+		}
+	}
+
+	// read c_hats
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var c_hats0 []*PolyNTT = nil
+	if count != 0 {
+		c_hats0 = make([]*PolyNTT, count)
+		for i :=0; i < int(count); i++ {
+			c_hats0[i], err = ReadPolyNTT(r)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -619,18 +661,28 @@ func (cbTxWitness *CbTxWitness) Deserialize(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	u_p0 := make([]int32, count)
-	for i :=0; i < int(count); i++ {
-		err := readElement(r, &u_p0[i])
-		if err != nil {
-			return err
+	var u_p0 []int32 = nil
+	if count != 0 {
+		u_p0 = make([]int32, count)
+		for i :=0; i < int(count); i++ {
+			err := readElement(r, &u_p0[i])
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	// read rpulpproof
-	rpulpproof0, err := ReadRpulpProof(r)
+	count, err = ReadVarInt(r)
 	if err != nil {
 		return err
+	}
+	var rpulpproof0 *rpulpProof = nil
+	if count != 0 {
+		rpulpproof0, err = ReadRpulpProof(r)
+		if err != nil {
+			return err
+		}
 	}
 
 	cbTxWitness.b_hat = b_hat0
