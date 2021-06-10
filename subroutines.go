@@ -178,7 +178,7 @@ rpUlpProveRestart:
 		ws[t] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKc, pp.paramLc)
 	}
 
-	tmpg:=pp.sampleUniformPloyWithLowZeros()
+	tmpg := pp.sampleUniformPloyWithLowZeros()
 	g := pp.NTT(tmpg)
 	// c_hat(n2+1)
 	c_hat_g := pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], r_hat, pp.paramLc), g)
@@ -189,7 +189,7 @@ rpUlpProveRestart:
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("seed_rand=",seed_rand)
+	fmt.Println("seed_rand=", seed_rand)
 	alphas, betas, gammas, err := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m)
 	if err != nil {
 		return nil, err
@@ -262,7 +262,7 @@ rpUlpProveRestart:
 		psip = pp.PolyNTTAdd(psip, pp.PolyNTTMul(betas[t], pp.sigmaInvPolyNTT(tmp2, t)))
 	}
 	fmt.Printf("Prove\n")
-	fmt.Printf("psip = %v\n",psip)
+	fmt.Printf("psip = %v\n", psip)
 	//	p^(t)_j:
 	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
@@ -277,10 +277,29 @@ rpUlpProveRestart:
 				tmp = pp.PolyNTTAdd(tmp, pp.PolyNTTMul(p[t][j], &PolyNTT{msg_hats[j]}))
 			}
 
+			/*			nttsumL := int64(0)
+						for i := 0; i < pp.paramD; i++ {
+							nttsumL = pp.reduceInt64( int64(nttsumL) + int64(tmp.coeffs[i]) )
+						}*/
+
 			constPoly := pp.NewZeroPoly()
 			constPoly.coeffs[0] = pp.reduce(int64(pp.intMatrixInnerProduct(u_hats, gammas[t], m, pp.paramD)) * int64(pp.paramDInv))
 
+			/*			constPolyNTT := pp.NTT(constPoly)
+						nttsumR := int64(0)
+						for i := 0; i < pp.paramD; i++ {
+							nttsumR = pp.reduceInt64( int64(nttsumR) + int64(constPolyNTT.coeffs[i]) )
+						}*/
+
 			tmp = pp.PolyNTTSub(tmp, pp.NTT(constPoly))
+
+			/*			nttsumF := int64(0)
+						for i := 0; i < pp.paramD; i++ {
+							nttsumF = pp.reduceInt64( int64(nttsumF) + int64(tmp.coeffs[i]) )
+						}
+						fmt.Println("sumL:", nttsumL)
+						fmt.Println("sumR:", nttsumR)
+						fmt.Println("sumF:", nttsumF)*/
 
 			tmp1 = pp.PolyNTTAdd(tmp1, pp.sigmaPowerPolyNTT(tmp, tau))
 		}
@@ -338,7 +357,7 @@ rpUlpProveRestart:
 
 	fmt.Printf("phips = \n")
 	for i := 0; i < pp.paramK; i++ {
-		fmt.Printf("phips[%d] = %v \n",i,phips[i])
+		fmt.Printf("phips[%d] = %v \n", i, phips[i])
 	}
 
 	//	seed_ch and ch
@@ -456,10 +475,11 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 
 	//	(phi_t[0] ... phi_t[k-1] = 0)
 	phiPoly := pp.NTTInv(rpulppi.phi)
+	fmt.Println("phiPoly", phiPoly.coeffs)
 	for t := 0; t < pp.paramK; t++ {
 		if phiPoly.coeffs[t] != 0 {
 			// TODO 20210609 exist something theoretical error
-			//return false
+			return false
 		}
 	}
 
@@ -510,7 +530,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	if err != nil {
 		return false
 	}
-	fmt.Println("seed_rand=",seed_rand)
+	fmt.Println("seed_rand=", seed_rand)
 	alphas, betas, gammas, err := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m)
 	if err != nil {
 		return false
@@ -593,7 +613,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	psip = pp.PolyNTTAdd(psip,
 		pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], rpulppi.zs[0], pp.paramLc))
 	fmt.Printf("Verify\n")
-	fmt.Printf("psip = %v\n",psip)
+	fmt.Printf("psip = %v\n", psip)
 	//	p^(t)_j:
 	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
@@ -670,7 +690,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	}
 	fmt.Printf("phips = \n")
 	for i := 0; i < pp.paramK; i++ {
-		fmt.Printf("phips[%d] = %v \n",i,phips[i])
+		fmt.Printf("phips[%d] = %v \n", i, phips[i])
 	}
 	//	seed_ch and ch
 
@@ -897,8 +917,8 @@ elrsSignRestart:
 	if err != nil {
 		return nil, err
 	}
-	if sidx==0{
-		retchseed=seedj
+	if sidx == 0 {
+		retchseed = seedj
 	}
 	chtmp, err := pp.expandChallenge(seedj)
 	if err != nil {
@@ -921,8 +941,8 @@ elrsSignRestart:
 	}
 	// slice the z_as and z_cs
 	for i := 0; i < pp.paramK; i++ {
-		retz_as[i]=retz_as[i][:ringSize]
-		retz_cs[i]=retz_cs[i][:ringSize]
+		retz_as[i] = retz_as[i][:ringSize]
+		retz_cs[i] = retz_cs[i][:ringSize]
 	}
 
 	retelrssig := &elrsSignature{
@@ -1072,7 +1092,7 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 		//for i := 0; i < pp.paramMa; i++ {
 		//	appendPolyNTTToBytes(elrssig.keyImg.polyNTTs[i])
 		//}
-		seedj_tmp:=pp.collectBytesForELR(msg,ringSize,t_as,w_as,w_cs,w_hat_as,elrssig.keyImg)
+		seedj_tmp := pp.collectBytesForELR(msg, ringSize, t_as, w_as, w_cs, w_hat_as, elrssig.keyImg)
 		seedj, err = Hash(seedj_tmp) // todo_DONE
 		if err != nil {
 			return false
@@ -1724,7 +1744,7 @@ func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err
 		}
 		binM[i] = buf
 	}
-	return
+	return binM, nil
 }
 
 func (cmt *Commitment) toPolyNTTVec() *PolyNTTVec {
@@ -1762,7 +1782,7 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 
 	switch rpulpType {
 	case RpUlpTypeCbTx1:
- 			break
+		break
 	case RpUlpTypeCbTx2:
 		n := J
 		n2 := n + 2
@@ -1779,11 +1799,14 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 				// B^T[i]: ith-col of B
 				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][2], pp.paramD)
 				if i == 0 {
-					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i]))
+					//coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i]))
+					coeffs[i] = pp.reduce(int64(coeffs[i]) + int64(gammas[t][1][i]) + int64(gammas[t][0][i]))
 				} else if i < (pp.paramN - 1) {
-					coeffs[i] = pp.reduce(int64(coeffs[i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+					//coeffs[i] = pp.reduce(int64(coeffs[i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+					coeffs[i] = pp.reduce(int64(coeffs[i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
 				} else { // i in [N-1, d-1]
-					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+					//coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+					coeffs[i] = pp.reduce(int64(coeffs[i]) + int64(gammas[t][1][i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
 				}
 			}
 			p[t][n] = &PolyNTT{coeffs}
