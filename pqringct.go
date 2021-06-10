@@ -325,7 +325,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 
 	cbTxGenJ1Restart:
 		for t := 0; t < pp.paramK; t++ {
-			 // random y
+			// random y
 			maskC, err := pp.sampleMaskC()
 			if err != nil {
 				return nil, err
@@ -967,7 +967,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 		// todo: check B f + e
 		for i := 0; i < pp.paramD; i++ {
-			u_p_temp[i] =  int64(e[i])
+			u_p_temp[i] = int64(e[i])
 			for j := 0; j < pp.paramD; j++ {
 				if (binM[i][j/8]>>(j%8))&1 == 1 {
 					u_p_temp[i] += int64(f[j])
@@ -1006,7 +1006,6 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			cmtps:      cmtps,
 			elrsSigs:   elrsSigs,
 		}
-
 
 	} else {
 
@@ -1498,16 +1497,52 @@ func (mssk *MasterSecretSignKey) WellformCheck(pp *PublicParameter) bool {
 
 //	serialize and deSeralize	begin
 func (mpk *MasterPublicKey) SerializeSize() uint32 {
-	//	todo
-	return 1
+	return uint32(DefaultPP.paramKem.CryptoPublicKeyBytes() + 4 + len(mpk.t.polyNTTs)*len(mpk.t.polyNTTs[0].coeffs)*4)
 }
 
 func (mpk *MasterPublicKey) Serialize() []byte {
-	//	todo
-	return nil
+	res := make([]byte, 0, DefaultPP.paramKem.CryptoPublicKeyBytes()+4+len(mpk.t.polyNTTs)*len(mpk.t.polyNTTs[0].coeffs)*4)
+	res = append(res, mpk.pkkem.Bytes()...)
+	length := len(mpk.t.polyNTTs)
+	res = append(res, byte((length>>24)&0xFF))
+	res = append(res, byte((length>>16)&0xFF))
+	res = append(res, byte((length>>8)&0xFF))
+	res = append(res, byte((length>>0)&0xFF))
+	for i := 0; i < length; i++ {
+		for j := 0; j < len(mpk.t.polyNTTs[i].coeffs); j++ {
+			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[i]>>24)&0xFF))
+			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[i]>>16)&0xFF))
+			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[i]>>8)&0xFF))
+			res = append(res, byte((mpk.t.polyNTTs[i].coeffs[i]>>0)&0xFF))
+		}
+	}
+	return res
 }
 
 func (mpk *MasterPublicKey) Deserialize(mpkSer []byte) error {
+	var err error
+	pos := 0
+	mpk.pkkem, err = DefaultPP.paramKem.PublicKeyFromBytes(mpkSer[pos : pos+DefaultPP.paramKem.CryptoPublicKeyBytes()])
+	if err != nil {
+		return err
+	}
+	pos += DefaultPP.paramKem.CryptoPublicKeyBytes()
+	length := 0
+	length |= int(mpkSer[pos]) << 24
+	length |= int(mpkSer[pos]) << 16
+	length |= int(mpkSer[pos]) << 8
+	length |= int(mpkSer[pos]) << 0
+	pos += 4
+	tmp := make([]*PolyNTT, length)
+	for i := 0; i < length; i++ {
+		for j := 0; j < DefaultPP.paramD; j++ {
+			tmp[i].coeffs[j] |= int32(mpkSer[pos]) << 24
+			tmp[i].coeffs[j] |= int32(mpkSer[pos]) << 16
+			tmp[i].coeffs[j] |= int32(mpkSer[pos]) << 8
+			tmp[i].coeffs[j] |= int32(mpkSer[pos]) << 0
+		}
+	}
+	mpk.t = &PolyNTTVec{polyNTTs: tmp}
 	return nil
 }
 
