@@ -1528,10 +1528,10 @@ func (mpk *MasterPublicKey) Deserialize(mpkSer []byte) error {
 	}
 	pos += DefaultPP.paramKem.CryptoPublicKeyBytes()
 	length := 0
-	length |= int(mpkSer[pos]) << 24
-	length |= int(mpkSer[pos]) << 16
-	length |= int(mpkSer[pos]) << 8
-	length |= int(mpkSer[pos]) << 0
+	length |= int(mpkSer[pos+0]) << 24
+	length |= int(mpkSer[pos+1]) << 16
+	length |= int(mpkSer[pos+2]) << 8
+	length |= int(mpkSer[pos+3]) << 0
 	pos += 4
 	tmp := make([]*PolyNTT, length)
 	for i := 0; i < length; i++ {
