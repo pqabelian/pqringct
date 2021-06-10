@@ -120,6 +120,34 @@ func (pp *PublicParameter) GetTxoByteLen() uint32 {
 			pp.paramD*4, // vc
 	)
 }
+func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
+	return uint32(
+		pp.paramKc*pp.paramD*4 + // b_hat
+			(pp.paramJ+2)*pp.paramD*4 + // c_hats
+			pp.paramD*4 + // u_p
+			pp.paramJ*pp.paramD*4 + //rpuprf.c_waves
+			pp.paramD*4 + // rpuprf.c_hat_g
+			pp.paramD*4 + //rpuprf.psi
+			pp.paramD*4 + //rpuprf.phi
+			4 + // rpuprf.chseed
+			pp.paramK*pp.paramJ*pp.paramD*4 + // rpuprf.cmt_zs
+			pp.paramK*pp.paramLc*pp.paramD*4, // rpuprg.zs
+	)
+}
+func (pp *PublicParameter) GetTrTxWitnessMaxLen() uint32 {
+	return uint32(
+		pp.paramKc*pp.paramD*4 + // b_hat
+			(pp.paramI+pp.paramJ+4)*pp.paramD*4 + // c_hats
+			pp.paramKc*pp.paramD*4 + // u_p
+			(pp.paramI+pp.paramJ)*pp.paramD*4 + //rpuprf.c_waves
+			pp.paramD*4 + // rpuprf.c_hat_g
+			pp.paramD*4 + //rpuprf.psi
+			pp.paramD*4 + //rpuprf.phi
+			4 + // rpuprf.chseed
+			pp.paramK*(pp.paramI+pp.paramJ)*pp.paramD*4 + // rpuprf.cmt_zs
+			pp.paramK*pp.paramLc*pp.paramD*4, // rpuprg.zs
+	)
+}
 
 /*type ValueCommitment struct {
 
