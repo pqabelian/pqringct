@@ -1071,7 +1071,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		f2[0] = 0
 		for i := 1; i < pp.paramD; i++ {
 			tmp := int32(0)
-			for j := 0; j < I; j++ {
+			for j := 0; j < J; j++ {
 				tmp = tmp + msg_hats[I+j][i-1]
 			}
 			f2[i] = (tmp + u[i-1] + f2[i-1] - msg_hats[n][i-1]) >> 1
@@ -1118,9 +1118,9 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		betaF = betaF - 1
 
 		for i := 0; i < pp.paramD; i++ {
-			u_p_temp[i] = 0
+			u_p_temp[i] = int64(e[i])
 			for j := 0; j < pp.paramD; j++ {
-				u_p_temp[i] = u_p_temp[i] + int64(e[j])
+				//	u_p_temp[i] = u_p_temp[i] + int64(e[j])
 
 				if (binM[i][j/8]>>(j%8))&1 == 1 {
 					u_p_temp[i] += int64(f1[j])
@@ -1145,8 +1145,9 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		u_hats := make([][]int32, 5)
 		u_hats[0] = make([]int32, pp.paramD)
 		// todo_DONE: -u
+		u_hats[1] = make([]int32, pp.paramD)
 		for i := 0; i < len(u_hats[1]); i++ {
-			u_hats[1][i] = pp.reduce(-int64(u[i]))
+			u_hats[1][i] = -u[i]
 		}
 		u_hats[2] = make([]int32, pp.paramD)
 		u_hats[3] = make([]int32, pp.paramD)
@@ -1294,7 +1295,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		n2 := n + 2
 		n1 := n
 
-		betaF := pp.paramEtaF - int32(J)
+		betaF := J
 
 		//	todo: consider with TransferTxGen
 		for i := 0; i < len(trTx.TxWitness.u_p); i++ {
@@ -1356,8 +1357,9 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		u_hats := make([][]int32, 5)
 		u_hats[0] = make([]int32, pp.paramD)
 		// todo_DONE: -u
+		u_hats[1] = make([]int32, pp.paramD)
 		for i := 0; i < len(u_hats[1]); i++ {
-			u_hats[1][i] = pp.reduce(-int64(u[i]))
+			u_hats[1][i] = -u[i]
 		}
 		u_hats[2] = make([]int32, pp.paramD)
 		u_hats[3] = make([]int32, pp.paramD)
@@ -1408,6 +1410,7 @@ func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r
 	)
 
 	//	vc = m ^ sk
+	//	todo: the vc should have length only N, to prevent the unused D-N bits of leaking information
 	sk, err := pp.expandRandomBitsV(kappa)
 	if err != nil {
 		return nil, nil, err

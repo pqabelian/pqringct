@@ -261,8 +261,8 @@ rpUlpProveRestart:
 		psi = pp.PolyNTTSub(psi, pp.PolyNTTMul(betas[t], pp.sigmaInvPolyNTT(tmp1, t)))
 		psip = pp.PolyNTTAdd(psip, pp.PolyNTTMul(betas[t], pp.sigmaInvPolyNTT(tmp2, t)))
 	}
-	fmt.Printf("Prove\n")
-	fmt.Printf("psip = %v\n", psip)
+	/*	fmt.Printf("Prove\n")
+		fmt.Printf("psip = %v\n", psip)*/
 	//	p^(t)_j:
 	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
@@ -434,7 +434,8 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	} else {
 		for i := 0; i < len(binMatrixB); i++ {
 			if len(binMatrixB[0]) != pp.paramD/8 {
-				return false
+				//	todo: sometimes 2*pp.paramD/8
+				//return false
 			}
 		}
 	}
@@ -475,7 +476,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 
 	//	(phi_t[0] ... phi_t[k-1] = 0)
 	phiPoly := pp.NTTInv(rpulppi.phi)
-	fmt.Println("phiPoly", phiPoly.coeffs)
+	//	fmt.Println("phiPoly", phiPoly.coeffs)
 	for t := 0; t < pp.paramK; t++ {
 		if phiPoly.coeffs[t] != 0 {
 			// TODO 20210609 exist something theoretical error
@@ -530,7 +531,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	if err != nil {
 		return false
 	}
-	fmt.Println("seed_rand=", seed_rand)
+	//	fmt.Println("seed_rand=", seed_rand)
 	alphas, betas, gammas, err := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m)
 	if err != nil {
 		return false
@@ -612,8 +613,8 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	psip = pp.PolyNTTSub(psip, pp.PolyNTTMul(ch, rpulppi.psi))
 	psip = pp.PolyNTTAdd(psip,
 		pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], rpulppi.zs[0], pp.paramLc))
-	fmt.Printf("Verify\n")
-	fmt.Printf("psip = %v\n", psip)
+	/*	fmt.Printf("Verify\n")
+		fmt.Printf("psip = %v\n", psip)*/
 	//	p^(t)_j:
 	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
 
@@ -688,10 +689,10 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 			phips[xi],
 			pp.PolyNTTMul(sigma_chs[xi], constterm))
 	}
-	fmt.Printf("phips = \n")
-	for i := 0; i < pp.paramK; i++ {
-		fmt.Printf("phips[%d] = %v \n", i, phips[i])
-	}
+	/*	fmt.Printf("phips = \n")
+		for i := 0; i < pp.paramK; i++ {
+			fmt.Printf("phips[%d] = %v \n", i, phips[i])
+		}*/
 	//	seed_ch and ch
 
 	seed_ch, err := Hash(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, rpulppi.psi, psip, rpulppi.phi, phips))
@@ -1837,11 +1838,14 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 				// B^T[i]: ith-col of B
 				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][2], pp.paramD)
 				if i == 0 {
-					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] - gammas[t][0][i]))
+					//coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] - gammas[t][0][i]))
+					coeffs[i] = pp.reduce(int64(coeffs[i]) + int64(gammas[t][1][i]) - int64(gammas[t][0][i]))
 				} else if i < (pp.paramN - 1) {
-					coeffs[i] = pp.reduce(int64(coeffs[i] + 2*gammas[t][0][i-1] - gammas[t][0][i]))
+					//coeffs[i] = pp.reduce(int64(coeffs[i] + 2*gammas[t][0][i-1] - gammas[t][0][i]))
+					coeffs[i] = pp.reduce(int64(coeffs[i]) + 2*int64(gammas[t][0][i-1]) - int64(gammas[t][0][i]))
 				} else { // i in [N-1, d-1]
-					coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + 2*gammas[t][0][i-1] - gammas[t][0][i]))
+					//coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + 2*gammas[t][0][i-1] - gammas[t][0][i]))
+					coeffs[i] = pp.reduce(int64(coeffs[i]) + int64(gammas[t][1][i]) + 2*int64(gammas[t][0][i-1]) - int64(gammas[t][0][i]))
 				}
 			}
 			p[t][n] = &PolyNTT{coeffs}
@@ -1865,7 +1869,7 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 
 			coeffs_n := make([]int32, pp.paramD)
 			for i := 0; i < pp.paramD; i++ {
-				coeffs_n[i] = -gammas[t][0][i] - gammas[t][1][i]
+				coeffs_n[i] = pp.reduce(int64(-gammas[t][0][i]) + int64(-gammas[t][1][i]))
 			}
 			p[t][n] = &PolyNTT{coeffs_n}
 
@@ -1875,11 +1879,14 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 				//F^T[i] gamma[t][0] + F_1^T[i] gamma[t][2] + B^T[i] gamma[t][4]
 				coeffs_np1[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][4], pp.paramD)
 				if i == 0 {
-					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] + gammas[t][2][i] + gammas[t][0][i]))
+					//coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] + gammas[t][2][i] + gammas[t][0][i]))
+					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i]) + int64(gammas[t][2][i]) + int64(gammas[t][0][i]))
 				} else if i < (pp.paramN - 1) {
-					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+					//coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
 				} else { // i in [N-1, d-1]
-					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] + gammas[t][2][i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+					//coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] + gammas[t][2][i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
+					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i]) + int64(gammas[t][2][i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
 				}
 			}
 			p[t][n+1] = &PolyNTT{coeffs_np1}
@@ -1890,11 +1897,14 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 				//F^T[i] gamma[t][1] + F_1^T[i] gamma[t][3] + B_2^T[i] gamma[t][4]
 				coeffs_np2[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, pp.paramD+i), gammas[t][4], pp.paramD)
 				if i == 0 {
-					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] + gammas[t][3][i] + gammas[t][1][i]))
+					//coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] + gammas[t][3][i] + gammas[t][1][i]))
+					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i]) + int64(gammas[t][3][i]) + int64(gammas[t][1][i]))
 				} else if i < (pp.paramN - 1) {
-					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] - 2*gammas[t][1][i-1] + gammas[t][1][i]))
+					//coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] - 2*gammas[t][1][i-1] + gammas[t][1][i]))
+					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i]) - 2*int64(gammas[t][1][i-1]) + int64(gammas[t][1][i]))
 				} else { // i in [N-1, d-1]
-					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] + gammas[t][3][i] - 2*gammas[t][1][i-1] + gammas[t][1][i]))
+					//coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] + gammas[t][3][i] - 2*gammas[t][1][i-1] + gammas[t][1][i]))
+					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i]) + int64(gammas[t][3][i]) - 2*int64(gammas[t][1][i-1]) + int64(gammas[t][1][i]))
 				}
 			}
 			p[t][n+2] = &PolyNTT{coeffs_np2}

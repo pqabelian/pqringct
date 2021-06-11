@@ -399,43 +399,38 @@ func TestMasterPublicKey_Serialize(t *testing.T) {
 	}
 }
 
-func TestCoinbase3out(t *testing.T) {
+func TestTransactions(t *testing.T) {
 	pp := DefaultPP
-	seed1, mpk1, _, _, err1 := pp.MasterKeyGen(nil)
-	if err1 != nil {
-		return
-	}
-	fmt.Println("seed1:", seed1)
+	seeds := make([][]byte, 3)
+	mpks := make([]*MasterPublicKey, 3)
+	msvks := make([]*MasterSecretViewKey, 3)
+	mssks := make([]*MasterSecretSignKey, 3)
 
-	seed2, mpk2, _, _, err2 := pp.MasterKeyGen(nil)
-	if err2 != nil {
-		return
+	var err error
+	for i := 0; i < 3; i++ {
+		seeds[i], mpks[i], msvks[i], mssks[i], err = pp.MasterKeyGen(nil)
+		if err != nil {
+			return
+		}
 	}
-	fmt.Println("seed2:", seed2)
-
-	seed3, mpk3, _, _, err3 := pp.MasterKeyGen(nil)
-	if err3 != nil {
-		return
-	}
-	fmt.Println("seed3:", seed3)
 
 	txoutputDescs := make([]*TxOutputDesc, 3)
 	txoutputDescs[0] = &TxOutputDesc{
-		mpk1,
-		24,
+		mpks[0],
+		20,
 	}
 
 	txoutputDescs[1] = &TxOutputDesc{
-		mpk2,
-		25,
+		mpks[1],
+		30,
 	}
 
 	txoutputDescs[2] = &TxOutputDesc{
-		mpk3,
-		25,
+		mpks[2],
+		50,
 	}
 
-	cbtx, err := pp.CoinbaseTxGen(74, txoutputDescs)
+	cbtx, err := pp.CoinbaseTxGen(100, txoutputDescs)
 	if err != nil {
 		return
 	}
@@ -443,8 +438,128 @@ func TestCoinbase3out(t *testing.T) {
 
 	bl := pp.CoinbaseTxVerify(cbtx)
 	if bl {
-		fmt.Println("OK")
+		fmt.Println("CoinbaseTx Gen and Verify Pass")
 	}
+
+	// TxoCoinReceive
+	for i := 0; i < 3; i++ {
+		bl, v := pp.TxoCoinReceive(cbtx.OutputTxos[i], mpks[i], msvks[i])
+		if bl {
+			fmt.Println("value:", i, v)
+		} else {
+			fmt.Println("false:", i)
+		}
+	}
+
+	// TransferGen 1vs3
+	// 0: 20, 1:30, 2: 50
+	// 2: 50 --> 0:10, 1:30, 2:9, fee: 1
+	txInputDescs := make([]*TxInputDesc, 1)
+	txoList := make([]*TXO, 3)
+	txoList[0] = cbtx.OutputTxos[0]
+	txoList[1] = cbtx.OutputTxos[1]
+	txoList[2] = cbtx.OutputTxos[2]
+	txInputDescs[0] = &TxInputDesc{
+		txoList,
+		2,
+		mpks[2],
+		msvks[2],
+		mssks[2],
+		50,
+	}
+
+	txoutputDescs = make([]*TxOutputDesc, 3)
+
+	txoutputDescs[0] = &TxOutputDesc{
+		mpks[0],
+		10,
+	}
+
+	txoutputDescs[1] = &TxOutputDesc{
+		mpks[1],
+		30,
+	}
+
+	txoutputDescs[2] = &TxOutputDesc{
+		mpks[2],
+		9,
+	}
+
+	memo := []byte{1, 2, 3}
+
+	trTx, err := pp.TransferTxGen(txInputDescs, txoutputDescs, 1, memo)
+	if err != nil {
+		fmt.Println("false")
+	}
+	fmt.Println(trTx.Fee)
+	fmt.Println(trTx.TxMemo)
+
+	trTxbl := pp.TransferTxVerify(trTx)
+
+	if trTxbl {
+		fmt.Println("TransferTx Gen and Verify: 1v3 Pass")
+	}
+
+	// TransferGen 2vs3
+	// 0: 20, 1:30, 2: 50
+	// 2: 50 --> 0:10, 1:30, 2:9, fee: 1
+
+	//	{0:20, 1:30, 2: 50}, 0:20
+	//	{0:10, 1:30, 2:9}, 1:30
+	//	--> 0: 23, 1:15, 2:10, fee: 2
+	txInputDescs = make([]*TxInputDesc, 2)
+	txoList0 := make([]*TXO, 3)
+	txoList0[0] = cbtx.OutputTxos[0]
+	txoList0[1] = cbtx.OutputTxos[1]
+	txoList0[2] = cbtx.OutputTxos[2]
+	txInputDescs[0] = &TxInputDesc{
+		txoList0,
+		0,
+		mpks[0],
+		msvks[0],
+		mssks[0],
+		20,
+	}
+	txoList1 := make([]*TXO, 3)
+	txoList1[0] = trTx.OutputTxos[0]
+	txoList1[1] = trTx.OutputTxos[1]
+	txoList1[2] = trTx.OutputTxos[2]
+	txInputDescs[1] = &TxInputDesc{
+		txoList1,
+		1,
+		mpks[1],
+		msvks[1],
+		mssks[1],
+		30,
+	}
+
+	txoutputDescs = make([]*TxOutputDesc, 3)
+
+	txoutputDescs[0] = &TxOutputDesc{
+		mpks[0],
+		23,
+	}
+
+	txoutputDescs[1] = &TxOutputDesc{
+		mpks[1],
+		15,
+	}
+
+	txoutputDescs[2] = &TxOutputDesc{
+		mpks[2],
+		10,
+	}
+
+	trTx2v3, err := pp.TransferTxGen(txInputDescs, txoutputDescs, 2, nil)
+	if err != nil {
+		fmt.Println("false")
+	}
+	trTxbl2v3 := pp.TransferTxVerify(trTx2v3)
+
+	if trTxbl2v3 {
+		fmt.Println("TransferTx Gen and Verify: 2v3 Pass")
+	}
+
 }
 
 func TestCoinbase1out(t *testing.T) {
