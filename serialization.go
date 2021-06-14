@@ -154,7 +154,7 @@ func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 				return err
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -165,7 +165,7 @@ func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -176,7 +176,7 @@ func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -187,7 +187,7 @@ func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -198,7 +198,7 @@ func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -222,7 +222,7 @@ func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 				}
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -239,7 +239,7 @@ func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
 				return err
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -269,7 +269,7 @@ func ReadRpulpProof(r io.Reader) (*rpulpProof, error) {
 		return nil, err
 	}
 	var c_hat_g0 *PolyNTT = nil
-	if count > 0{
+	if count > 0 {
 		c_hat_g0, err = ReadPolyNTT(r)
 		if err != nil {
 			return nil, err
@@ -357,11 +357,11 @@ func ReadRpulpProof(r io.Reader) (*rpulpProof, error) {
 	ret := &rpulpProof{
 		c_waves: c_waves0,
 		c_hat_g: c_hat_g0,
-		psi: psi0,
-		phi: phi0,
-		chseed: chseed0,
-		cmt_zs: cmt_zs0,
-		zs: zs0,
+		psi:     psi0,
+		phi:     phi0,
+		chseed:  chseed0,
+		cmt_zs:  cmt_zs0,
+		zs:      zs0,
 	}
 	return ret, nil
 }
@@ -374,7 +374,7 @@ func WriteCommitment(w io.Writer, cmt *Commitment) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -385,7 +385,7 @@ func WriteCommitment(w io.Writer, cmt *Commitment) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -435,7 +435,7 @@ func WriteDerivedPubKey(w io.Writer, dpk *DerivedPubKey) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -446,7 +446,7 @@ func WriteDerivedPubKey(w io.Writer, dpk *DerivedPubKey) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -482,7 +482,7 @@ func ReadDerivedPubKey(r io.Reader) (*DerivedPubKey, error) {
 
 	derivedPubKey := &DerivedPubKey{
 		ckem: ckem0,
-		t: t0,
+		t:    t0,
 	}
 
 	return derivedPubKey, nil
@@ -496,7 +496,7 @@ func WriteElrsSignature(w io.Writer, elrsSig *elrsSignature) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -520,7 +520,7 @@ func WriteElrsSignature(w io.Writer, elrsSig *elrsSignature) error {
 				}
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -544,7 +544,7 @@ func WriteElrsSignature(w io.Writer, elrsSig *elrsSignature) error {
 				}
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -555,7 +555,7 @@ func WriteElrsSignature(w io.Writer, elrsSig *elrsSignature) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -637,8 +637,8 @@ func ReadElrsSignature(r io.Reader) (*elrsSignature, error) {
 
 	ret := &elrsSignature{
 		chseed: chseed0,
-		z_as: z_as0,
-		z_cs: z_cs0,
+		z_as:   z_as0,
+		z_cs:   z_cs0,
 		keyImg: keyImg0,
 	}
 
@@ -666,7 +666,7 @@ func (coinbaseTx *CoinbaseTx) Serialize(hasWitness bool) []byte {
 				return nil
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -678,7 +678,7 @@ func (coinbaseTx *CoinbaseTx) Serialize(hasWitness bool) []byte {
 			if err != nil {
 				return nil
 			}
-		}else{
+		} else {
 			WriteNULL(w)
 		}
 	}
@@ -752,7 +752,7 @@ func (cbTxWitness *CbTxWitness) Serialize0(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -769,7 +769,7 @@ func (cbTxWitness *CbTxWitness) Serialize0(w io.Writer) error {
 				return err
 			}
 		}
-	}else {
+	} else {
 		WriteNULL(w)
 	}
 
@@ -786,7 +786,7 @@ func (cbTxWitness *CbTxWitness) Serialize0(w io.Writer) error {
 				return err
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -797,7 +797,7 @@ func (cbTxWitness *CbTxWitness) Serialize0(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -826,7 +826,7 @@ func (cbTxWitness *CbTxWitness) Deserialize(r io.Reader) error {
 	var c_hats0 []*PolyNTT = nil
 	if count > 0 {
 		c_hats0 = make([]*PolyNTT, count)
-		for i :=0; i < int(count); i++ {
+		for i := 0; i < int(count); i++ {
 			c_hats0[i], err = ReadPolyNTT(r)
 			if err != nil {
 				return err
@@ -842,7 +842,7 @@ func (cbTxWitness *CbTxWitness) Deserialize(r io.Reader) error {
 	var u_p0 []int32 = nil
 	if count > 0 {
 		u_p0 = make([]int32, count)
-		for i :=0; i < int(count); i++ {
+		for i := 0; i < int(count); i++ {
 			err := readElement(r, &u_p0[i])
 			if err != nil {
 				return err
@@ -887,7 +887,7 @@ func (trTx *TransferTx) Serialize(hasWitness bool) []byte {
 				return nil
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -904,7 +904,7 @@ func (trTx *TransferTx) Serialize(hasWitness bool) []byte {
 				return nil
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -921,7 +921,7 @@ func (trTx *TransferTx) Serialize(hasWitness bool) []byte {
 		if err != nil {
 			return nil
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -933,7 +933,7 @@ func (trTx *TransferTx) Serialize(hasWitness bool) []byte {
 			if err != nil {
 				return nil
 			}
-		}else{
+		} else {
 			WriteNULL(w)
 		}
 	}
@@ -950,7 +950,7 @@ func (trTx *TransferTx) Deserialize(r io.Reader) error {
 	var Inputs0 []*TrTxInput = nil
 	if count > 0 {
 		Inputs0 = make([]*TrTxInput, count)
-		for i :=0; i < int(count); i++ {
+		for i := 0; i < int(count); i++ {
 			Inputs0[i] = &TrTxInput{}
 			err = Inputs0[i].Deserialize(r)
 			if err != nil {
@@ -1030,7 +1030,7 @@ func (txo *TXO) Serialize() []byte {
 	if err != nil {
 		return nil
 	}
-	
+
 	return w.Bytes()
 }
 
@@ -1042,7 +1042,7 @@ func (txo *TXO) Serialize0(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1053,7 +1053,7 @@ func (txo *TXO) Serialize0(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1064,7 +1064,7 @@ func (txo *TXO) Serialize0(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1141,7 +1141,7 @@ func (trTxInput *TrTxInput) Serialize0(w io.Writer) error {
 				return err
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1151,7 +1151,7 @@ func (trTxInput *TrTxInput) Serialize0(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1217,7 +1217,7 @@ func (trTxWitness *TrTxWitness) Serialize0(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1234,7 +1234,7 @@ func (trTxWitness *TrTxWitness) Serialize0(w io.Writer) error {
 				return err
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1251,7 +1251,7 @@ func (trTxWitness *TrTxWitness) Serialize0(w io.Writer) error {
 				return err
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1262,7 +1262,7 @@ func (trTxWitness *TrTxWitness) Serialize0(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1279,7 +1279,7 @@ func (trTxWitness *TrTxWitness) Serialize0(w io.Writer) error {
 				return err
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 
@@ -1296,7 +1296,7 @@ func (trTxWitness *TrTxWitness) Serialize0(w io.Writer) error {
 				return err
 			}
 		}
-	}else{
+	} else {
 		WriteNULL(w)
 	}
 

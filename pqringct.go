@@ -111,7 +111,7 @@ func (pp *PublicParameter) GetMasterPublicKeyByteLen() uint32 {
 	return uint32(pp.paramKem.CryptoPublicKeyBytes() + 4 + pp.paramKa*pp.paramD*4)
 }
 
-func (pp *PublicParameter) GetTxoByteLen() uint32 {
+/*func (pp *PublicParameter) GetTxoByteLen() uint32 {
 	return uint32(
 		pp.paramKem.CryptoCiphertextBytes() + // dpk.ckem
 			pp.paramKa*pp.paramD*4 + // dpk.t
@@ -119,7 +119,13 @@ func (pp *PublicParameter) GetTxoByteLen() uint32 {
 			pp.paramD*4 + // cmt.c
 			pp.paramD*4, // vc
 	)
+}*/
+
+// todo:
+func (pp *PublicParameter) GetTxoSerializeSize() uint32 {
+	return 1
 }
+
 func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
 	return uint32(
 		pp.paramKc*pp.paramD*4 + // b_hat
