@@ -3,6 +3,7 @@ package pqringct
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/cryptosuite/kyber-go/kyber"
 )
 
@@ -123,6 +124,13 @@ func (pp *PublicParameter) GetMasterPublicKeyByteLen() uint32 {
 
 // todo:
 func (pp *PublicParameter) GetTxoSerializeSize() uint32 {
+	return 1
+}
+
+// todo:
+func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, outputTxoNum uint8) uint32 {
+	inputNum := len(inputRingSizes)
+	fmt.Println(inputNum) // todo: remove
 	return 1
 }
 
