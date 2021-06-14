@@ -50,6 +50,17 @@ func ReadVarBytes(r io.Reader, maxAllowed uint32, fieldName string) ([]byte, err
 	return b, nil
 }
 
+func GetBytesSize(b []byte) uint32 {
+	if b == nil {
+		return 0
+	}
+	var res uint32 = 0
+	count := len(b)
+	res += VarIntSerializeSize(uint64(count))
+	res += uint32(count)
+	return res
+}
+
 // WriteNULL write an identifier 0x00 to w,
 // which means current variable is null
 func WriteNULL(w io.Writer) {
@@ -104,6 +115,17 @@ func ReadPolyNTT(r io.Reader) (*PolyNTT, error) {
 	return polyNTT, nil
 }
 
+func GetPolyNTTSize(polyNTT *PolyNTT) uint32 {
+	var res uint32 = 0
+	if polyNTT == nil {
+		return 0
+	}
+	count := len(polyNTT.coeffs)
+	res += VarIntSerializeSize(uint64(count))
+	res += uint32(count) * 4
+	return res
+}
+
 func WritePolyNTTVec(w io.Writer, polyNTTVec *PolyNTTVec) error {
 	count := len(polyNTTVec.polyNTTs)
 	err := WriteVarInt(w, uint64(count))
@@ -138,6 +160,17 @@ func ReadPolyNTTVec(r io.Reader) (*PolyNTTVec, error) {
 		polyNTTs: polyNTTs0,
 	}
 	return polyNTTVec, nil
+}
+
+func GetPolyNTTVecSize(polyNTTVec *PolyNTTVec) uint32 {
+	var res uint32 = 0
+	if polyNTTVec == nil {
+		return 0
+	}
+	count := len(polyNTTVec.polyNTTs)
+	res += VarIntSerializeSize(uint64(count))
+	res += uint32(count) * GetPolyNTTSize(polyNTTVec.polyNTTs[0])
+	return res
 }
 
 func WriteRpulpProof(w io.Writer, proof *rpulpProof) error {
@@ -366,6 +399,57 @@ func ReadRpulpProof(r io.Reader) (*rpulpProof, error) {
 	return ret, nil
 }
 
+func GetRpulpProofSize(proof *rpulpProof) uint32 {
+	var res uint32 = 0
+
+	// c_waves
+	if proof.c_waves == nil {
+		res += 1
+	}else{
+		count := len(proof.c_waves)
+		res += VarIntSerializeSize(uint64(count))
+		res += uint32(count) * GetPolyNTTSize(proof.c_waves[0])
+	}
+
+	// c_hat_g
+	res += 1
+	res += GetPolyNTTSize(proof.c_hat_g)
+
+	// psi
+	res += 1
+	res += GetPolyNTTSize(proof.psi)
+
+	// phi
+	res += 1
+	res += GetPolyNTTSize(proof.phi)
+
+	// chseed
+	res += 1
+	res += GetBytesSize(proof.chseed)
+
+	// cmt_zs
+	if proof.cmt_zs == nil {
+		res += 1
+	}else{
+		count1 := len(proof.cmt_zs)
+		res += VarIntSerializeSize(uint64(count1))
+		count2 := len(proof.cmt_zs[0])
+		res += uint32(count1) * VarIntSerializeSize(uint64(count2))
+		res += uint32(count1) * uint32(count2) * GetPolyNTTVecSize(proof.cmt_zs[0][0])
+	}
+
+	// zs
+	if proof.zs == nil {
+		res += 1
+	}else{
+		count := len(proof.zs)
+		res += VarIntSerializeSize(uint64(count))
+		res += uint32(count) * GetPolyNTTVecSize(proof.zs[0])
+	}
+
+	return res
+}
+
 func WriteCommitment(w io.Writer, cmt *Commitment) error {
 	// write b
 	if cmt.b != nil {
@@ -427,6 +511,23 @@ func ReadCommitment(r io.Reader) (*Commitment, error) {
 	return commitment, nil
 }
 
+func GetCommitmentSize(cmt *Commitment) uint32 {
+	if cmt == nil {
+		return 0
+	}
+	var res uint32 = 0
+
+	// b
+	res += 1
+	res += GetPolyNTTVecSize(cmt.b)
+
+	// c
+	res += 10
+	res += GetPolyNTTSize(cmt.c)
+
+	return res
+}
+
 func WriteDerivedPubKey(w io.Writer, dpk *DerivedPubKey) error {
 	// write ckem
 	if dpk.ckem != nil {
@@ -486,6 +587,23 @@ func ReadDerivedPubKey(r io.Reader) (*DerivedPubKey, error) {
 	}
 
 	return derivedPubKey, nil
+}
+
+func GetDerivedPubKeySize(dpk *DerivedPubKey) uint32 {
+	if dpk == nil {
+		return 0
+	}
+	var res uint32 = 0
+
+	// ckem
+	res += 1
+	res += GetBytesSize(dpk.ckem)
+
+	// t
+	res += 1
+	res += GetPolyNTTVecSize(dpk.t)
+
+	return res
 }
 
 func WriteElrsSignature(w io.Writer, elrsSig *elrsSignature) error {
@@ -645,6 +763,45 @@ func ReadElrsSignature(r io.Reader) (*elrsSignature, error) {
 	return ret, nil
 }
 
+func GetElrsSignatureSize(elrsSig *elrsSignature) uint32 {
+	if elrsSig == nil {
+		return 0
+	}
+	var res uint32 = 0
+
+	// chseed
+	res += 1
+	res += GetBytesSize(elrsSig.chseed)
+
+	// z_as
+	if elrsSig.z_as == nil {
+		res += 1
+	}else{
+		count1 := len(elrsSig.z_as)
+		res += VarIntSerializeSize(uint64(count1))
+		count2 := len(elrsSig.z_as[0])
+		res += uint32(count1) * VarIntSerializeSize(uint64(count2))
+		res += uint32(count1) * uint32(count2) * GetPolyNTTVecSize(elrsSig.z_as[0][0])
+	}
+
+	// z_cs
+	if elrsSig.z_cs == nil {
+		res += 1
+	}else{
+		count1 := len(elrsSig.z_cs)
+		res += VarIntSerializeSize(uint64(count1))
+		count2 := len(elrsSig.z_cs[0])
+		res += uint32(count1) * VarIntSerializeSize(uint64(count2))
+		res += uint32(count1) * uint32(count2) * GetPolyNTTVecSize(elrsSig.z_cs[0][0])
+	}
+
+	// keyImg
+	res += 1
+	res += GetPolyNTTVecSize(elrsSig.keyImg)
+
+	return res
+}
+
 func (coinbaseTx *CoinbaseTx) Serialize(hasWitness bool) []byte {
 	// write Vin
 	w := new(bytes.Buffer)
@@ -731,8 +888,38 @@ func (coinbaseTx *CoinbaseTx) Deserialize(r io.Reader) error {
 }
 
 func (cbTxWitness *CbTxWitness) SerializeSize() uint32 {
-	// todo
-	return 1
+	if cbTxWitness == nil {
+		return 0
+	}
+	var res uint32 = 0
+
+	// b_hat
+	res += 1
+	res += GetPolyNTTVecSize(cbTxWitness.b_hat)
+
+	// c_hats
+	if cbTxWitness.c_hats == nil {
+		res += 1
+	}else{
+		count := len(cbTxWitness.c_hats)
+		res += VarIntSerializeSize(uint64(count))
+		res += uint32(count) * GetPolyNTTSize(cbTxWitness.c_hats[0])
+	}
+
+	// u_p
+	if cbTxWitness.u_p == nil {
+		res += 1
+	}else{
+		count := len(cbTxWitness.u_p)
+		res += VarIntSerializeSize(uint64(count))
+		res += 4 * uint32(count)
+	}
+
+	// rpulpproof
+	res += 1
+	res += GetRpulpProofSize(cbTxWitness.rpulpproof)
+
+	return res
 }
 
 func (cbTxWitness *CbTxWitness) Serialize() []byte {
