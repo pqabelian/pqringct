@@ -112,19 +112,18 @@ func (pp *PublicParameter) GetMasterPublicKeyByteLen() uint32 {
 	return uint32(pp.paramKem.CryptoPublicKeyBytes() + 4 + pp.paramKa*pp.paramD*4)
 }
 
-/*func (pp *PublicParameter) GetTxoByteLen() uint32 {
-	return uint32(
-		pp.paramKem.CryptoCiphertextBytes() + // dpk.ckem
-			pp.paramKa*pp.paramD*4 + // dpk.t
-			pp.paramKc*pp.paramD*4 + // cmt.b
-			pp.paramD*4 + // cmt.c
-			pp.paramD*4, // vc
-	)
-}*/
-
-// todo:
+// GetTxoSerializeSize return the default serialize size of a txo
+// "1" is the length of existence identifier during serializing
 func (pp *PublicParameter) GetTxoSerializeSize() uint32 {
-	return 1
+	return uint32(
+		1 + // dpk existence identifier
+		1 + pp.paramKem.CryptoCiphertextBytes() + // dpk.ckem
+		1 +	VarIntSerializeSize2(uint64(pp.paramKa)) + pp.paramKa * VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKa*pp.paramD*4 + // dpk.t
+		1 + // cmt existence identifier
+		1 +	VarIntSerializeSize2(uint64(pp.paramKc)) + pp.paramKc * VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKc*pp.paramD*4 + // cmt.b
+		1 +	VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramD*4 + // cmt.c
+		1 +	VarIntSerializeSize2(uint64(pp.paramD*4)) + pp.paramD*4, // vc
+	)
 }
 
 // todo:
