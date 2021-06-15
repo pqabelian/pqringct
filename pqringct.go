@@ -3,7 +3,6 @@ package pqringct
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/cryptosuite/kyber-go/kyber"
 )
 
@@ -122,15 +121,112 @@ func (pp *PublicParameter) GetTxoSerializeSize() uint32 {
 		1 + // cmt existence identifier
 		1 +	VarIntSerializeSize2(uint64(pp.paramKc)) + pp.paramKc * VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKc*pp.paramD*4 + // cmt.b
 		1 +	VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramD*4 + // cmt.c
-		1 +	VarIntSerializeSize2(uint64(pp.paramD*4)) + pp.paramD*4, // vc
+		1 +	VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramD, // vc
 	)
 }
 
-// todo:
+// GetTrTxWitnessSerializeSize return the serialize size of a transaction witness
+// "1" is the length of existence identifier during serializing
 func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, outputTxoNum uint8) uint32 {
-	inputNum := len(inputRingSizes)
-	fmt.Println(inputNum) // todo: remove
-	return 1
+	I := len(inputRingSizes)
+	J := int(outputTxoNum)
+	var res uint32 = 0
+	// b_hat
+	res += 1
+	res += VarIntSerializeSize(uint64(pp.paramKc))
+	res += uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramKc * pp.paramD * 4)
+
+	// c_hats
+	if I == 1 {
+		res += VarIntSerializeSize(uint64(I + J + 2))
+		res += uint32(I + J + 2) * VarIntSerializeSize(uint64(pp.paramD))
+		res += uint32((I + J + 2) * pp.paramD * 4)
+	}else{
+		res += VarIntSerializeSize(uint64(I + J + 4))
+		res += uint32(I + J + 4) * VarIntSerializeSize(uint64(pp.paramD))
+		res += uint32((I + J + 4) * pp.paramD * 4)
+	}
+
+	// u_p
+	res += VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramD * 4)
+
+	// rpulpproof
+	res += 1
+	// rpulpproof.c_waves
+	res += VarIntSerializeSize(uint64(I + J))
+	res += uint32(I + J) * VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32((I + J) * pp.paramD * 4)
+	// rpulpproof.c_hat_g
+	res += 1
+	res += VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramD * 4)
+	// rpulpproof.psi
+	res += 1
+	res += VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramD * 4)
+	// rpulpproof.phi
+	res += 1
+	res += VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramD * 4)
+	// rpulpproof.chseed
+	res += 1
+	res += VarIntSerializeSize(32)
+	res += 32
+	// rpulpproof.cmt_zs
+	res += VarIntSerializeSize(uint64(pp.paramK))
+	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(I + J))
+	res += uint32(pp.paramK) * uint32(I + J) * VarIntSerializeSize(uint64(pp.paramKc))
+	res += uint32(pp.paramK) * uint32(I + J) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(pp.paramK*(I+J)*pp.paramKc*pp.paramD)
+	// rpulpproof.zs
+	res += VarIntSerializeSize(uint64(pp.paramK))
+	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(pp.paramKc))
+	res += uint32(pp.paramK) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(pp.paramK*pp.paramKc*pp.paramD)
+
+	// cmtps
+	res += VarIntSerializeSize(uint64(I))
+	// cmtps.b
+	res += uint32(1 * I)
+	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramKc))
+	res += uint32(I) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(I * pp.paramKc * pp.paramD)
+	// cmtps.c
+	res += uint32(1 * I)
+	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(I * pp.paramD)
+
+	// elrsSigs
+	res += VarIntSerializeSize(uint64(I))
+	// elrsSigs.chseed
+	res += uint32(1 * I)
+	res += uint32(I) * VarIntSerializeSize(uint64(32))
+	res += uint32(32 * I)
+	// elrsSigs.z_as
+	for i := 0; i < I; i++ {
+		res += VarIntSerializeSize(uint64(pp.paramK))
+		res += uint32(pp.paramK) * VarIntSerializeSize(uint64(inputRingSizes[i]))
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramKc))
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+		res += 4 * uint32(pp.paramK * inputRingSizes[i] * pp.paramKc * pp.paramD)
+	}
+	// elrsSigs.z_cs
+	for i := 0; i < I; i++ {
+		res += VarIntSerializeSize(uint64(pp.paramK))
+		res += uint32(pp.paramK) * VarIntSerializeSize(uint64(inputRingSizes[i]))
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramKc))
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+		res += 4 * uint32(pp.paramK * inputRingSizes[i] * pp.paramKc * pp.paramD)
+	}
+	// keyImg
+	res += uint32(1 * I)
+	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramKc))
+	res += uint32(I) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(I * pp.paramKc * pp.paramD)
+
+	return res
 }
 
 func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
