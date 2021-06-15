@@ -50,7 +50,7 @@ func ReadVarBytes(r io.Reader, maxAllowed uint32, fieldName string) ([]byte, err
 	return b, nil
 }
 
-func GetBytesSize(b []byte) uint32 {
+func GetBytesSerializeSize(b []byte) uint32 {
 	if b == nil {
 		return 0
 	}
@@ -115,7 +115,7 @@ func ReadPolyNTT(r io.Reader) (*PolyNTT, error) {
 	return polyNTT, nil
 }
 
-func GetPolyNTTSize(polyNTT *PolyNTT) uint32 {
+func GetPolyNTTSerializeSize(polyNTT *PolyNTT) uint32 {
 	var res uint32 = 0
 	if polyNTT == nil {
 		return 0
@@ -162,14 +162,14 @@ func ReadPolyNTTVec(r io.Reader) (*PolyNTTVec, error) {
 	return polyNTTVec, nil
 }
 
-func GetPolyNTTVecSize(polyNTTVec *PolyNTTVec) uint32 {
+func GetPolyNTTVecSerializeSize(polyNTTVec *PolyNTTVec) uint32 {
 	var res uint32 = 0
 	if polyNTTVec == nil {
 		return 0
 	}
 	count := len(polyNTTVec.polyNTTs)
 	res += VarIntSerializeSize(uint64(count))
-	res += uint32(count) * GetPolyNTTSize(polyNTTVec.polyNTTs[0])
+	res += uint32(count) * GetPolyNTTSerializeSize(polyNTTVec.polyNTTs[0])
 	return res
 }
 
@@ -399,7 +399,7 @@ func ReadRpulpProof(r io.Reader) (*rpulpProof, error) {
 	return ret, nil
 }
 
-func GetRpulpProofSize(proof *rpulpProof) uint32 {
+func GetRpulpProofSerializeSize(proof *rpulpProof) uint32 {
 	var res uint32 = 0
 
 	// c_waves
@@ -408,24 +408,24 @@ func GetRpulpProofSize(proof *rpulpProof) uint32 {
 	}else{
 		count := len(proof.c_waves)
 		res += VarIntSerializeSize(uint64(count))
-		res += uint32(count) * GetPolyNTTSize(proof.c_waves[0])
+		res += uint32(count) * GetPolyNTTSerializeSize(proof.c_waves[0])
 	}
 
 	// c_hat_g
 	res += 1
-	res += GetPolyNTTSize(proof.c_hat_g)
+	res += GetPolyNTTSerializeSize(proof.c_hat_g)
 
 	// psi
 	res += 1
-	res += GetPolyNTTSize(proof.psi)
+	res += GetPolyNTTSerializeSize(proof.psi)
 
 	// phi
 	res += 1
-	res += GetPolyNTTSize(proof.phi)
+	res += GetPolyNTTSerializeSize(proof.phi)
 
 	// chseed
 	res += 1
-	res += GetBytesSize(proof.chseed)
+	res += GetBytesSerializeSize(proof.chseed)
 
 	// cmt_zs
 	if proof.cmt_zs == nil {
@@ -435,7 +435,7 @@ func GetRpulpProofSize(proof *rpulpProof) uint32 {
 		res += VarIntSerializeSize(uint64(count1))
 		count2 := len(proof.cmt_zs[0])
 		res += uint32(count1) * VarIntSerializeSize(uint64(count2))
-		res += uint32(count1) * uint32(count2) * GetPolyNTTVecSize(proof.cmt_zs[0][0])
+		res += uint32(count1) * uint32(count2) * GetPolyNTTVecSerializeSize(proof.cmt_zs[0][0])
 	}
 
 	// zs
@@ -444,7 +444,7 @@ func GetRpulpProofSize(proof *rpulpProof) uint32 {
 	}else{
 		count := len(proof.zs)
 		res += VarIntSerializeSize(uint64(count))
-		res += uint32(count) * GetPolyNTTVecSize(proof.zs[0])
+		res += uint32(count) * GetPolyNTTVecSerializeSize(proof.zs[0])
 	}
 
 	return res
@@ -511,7 +511,7 @@ func ReadCommitment(r io.Reader) (*Commitment, error) {
 	return commitment, nil
 }
 
-func GetCommitmentSize(cmt *Commitment) uint32 {
+func GetCommitmentSerializeSize(cmt *Commitment) uint32 {
 	if cmt == nil {
 		return 0
 	}
@@ -519,11 +519,11 @@ func GetCommitmentSize(cmt *Commitment) uint32 {
 
 	// b
 	res += 1
-	res += GetPolyNTTVecSize(cmt.b)
+	res += GetPolyNTTVecSerializeSize(cmt.b)
 
 	// c
 	res += 10
-	res += GetPolyNTTSize(cmt.c)
+	res += GetPolyNTTSerializeSize(cmt.c)
 
 	return res
 }
@@ -589,7 +589,7 @@ func ReadDerivedPubKey(r io.Reader) (*DerivedPubKey, error) {
 	return derivedPubKey, nil
 }
 
-func GetDerivedPubKeySize(dpk *DerivedPubKey) uint32 {
+func GetDerivedPubKeySerializeSize(dpk *DerivedPubKey) uint32 {
 	if dpk == nil {
 		return 0
 	}
@@ -597,11 +597,11 @@ func GetDerivedPubKeySize(dpk *DerivedPubKey) uint32 {
 
 	// ckem
 	res += 1
-	res += GetBytesSize(dpk.ckem)
+	res += GetBytesSerializeSize(dpk.ckem)
 
 	// t
 	res += 1
-	res += GetPolyNTTVecSize(dpk.t)
+	res += GetPolyNTTVecSerializeSize(dpk.t)
 
 	return res
 }
@@ -763,7 +763,7 @@ func ReadElrsSignature(r io.Reader) (*elrsSignature, error) {
 	return ret, nil
 }
 
-func GetElrsSignatureSize(elrsSig *elrsSignature) uint32 {
+func GetElrsSignatureSerializeSize(elrsSig *elrsSignature) uint32 {
 	if elrsSig == nil {
 		return 0
 	}
@@ -771,7 +771,7 @@ func GetElrsSignatureSize(elrsSig *elrsSignature) uint32 {
 
 	// chseed
 	res += 1
-	res += GetBytesSize(elrsSig.chseed)
+	res += GetBytesSerializeSize(elrsSig.chseed)
 
 	// z_as
 	if elrsSig.z_as == nil {
@@ -781,7 +781,7 @@ func GetElrsSignatureSize(elrsSig *elrsSignature) uint32 {
 		res += VarIntSerializeSize(uint64(count1))
 		count2 := len(elrsSig.z_as[0])
 		res += uint32(count1) * VarIntSerializeSize(uint64(count2))
-		res += uint32(count1) * uint32(count2) * GetPolyNTTVecSize(elrsSig.z_as[0][0])
+		res += uint32(count1) * uint32(count2) * GetPolyNTTVecSerializeSize(elrsSig.z_as[0][0])
 	}
 
 	// z_cs
@@ -792,12 +792,12 @@ func GetElrsSignatureSize(elrsSig *elrsSignature) uint32 {
 		res += VarIntSerializeSize(uint64(count1))
 		count2 := len(elrsSig.z_cs[0])
 		res += uint32(count1) * VarIntSerializeSize(uint64(count2))
-		res += uint32(count1) * uint32(count2) * GetPolyNTTVecSize(elrsSig.z_cs[0][0])
+		res += uint32(count1) * uint32(count2) * GetPolyNTTVecSerializeSize(elrsSig.z_cs[0][0])
 	}
 
 	// keyImg
 	res += 1
-	res += GetPolyNTTVecSize(elrsSig.keyImg)
+	res += GetPolyNTTVecSerializeSize(elrsSig.keyImg)
 
 	return res
 }
@@ -895,7 +895,7 @@ func (cbTxWitness *CbTxWitness) SerializeSize() uint32 {
 
 	// b_hat
 	res += 1
-	res += GetPolyNTTVecSize(cbTxWitness.b_hat)
+	res += GetPolyNTTVecSerializeSize(cbTxWitness.b_hat)
 
 	// c_hats
 	if cbTxWitness.c_hats == nil {
@@ -903,7 +903,7 @@ func (cbTxWitness *CbTxWitness) SerializeSize() uint32 {
 	}else{
 		count := len(cbTxWitness.c_hats)
 		res += VarIntSerializeSize(uint64(count))
-		res += uint32(count) * GetPolyNTTSize(cbTxWitness.c_hats[0])
+		res += uint32(count) * GetPolyNTTSerializeSize(cbTxWitness.c_hats[0])
 	}
 
 	// u_p
@@ -917,7 +917,7 @@ func (cbTxWitness *CbTxWitness) SerializeSize() uint32 {
 
 	// rpulpproof
 	res += 1
-	res += GetRpulpProofSize(cbTxWitness.rpulpproof)
+	res += GetRpulpProofSerializeSize(cbTxWitness.rpulpproof)
 
 	return res
 }
@@ -1207,8 +1207,24 @@ func (trTx *TransferTx) Deserialize(r io.Reader) error {
 }
 
 func (txo *TXO) SerializeSize() uint32 {
-	// todo
-	return 1
+	if txo == nil {
+		return 0
+	}
+	var res uint32 = 0
+
+	// dpk
+	res += 1
+	res += GetDerivedPubKeySerializeSize(txo.dpk)
+
+	// cmt
+	res += 1
+	res += GetCommitmentSerializeSize(txo.cmt)
+
+	// vc
+	res += 1
+	res += GetBytesSerializeSize(txo.vc)
+
+	return res
 }
 
 func (txo *TXO) Serialize() []byte {
@@ -1346,8 +1362,56 @@ func (trTxInput *TrTxInput) Serialize0(w io.Writer) error {
 }
 
 func (trTxWitness *TrTxWitness) SerializeSize() uint32 {
-	// todo
-	return 1
+	if trTxWitness == nil {
+		return 0
+	}
+	var res uint32 = 0
+
+	// b_hat
+	res += 1
+	res += GetPolyNTTVecSerializeSize(trTxWitness.b_hat)
+
+	// c_hats
+	if trTxWitness.c_hats == nil {
+		res += 1
+	}else{
+		count := len(trTxWitness.c_hats)
+		res += VarIntSerializeSize(uint64(count))
+		res += uint32(count) * GetPolyNTTSerializeSize(trTxWitness.c_hats[0])
+	}
+
+	// u_p
+	if trTxWitness.u_p == nil {
+		res += 1
+	}else{
+		count := len(trTxWitness.u_p)
+		res += VarIntSerializeSize(uint64(count))
+		res += 4 * uint32(count)
+	}
+
+	// rpulpproof
+	res += 1
+	res += GetRpulpProofSerializeSize(trTxWitness.rpulpproof)
+
+	// cmtps
+	if trTxWitness.cmtps == nil {
+		res += 1
+	}else{
+		count := len(trTxWitness.cmtps)
+		res += VarIntSerializeSize(uint64(count))
+		res += uint32(count) * GetCommitmentSerializeSize(trTxWitness.cmtps[0])
+	}
+
+	// elrsSigs
+	if trTxWitness.elrsSigs == nil {
+		res += 1
+	}else{
+		count := len(trTxWitness.elrsSigs)
+		res += VarIntSerializeSize(uint64(count))
+		res += uint32(count) * GetElrsSignatureSerializeSize(trTxWitness.elrsSigs[0])
+	}
+
+	return res
 }
 
 func (trTxInput *TrTxInput) Deserialize(r io.Reader) error {
