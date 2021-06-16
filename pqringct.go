@@ -18,6 +18,10 @@ import (
 This file defines all public constants and interfaces of PQRingCT.
 */
 
+const (
+	MAXRINGSIZE = 7
+)
+
 type MasterPublicKey struct {
 	pkkem *kyber.PublicKey
 	t     *PolyNTTVec // directly in NTT form
@@ -229,7 +233,9 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	return res
 }
 
+// GetCbTxWitnessMaxLen return the max serialize size of a coinbase transaction witness
 func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
+	// todo
 	return uint32(
 		pp.paramKc*pp.paramD*4 + // b_hat
 			(pp.paramJ+2)*pp.paramD*4 + // c_hats
@@ -243,19 +249,15 @@ func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
 			pp.paramK*pp.paramLc*pp.paramD*4, // rpuprg.zs
 	)
 }
+
+// GetTrTxWitnessMaxLen return the max serialize size of a transaction witness
 func (pp *PublicParameter) GetTrTxWitnessMaxLen() uint32 {
-	return uint32(
-		pp.paramKc*pp.paramD*4 + // b_hat
-			(pp.paramI+pp.paramJ+4)*pp.paramD*4 + // c_hats
-			pp.paramKc*pp.paramD*4 + // u_p
-			(pp.paramI+pp.paramJ)*pp.paramD*4 + //rpuprf.c_waves
-			pp.paramD*4 + // rpuprf.c_hat_g
-			pp.paramD*4 + //rpuprf.psi
-			pp.paramD*4 + //rpuprf.phi
-			4 + // rpuprf.chseed
-			pp.paramK*(pp.paramI+pp.paramJ)*pp.paramD*4 + // rpuprf.cmt_zs
-			pp.paramK*pp.paramLc*pp.paramD*4, // rpuprg.zs
-	)
+	input := make([]int, pp.paramI)
+	for i:=0; i < pp.paramI; i++ {
+		input[i] = MAXRINGSIZE
+	}
+	outputSize := uint8(pp.paramJ)
+	return pp.GetTrTxWitnessSerializeSize(input, outputSize)
 }
 
 /*type ValueCommitment struct {
