@@ -235,19 +235,58 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 
 // GetCbTxWitnessMaxLen return the max serialize size of a coinbase transaction witness
 func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
-	// todo
-	return uint32(
-		pp.paramKc*pp.paramD*4 + // b_hat
-			(pp.paramJ+2)*pp.paramD*4 + // c_hats
-			pp.paramD*4 + // u_p
-			pp.paramJ*pp.paramD*4 + //rpuprf.c_waves
-			pp.paramD*4 + // rpuprf.c_hat_g
-			pp.paramD*4 + //rpuprf.psi
-			pp.paramD*4 + //rpuprf.phi
-			4 + // rpuprf.chseed
-			pp.paramK*pp.paramJ*pp.paramD*4 + // rpuprf.cmt_zs
-			pp.paramK*pp.paramLc*pp.paramD*4, // rpuprg.zs
-	)
+	J := pp.paramJ
+	var res uint32 = 0
+	// b_hat
+	res += 1
+	res += VarIntSerializeSize(uint64(pp.paramKc))
+	res += uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramKc * pp.paramD * 4)
+
+	// c_hats
+	res += VarIntSerializeSize(uint64(J + 2))
+	res += uint32(J + 2) * VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32((J + 2) * pp.paramD * 4)
+
+	// u_p
+	res += VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramD * 4)
+
+	// rpulpproof
+	res += 1
+	// rpulpproof.c_waves
+	res += VarIntSerializeSize(uint64(J))
+	res += uint32(J) * VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32((J) * pp.paramD * 4)
+	// rpulpproof.c_hat_g
+	res += 1
+	res += VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramD * 4)
+	// rpulpproof.psi
+	res += 1
+	res += VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramD * 4)
+	// rpulpproof.phi
+	res += 1
+	res += VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramD * 4)
+	// rpulpproof.chseed
+	res += 1
+	res += VarIntSerializeSize(32)
+	res += 32
+	// rpulpproof.cmt_zs
+	res += VarIntSerializeSize(uint64(pp.paramK))
+	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(J))
+	res += uint32(pp.paramK) * uint32(J) * VarIntSerializeSize(uint64(pp.paramKc))
+	res += uint32(pp.paramK) * uint32(J) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(pp.paramK*(J)*pp.paramKc*pp.paramD)
+	// rpulpproof.zs
+	res += VarIntSerializeSize(uint64(pp.paramK))
+	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(pp.paramKc))
+	res += uint32(pp.paramK) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(pp.paramK*pp.paramKc*pp.paramD)
+
+	return res
 }
 
 // GetTrTxWitnessMaxLen return the max serialize size of a transaction witness
