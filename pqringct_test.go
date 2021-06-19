@@ -587,3 +587,49 @@ func TestCoinbase1out(t *testing.T) {
 		fmt.Println("OK")
 	}
 }
+
+func TestMasterKey_SerializeAndDeserialize(t *testing.T) {
+	tests := []struct {
+		name string
+		seed []byte
+	}{
+		// TODO: Add test cases.
+		{
+			name: "test 1",
+			seed: []byte{
+				1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+				33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
+			}},
+	}
+
+	for _, tt := range tests {
+		pp := DefaultPP
+		_, mpk, msvk, mssk, err := pp.MasterKeyGen(tt.seed)
+		if err != nil {
+			t.Errorf("MasterKeyGen() error")
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			gotMpkBytes := mpk.Serialize()
+			newmpk := new(MasterPublicKey)
+			_ = newmpk.Deserialize(gotMpkBytes)
+			if !reflect.DeepEqual(mpk, newmpk) {
+				t.Errorf("Master Public Key Serialize() and Deserialize() do not match")
+			}
+
+			gotMsvkBytes := msvk.Serialize()
+			newmsvk := new(MasterSecretViewKey)
+			_ = newmsvk.Deserialize(gotMsvkBytes)
+			if !reflect.DeepEqual(msvk, newmsvk) {
+				t.Errorf("Master Secret View Key Serialize() and Deserialize() do not match")
+			}
+
+			gotMsskBytes := mssk.Serialize()
+			newmssk := new(MasterSecretSignKey)
+			_ = newmssk.Deserialize(gotMsskBytes)
+			if !reflect.DeepEqual(mssk, newmssk) {
+				t.Errorf("Master Secret Sign Key Serialize() and Deserialize() do not match")
+			}
+
+		})
+	}
+}
