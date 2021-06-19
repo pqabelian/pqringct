@@ -1689,7 +1689,7 @@ func (mpk *MasterPublicKey) SerializeSize() uint32 {
 }
 
 func (mpk *MasterPublicKey) Serialize() []byte {
-	res := make([]byte, 0, DefaultPP.paramKem.CryptoPublicKeyBytes()+4+len(mpk.t.polyNTTs)*len(mpk.t.polyNTTs[0].coeffs)*4)
+	res := make([]byte, 0, mpk.SerializeSize())
 	res = append(res, mpk.pkkem.Bytes()...)
 	length := len(mpk.t.polyNTTs)
 	res = append(res, byte((length>>24)&0xFF))
@@ -1735,30 +1735,62 @@ func (mpk *MasterPublicKey) Deserialize(mpkSer []byte) error {
 }
 
 func (msvk *MasterSecretViewKey) SerializeSize() uint32 {
-	//	todo
-	return 1
+	return uint32(DefaultPP.paramKem.CryptoSecretKeyBytes())
 }
 
 func (msvk *MasterSecretViewKey) Serialize() []byte {
-	//	todo
-	return nil
+	return msvk.skkem.Bytes()
 }
 
 func (msvk *MasterSecretViewKey) Deserialize(msvkSer []byte) error {
+	var err error
+	msvk.skkem, err= DefaultPP.paramKem.SecretKeyFromBytes(msvkSer)
+	if err!=nil{
+		return err
+	}
 	return nil
 }
 
 func (mssk *MasterSecretSignKey) SerializeSize() uint32 {
-	//	todo
-	return 1
+	return uint32(4+len(mssk.s.polyNTTs) * len(mssk.s.polyNTTs[0].coeffs) * 4)
 }
 
 func (mssk *MasterSecretSignKey) Serialize() []byte {
-	//	todo
-	return nil
+	res:=make([]byte,0, mssk.SerializeSize())
+	length := len(mssk.s.polyNTTs)
+	res = append(res, byte((length>>24)&0xFF))
+	res = append(res, byte((length>>16)&0xFF))
+	res = append(res, byte((length>>8)&0xFF))
+	res = append(res, byte((length>>0)&0xFF))
+	for i := 0; i < length; i++ {
+		for j := 0; j < len(mssk.s.polyNTTs[i].coeffs); j++ {
+			res = append(res, byte((mssk.s.polyNTTs[i].coeffs[j]>>24)&0xFF))
+			res = append(res, byte((mssk.s.polyNTTs[i].coeffs[j]>>16)&0xFF))
+			res = append(res, byte((mssk.s.polyNTTs[i].coeffs[j]>>8)&0xFF))
+			res = append(res, byte((mssk.s.polyNTTs[i].coeffs[j]>>0)&0xFF))
+		}
+	}
+	return res
 }
 
 func (mssk *MasterSecretSignKey) Deserialize(msskSer []byte) error {
+	pos:=0
+	length := 0
+	length |= int(msskSer[pos+0]) << 24
+	length |= int(msskSer[pos+1]) << 16
+	length |= int(msskSer[pos+2]) << 8
+	length |= int(msskSer[pos+3]) << 0
+	pos += 4
+	tmp := make([]*PolyNTT, length)
+	for i := 0; i < length; i++ {
+		tmp[i] = new(PolyNTT)
+		tmp[i].coeffs = make([]int32, DefaultPP.paramD)
+		for j := 0; j < DefaultPP.paramD; j++ {
+			tmp[i].coeffs[j] = int32(msskSer[pos+0])<<24 | int32(msskSer[pos+1])<<16 | int32(msskSer[pos+2])<<8 | int32(msskSer[pos+3])<<0
+			pos += 4
+		}
+	}
+	mssk.s=&PolyNTTVec{polyNTTs: tmp}
 	return nil
 }
 
