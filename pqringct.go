@@ -120,7 +120,7 @@ func (pp *PublicParameter) GetMasterPublicKeyByteLen() uint32 {
 func (pp *PublicParameter) GetTxoSerializeSize() uint32 {
 	return uint32(
 		1 + // dpk existence identifier
-		1 + pp.paramKem.CryptoCiphertextBytes() + // dpk.ckem
+		1 + VarIntSerializeSize2(uint64(pp.paramKem.CryptoCiphertextBytes())) + pp.paramKem.CryptoCiphertextBytes() + // dpk.ckem
 		1 +	VarIntSerializeSize2(uint64(pp.paramKa)) + pp.paramKa * VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKa*pp.paramD*4 + // dpk.t
 		1 + // cmt existence identifier
 		1 +	VarIntSerializeSize2(uint64(pp.paramKc)) + pp.paramKc * VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKc*pp.paramD*4 + // cmt.b
