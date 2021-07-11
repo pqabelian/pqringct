@@ -3,7 +3,6 @@ package pqringct
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -189,7 +188,7 @@ rpUlpProveRestart:
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("seed_rand=", seed_rand)
+	//fmt.Println("seed_rand=", seed_rand)
 	alphas, betas, gammas, err := pp.expandUniformRandomnessInRqZq(seed_rand, n1, m)
 	if err != nil {
 		return nil, err
@@ -355,10 +354,10 @@ rpUlpProveRestart:
 			pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], ys[xi], pp.paramLc))
 	}
 
-	fmt.Printf("phips = \n")
-	for i := 0; i < pp.paramK; i++ {
-		fmt.Printf("phips[%d] = %v \n", i, phips[i])
-	}
+	//fmt.Printf("phips = \n")
+	//for i := 0; i < pp.paramK; i++ {
+	//	fmt.Printf("phips[%d] = %v \n", i, phips[i])
+	//}
 
 	//	seed_ch and ch
 	chseed, err := Hash(pp.collectBytesForRPULP2(tmp, delta_waves, delta_hats, psi, psip, phi, phips))
