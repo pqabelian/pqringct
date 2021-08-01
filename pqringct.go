@@ -120,12 +120,12 @@ func (pp *PublicParameter) GetMasterPublicKeyByteLen() uint32 {
 func (pp *PublicParameter) GetTxoSerializeSize() uint32 {
 	return uint32(
 		1 + // dpk existence identifier
-		1 + VarIntSerializeSize2(uint64(pp.paramKem.CryptoCiphertextBytes())) + pp.paramKem.CryptoCiphertextBytes() + // dpk.ckem
-		1 +	VarIntSerializeSize2(uint64(pp.paramKa)) + pp.paramKa * VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKa*pp.paramD*4 + // dpk.t
-		1 + // cmt existence identifier
-		1 +	VarIntSerializeSize2(uint64(pp.paramKc)) + pp.paramKc * VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKc*pp.paramD*4 + // cmt.b
-		1 +	VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramD*4 + // cmt.c
-		1 +	VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramD, // vc
+			1 + VarIntSerializeSize2(uint64(pp.paramKem.CryptoCiphertextBytes())) + pp.paramKem.CryptoCiphertextBytes() + // dpk.ckem
+			1 + VarIntSerializeSize2(uint64(pp.paramKa)) + pp.paramKa*VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKa*pp.paramD*4 + // dpk.t
+			1 + // cmt existence identifier
+			1 + VarIntSerializeSize2(uint64(pp.paramKc)) + pp.paramKc*VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKc*pp.paramD*4 + // cmt.b
+			1 + VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramD*4 + // cmt.c
+			1 + VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramD, // vc
 	)
 }
 
@@ -144,11 +144,11 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	// c_hats
 	if I == 1 {
 		res += VarIntSerializeSize(uint64(I + J + 2))
-		res += uint32(I + J + 2) * VarIntSerializeSize(uint64(pp.paramD))
+		res += uint32(I+J+2) * VarIntSerializeSize(uint64(pp.paramD))
 		res += uint32((I + J + 2) * pp.paramD * 4)
-	}else{
+	} else {
 		res += VarIntSerializeSize(uint64(I + J + 4))
-		res += uint32(I + J + 4) * VarIntSerializeSize(uint64(pp.paramD))
+		res += uint32(I+J+4) * VarIntSerializeSize(uint64(pp.paramD))
 		res += uint32((I + J + 4) * pp.paramD * 4)
 	}
 
@@ -160,7 +160,7 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	res += 1
 	// rpulpproof.c_waves
 	res += VarIntSerializeSize(uint64(I + J))
-	res += uint32(I + J) * VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(I+J) * VarIntSerializeSize(uint64(pp.paramD))
 	res += uint32((I + J) * pp.paramD * 4)
 	// rpulpproof.c_hat_g
 	res += 1
@@ -180,9 +180,9 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	res += 32
 	// rpulpproof.cmt_zs
 	res += VarIntSerializeSize(uint64(pp.paramK))
-	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(I + J))
-	res += uint32(pp.paramK) * uint32(I + J) * VarIntSerializeSize(uint64(pp.paramKc))
-	res += uint32(pp.paramK) * uint32(I + J) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(I+J))
+	res += uint32(pp.paramK) * uint32(I+J) * VarIntSerializeSize(uint64(pp.paramKc))
+	res += uint32(pp.paramK) * uint32(I+J) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
 	res += 4 * uint32(pp.paramK*(I+J)*pp.paramKc*pp.paramD)
 	// rpulpproof.zs
 	res += VarIntSerializeSize(uint64(pp.paramK))
@@ -196,11 +196,11 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	res += uint32(1 * I)
 	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramKc))
 	res += uint32(I) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(I * pp.paramKc * pp.paramD)
+	res += 4 * uint32(I*pp.paramKc*pp.paramD)
 	// cmtps.c
 	res += uint32(1 * I)
 	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(I * pp.paramD)
+	res += 4 * uint32(I*pp.paramD)
 
 	// elrsSigs
 	res += VarIntSerializeSize(uint64(I))
@@ -214,7 +214,7 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 		res += uint32(pp.paramK) * VarIntSerializeSize(uint64(inputRingSizes[i]))
 		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramKc))
 		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-		res += 4 * uint32(pp.paramK * inputRingSizes[i] * pp.paramKc * pp.paramD)
+		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramKc*pp.paramD)
 	}
 	// elrsSigs.z_cs
 	for i := 0; i < I; i++ {
@@ -222,13 +222,13 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 		res += uint32(pp.paramK) * VarIntSerializeSize(uint64(inputRingSizes[i]))
 		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramKc))
 		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-		res += 4 * uint32(pp.paramK * inputRingSizes[i] * pp.paramKc * pp.paramD)
+		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramKc*pp.paramD)
 	}
 	// keyImg
 	res += uint32(1 * I)
 	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramKc))
 	res += uint32(I) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(I * pp.paramKc * pp.paramD)
+	res += 4 * uint32(I*pp.paramKc*pp.paramD)
 
 	return res
 }
@@ -245,7 +245,7 @@ func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
 
 	// c_hats
 	res += VarIntSerializeSize(uint64(J + 2))
-	res += uint32(J + 2) * VarIntSerializeSize(uint64(pp.paramD))
+	res += uint32(J+2) * VarIntSerializeSize(uint64(pp.paramD))
 	res += uint32((J + 2) * pp.paramD * 4)
 
 	// u_p
@@ -292,7 +292,7 @@ func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
 // GetTrTxWitnessMaxLen return the max serialize size of a transaction witness
 func (pp *PublicParameter) GetTrTxWitnessMaxLen() uint32 {
 	input := make([]int, pp.paramI)
-	for i:=0; i < pp.paramI; i++ {
+	for i := 0; i < pp.paramI; i++ {
 		input[i] = MAXRINGSIZE
 	}
 	outputSize := uint8(pp.paramJ)
@@ -361,7 +361,7 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *Maste
 	var kemSK *kyber.SecretKey
 
 	// check the validity of the length of seed
-	if seed != nil && len(seed) < 2*pp.paramSysBytes {
+	if seed != nil && len(seed) != 2*pp.paramSysBytes {
 		return nil, nil, nil, nil, errors.New("the length of seed is invalid")
 	}
 	if seed == nil {
@@ -1744,19 +1744,19 @@ func (msvk *MasterSecretViewKey) Serialize() []byte {
 
 func (msvk *MasterSecretViewKey) Deserialize(msvkSer []byte) error {
 	var err error
-	msvk.skkem, err= DefaultPP.paramKem.SecretKeyFromBytes(msvkSer)
-	if err!=nil{
+	msvk.skkem, err = DefaultPP.paramKem.SecretKeyFromBytes(msvkSer)
+	if err != nil {
 		return err
 	}
 	return nil
 }
 
 func (mssk *MasterSecretSignKey) SerializeSize() uint32 {
-	return uint32(4+len(mssk.s.polyNTTs) * len(mssk.s.polyNTTs[0].coeffs) * 4)
+	return uint32(4 + len(mssk.s.polyNTTs)*len(mssk.s.polyNTTs[0].coeffs)*4)
 }
 
 func (mssk *MasterSecretSignKey) Serialize() []byte {
-	res:=make([]byte,0, mssk.SerializeSize())
+	res := make([]byte, 0, mssk.SerializeSize())
 	length := len(mssk.s.polyNTTs)
 	res = append(res, byte((length>>24)&0xFF))
 	res = append(res, byte((length>>16)&0xFF))
@@ -1774,7 +1774,7 @@ func (mssk *MasterSecretSignKey) Serialize() []byte {
 }
 
 func (mssk *MasterSecretSignKey) Deserialize(msskSer []byte) error {
-	pos:=0
+	pos := 0
 	length := 0
 	length |= int(msskSer[pos+0]) << 24
 	length |= int(msskSer[pos+1]) << 16
@@ -1790,7 +1790,7 @@ func (mssk *MasterSecretSignKey) Deserialize(msskSer []byte) error {
 			pos += 4
 		}
 	}
-	mssk.s=&PolyNTTVec{polyNTTs: tmp}
+	mssk.s = &PolyNTTVec{polyNTTs: tmp}
 	return nil
 }
 
