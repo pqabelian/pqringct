@@ -361,11 +361,11 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *Maste
 	var kemSK *kyber.SecretKey
 
 	// check the validity of the length of seed
-	if seed != nil && len(seed) != 2*pp.paramSysBytes {
+	if seed != nil && len(seed) != pp.paramSysBytes {
 		return nil, nil, nil, nil, errors.New("the length of seed is invalid")
 	}
 	if seed == nil {
-		seed = randomBytes(2 * pp.paramSysBytes)
+		seed = randomBytes(pp.paramSysBytes)
 	}
 	// this temporary byte slice is for protect seed unmodified
 	tmp := make([]byte, pp.paramSysBytes)
@@ -376,8 +376,9 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *Maste
 	if err != nil {
 		return seed, nil, nil, nil, err
 	}
+	tmp = make([]byte, pp.paramSysBytes)
 	for i := 0; i < pp.paramSysBytes; i++ {
-		tmp[i] = seed[i+pp.paramSysBytes]
+		tmp[i] = seed[i]
 	}
 	kemPK, kemSK, err = pp.paramKem.CryptoKemKeyPair(tmp)
 	if err != nil {
