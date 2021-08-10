@@ -181,14 +181,14 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	// rpulpproof.cmt_zs
 	res += VarIntSerializeSize(uint64(pp.paramK))
 	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(I+J))
-	res += uint32(pp.paramK) * uint32(I+J) * VarIntSerializeSize(uint64(pp.paramKc))
-	res += uint32(pp.paramK) * uint32(I+J) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(pp.paramK*(I+J)*pp.paramKc*pp.paramD)
+	res += uint32(pp.paramK) * uint32(I+J) * VarIntSerializeSize(uint64(pp.paramLc))
+	res += uint32(pp.paramK) * uint32(I+J) * uint32(pp.paramLc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(pp.paramK*(I+J)*pp.paramLc*pp.paramD)
 	// rpulpproof.zs
 	res += VarIntSerializeSize(uint64(pp.paramK))
-	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(pp.paramKc))
-	res += uint32(pp.paramK) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(pp.paramK*pp.paramKc*pp.paramD)
+	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(pp.paramLc))
+	res += uint32(pp.paramK) * uint32(pp.paramLc) * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(pp.paramK*pp.paramLc*pp.paramD)
 
 	// cmtps
 	res += VarIntSerializeSize(uint64(I))
@@ -212,23 +212,23 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	for i := 0; i < I; i++ {
 		res += VarIntSerializeSize(uint64(pp.paramK))
 		res += uint32(pp.paramK) * VarIntSerializeSize(uint64(inputRingSizes[i]))
-		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramKc))
-		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramKc*pp.paramD)
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramLa))
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramLa) * VarIntSerializeSize(uint64(pp.paramD))
+		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramLa*pp.paramD)
 	}
 	// elrsSigs.z_cs
 	for i := 0; i < I; i++ {
 		res += VarIntSerializeSize(uint64(pp.paramK))
 		res += uint32(pp.paramK) * VarIntSerializeSize(uint64(inputRingSizes[i]))
-		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramKc))
-		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramKc*pp.paramD)
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramLc))
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramLc) * VarIntSerializeSize(uint64(pp.paramD))
+		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramLc*pp.paramD)
 	}
 	// keyImg
 	res += uint32(1 * I)
-	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramKc))
-	res += uint32(I) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(I*pp.paramKc*pp.paramD)
+	res += uint32(I) * VarIntSerializeSize(1)
+	res += uint32(I) * 1 * VarIntSerializeSize(uint64(pp.paramD))
+	res += 4 * uint32(I * 1 * pp.paramD)
 
 	return res
 }
