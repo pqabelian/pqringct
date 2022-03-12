@@ -21,10 +21,10 @@ const (
 // collectBytesForRPULP1 is an auxiliary function for rpulpProve and rpulpVerify to collect some information into a byte slice
 func (pp PublicParameter) collectBytesForRPULP1(n int, n1 int, n2 int, binMatrixB [][]byte, m int, cmts []*Commitment, b_hat *PolyNTTVec, c_hats []*PolyNTT, rpulpType RpUlpType, I int, J int, u_hats [][]int32, c_waves []*PolyNTT, cmt_ws [][]*PolyNTTVec, ws []*PolyNTTVec, c_hat_g *PolyNTT) []byte {
 	tmp := make([]byte, 0,
-		(pp.paramKc*pp.paramD*4+pp.paramD*4)*n+pp.paramKc*pp.paramD*4+pp.paramD*4*n2+4+1+len(binMatrixB)*len(binMatrixB[0])+1+1+m*pp.paramD*4+pp.paramD*4*n+(pp.paramKc*pp.paramD*4)*n*pp.paramK+(pp.paramKc*pp.paramD*4)*pp.paramK+pp.paramD*4+
-			pp.paramD*4*(n*pp.paramK*2+3+pp.paramK))
+		(pp.paramKC*pp.paramDC*4+pp.paramDC*4)*n+pp.paramKC*pp.paramDC*4+pp.paramDC*4*n2+4+1+len(binMatrixB)*len(binMatrixB[0])+1+1+m*pp.paramDC*4+pp.paramDC*4*n+(pp.paramKC*pp.paramDC*4)*n*pp.paramK+(pp.paramKC*pp.paramDC*4)*pp.paramK+pp.paramDC*4+
+			pp.paramDC*4*(n*pp.paramK*2+3+pp.paramK))
 	appendPolyNTTToBytes := func(a *PolyNTT) {
-		for k := 0; k < pp.paramD; k++ {
+		for k := 0; k < pp.paramDC; k++ {
 			tmp = append(tmp, byte(a.coeffs[k]>>0))
 			tmp = append(tmp, byte(a.coeffs[k]>>8))
 			tmp = append(tmp, byte(a.coeffs[k]>>16))
@@ -45,7 +45,7 @@ func (pp PublicParameter) collectBytesForRPULP1(n int, n1 int, n2 int, binMatrix
 		appendPolyNTTToBytes(cmts[i].c)
 	}
 	// b_hat
-	for i := 0; i < pp.paramKc; i++ {
+	for i := 0; i < pp.paramKC; i++ {
 		appendPolyNTTToBytes(b_hat.polyNTTs[i])
 	}
 	// c_i_hat
@@ -99,7 +99,7 @@ func (pp PublicParameter) collectBytesForRPULP1(n int, n1 int, n2 int, binMatrix
 // collectBytesForRPULP2 is an auxiliary function for rpulpProve and rpulpVerify to collect some information into a byte slice
 func (pp PublicParameter) collectBytesForRPULP2(tmp []byte, delta_waves [][]*PolyNTT, delta_hats [][]*PolyNTT, psi *PolyNTT, psip *PolyNTT, phi *PolyNTT, phips []*PolyNTT) []byte {
 	appendPolyNTTToBytes := func(a *PolyNTT) {
-		for k := 0; k < pp.paramD; k++ {
+		for k := 0; k < pp.paramDC; k++ {
 			tmp = append(tmp, byte(a.coeffs[k]>>0))
 			tmp = append(tmp, byte(a.coeffs[k]>>8))
 			tmp = append(tmp, byte(a.coeffs[k]>>16))
@@ -147,7 +147,7 @@ func (pp PublicParameter) rpulpProve(cmts []*Commitment, cmt_rs []*PolyNTTVec, n
 	// c_waves[i] = <h_i, r_i> + m_i
 	c_waves := make([]*PolyNTT, n)
 	for i := 0; i < n; i++ {
-		c_waves[i] = pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], cmt_rs[i], pp.paramLc), &PolyNTT{msg_hats[i]})
+		c_waves[i] = pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], cmt_rs[i], pp.paramLC), &PolyNTT{msg_hats[i]})
 	}
 
 rpUlpProveRestart:
@@ -166,7 +166,7 @@ rpUlpProveRestart:
 				return nil, err
 			}
 			cmt_ys[t][i] = pp.NTTVec(maskC)
-			cmt_ws[t][i] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_ys[t][i], pp.paramKc, pp.paramLc)
+			cmt_ws[t][i] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_ys[t][i], pp.paramKC, pp.paramLC)
 		}
 
 		maskC, err := pp.sampleMaskC()
@@ -174,13 +174,13 @@ rpUlpProveRestart:
 			return nil, err
 		}
 		ys[t] = pp.NTTVec(maskC)
-		ws[t] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKc, pp.paramLc)
+		ws[t] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKC, pp.paramLC)
 	}
 
 	tmpg := pp.sampleUniformPloyWithLowZeros()
 	g := pp.NTT(tmpg)
 	// c_hat(n2+1)
-	c_hat_g := pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], r_hat, pp.paramLc), g)
+	c_hat_g := pp.PolyNTTAdd(pp.PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], r_hat, pp.paramLC), g)
 
 	// splicing the data to be processed
 	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws, c_hat_g)
@@ -200,8 +200,8 @@ rpUlpProveRestart:
 		delta_waves[t] = make([]*PolyNTT, n)
 		delta_hats[t] = make([]*PolyNTT, n)
 		for i := 0; i < n; i++ {
-			delta_waves[t][i] = pp.PolyNTTVecInnerProduct(pp.PolyNTTVecSub(pp.paramMatrixC[i+1], pp.paramMatrixC[0], pp.paramLc), cmt_ys[t][i], pp.paramLc)
-			delta_hats[t][i] = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], pp.PolyNTTVecSub(ys[t], cmt_ys[t][i], pp.paramLc), pp.paramLc)
+			delta_waves[t][i] = pp.PolyNTTVecInnerProduct(pp.PolyNTTVecSub(pp.paramMatrixH[i+1], pp.paramMatrixH[0], pp.paramLC), cmt_ys[t][i], pp.paramLC)
+			delta_hats[t][i] = pp.PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], pp.PolyNTTVecSub(ys[t], cmt_ys[t][i], pp.paramLC), pp.paramLC)
 		}
 	}
 	//fmt.Printf("delta_waves =\n")
@@ -220,8 +220,8 @@ rpUlpProveRestart:
 	//}
 
 	//	psi, psi'
-	psi := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], r_hat, pp.paramLc)
-	psip := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], ys[0], pp.paramLc)
+	psi := pp.PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], r_hat, pp.paramLC)
+	psip := pp.PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], ys[0], pp.paramLC)
 
 	for t := 0; t < pp.paramK; t++ {
 		tmp1 := pp.NewZeroPolyNTT()
@@ -229,7 +229,7 @@ rpUlpProveRestart:
 		// sum(0->n1-1)
 		for i := 0; i < n1; i++ {
 			// <h_i , y_t>
-			tmp := pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], ys[t], pp.paramLc)
+			tmp := pp.PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], ys[t], pp.paramLC)
 
 			tmp1 = pp.PolyNTTAdd(
 				tmp1,
@@ -277,23 +277,23 @@ rpUlpProveRestart:
 			}
 
 			/*			nttsumL := int64(0)
-						for i := 0; i < pp.paramD; i++ {
+						for i := 0; i < pp.paramDC; i++ {
 							nttsumL = pp.reduceInt64( int64(nttsumL) + int64(tmp.coeffs[i]) )
 						}*/
 
 			constPoly := pp.NewZeroPoly()
-			constPoly.coeffs[0] = pp.reduce(int64(pp.intMatrixInnerProduct(u_hats, gammas[t], m, pp.paramD)) * int64(pp.paramDInv))
+			constPoly.coeffs[0] = pp.reduce(int64(pp.intMatrixInnerProduct(u_hats, gammas[t], m, pp.paramDC)) * int64(pp.paramDCInv))
 
 			/*			constPolyNTT := pp.NTT(constPoly)
 						nttsumR := int64(0)
-						for i := 0; i < pp.paramD; i++ {
+						for i := 0; i < pp.paramDC; i++ {
 							nttsumR = pp.reduceInt64( int64(nttsumR) + int64(constPolyNTT.coeffs[i]) )
 						}*/
 
 			tmp = pp.PolyNTTSub(tmp, pp.NTT(constPoly))
 
 			/*			nttsumF := int64(0)
-						for i := 0; i < pp.paramD; i++ {
+						for i := 0; i < pp.paramDC; i++ {
 							nttsumF = pp.reduceInt64( int64(nttsumF) + int64(tmp.coeffs[i]) )
 						}
 						fmt.Println("sumL:", nttsumL)
@@ -325,19 +325,19 @@ rpUlpProveRestart:
 			tmp1 := pp.NewZeroPolyNTT()
 			for tau := 0; tau < pp.paramK; tau++ {
 
-				tmp := pp.NewZeroPolyNTTVec(pp.paramLc)
+				tmp := pp.NewZeroPolyNTTVec(pp.paramLC)
 
 				for j := 0; j < n2; j++ {
 					tmp = pp.PolyNTTVecAdd(
 						tmp,
-						pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixC[j+1], pp.paramLc),
-						pp.paramLc)
+						pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixH[j+1], pp.paramLC),
+						pp.paramLC)
 				}
 
 				tmp1 = pp.PolyNTTAdd(
 					tmp1,
 					pp.sigmaPowerPolyNTT(
-						pp.PolyNTTVecInnerProduct(tmp, ys[(xi-tau+pp.paramK)%pp.paramK], pp.paramLc),
+						pp.PolyNTTVecInnerProduct(tmp, ys[(xi-tau+pp.paramK)%pp.paramK], pp.paramLC),
 						tau))
 			}
 
@@ -351,7 +351,7 @@ rpUlpProveRestart:
 
 		phips[xi] = pp.PolyNTTAdd(
 			phips[xi],
-			pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], ys[xi], pp.paramLc))
+			pp.PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], ys[xi], pp.paramLC))
 	}
 
 	//fmt.Printf("phips = \n")
@@ -379,14 +379,14 @@ rpUlpProveRestart:
 		for i := 0; i < n; i++ {
 			cmt_zs[t][i] = pp.PolyNTTVecAdd(
 				cmt_ys[t][i],
-				pp.PolyNTTVecScaleMul(sigma_t_ch, cmt_rs[i], pp.paramLc),
-				pp.paramLc)
+				pp.PolyNTTVecScaleMul(sigma_t_ch, cmt_rs[i], pp.paramLC),
+				pp.paramLC)
 			if pp.NTTInvVec(cmt_zs[t][i]).infNorm() > pp.paramEtaC-pp.paramBetaC {
 				goto rpUlpProveRestart
 			}
 		}
 
-		zs[t] = pp.PolyNTTVecAdd(ys[t], pp.PolyNTTVecScaleMul(sigma_t_ch, r_hat, pp.paramLc), pp.paramLc)
+		zs[t] = pp.PolyNTTVecAdd(ys[t], pp.PolyNTTVecScaleMul(sigma_t_ch, r_hat, pp.paramLC), pp.paramLC)
 
 		if pp.NTTInvVec(zs[t]).infNorm() > pp.paramEtaC-pp.paramBetaC {
 			goto rpUlpProveRestart
@@ -428,12 +428,12 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 	}
 
 	// check the matrix and u_hats
-	if len(binMatrixB) != pp.paramD {
+	if len(binMatrixB) != pp.paramDC {
 		return false
 	} else {
 		for i := 0; i < len(binMatrixB); i++ {
-			if len(binMatrixB[0]) != pp.paramD/8 {
-				//	todo: sometimes 2*pp.paramD/8
+			if len(binMatrixB[0]) != pp.paramDC/8 {
+				//	todo: sometimes 2*pp.paramDC/8
 				//return false
 			}
 		}
@@ -442,14 +442,14 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 		return false
 	} else {
 		for i := 0; i < len(u_hats); i++ {
-			if len(u_hats[0]) != pp.paramD {
+			if len(u_hats[0]) != pp.paramDC {
 				return false
 			}
 		}
 
 	}
 	// check the well-formness of the \pi
-	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramD || len(rpulppi.psi.coeffs) != pp.paramD || len(rpulppi.phi.coeffs) != pp.paramD || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyNTTs) != pp.paramLc {
+	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramDC || len(rpulppi.psi.coeffs) != pp.paramDC || len(rpulppi.phi.coeffs) != pp.paramDC || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyNTTs) != pp.paramLC {
 		return false
 	}
 	if rpulppi == nil {
@@ -513,14 +513,14 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 		cmt_ws[t] = make([]*PolyNTTVec, n)
 		for i := 0; i < n; i++ {
 			cmt_ws[t][i] = pp.PolyNTTVecSub(
-				pp.PolyNTTMatrixMulVector(pp.paramMatrixB, rpulppi.cmt_zs[t][i], pp.paramKc, pp.paramLc),
-				pp.PolyNTTVecScaleMul(sigma_chs[t], cmts[i].b, pp.paramKc),
-				pp.paramKc)
+				pp.PolyNTTMatrixMulVector(pp.paramMatrixB, rpulppi.cmt_zs[t][i], pp.paramKC, pp.paramLC),
+				pp.PolyNTTVecScaleMul(sigma_chs[t], cmts[i].b, pp.paramKC),
+				pp.paramKC)
 		}
 		ws[t] = pp.PolyNTTVecSub(
-			pp.PolyNTTMatrixMulVector(pp.paramMatrixB, rpulppi.zs[t], pp.paramKc, pp.paramLc),
-			pp.PolyNTTVecScaleMul(sigma_chs[t], b_hat, pp.paramKc),
-			pp.paramKc)
+			pp.PolyNTTMatrixMulVector(pp.paramMatrixB, rpulppi.zs[t], pp.paramKC, pp.paramLC),
+			pp.PolyNTTVecScaleMul(sigma_chs[t], b_hat, pp.paramKC),
+			pp.paramKC)
 	}
 
 	// splicing the data to be processed
@@ -546,16 +546,16 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 		for i := 0; i < n; i++ {
 			delta_waves[t][i] = pp.PolyNTTSub(
 				pp.PolyNTTVecInnerProduct(
-					pp.PolyNTTVecSub(pp.paramMatrixC[i+1], pp.paramMatrixC[0], pp.paramLc),
+					pp.PolyNTTVecSub(pp.paramMatrixH[i+1], pp.paramMatrixH[0], pp.paramLC),
 					rpulppi.cmt_zs[t][i],
-					pp.paramLc),
+					pp.paramLC),
 				pp.PolyNTTMul(sigma_chs[t], pp.PolyNTTSub(rpulppi.c_waves[i], cmts[i].c)))
 
 			delta_hats[t][i] = pp.PolyNTTSub(
 				pp.PolyNTTVecInnerProduct(
-					pp.paramMatrixC[i+1],
-					pp.PolyNTTVecSub(rpulppi.zs[t], rpulppi.cmt_zs[t][i], pp.paramLc),
-					pp.paramLc),
+					pp.paramMatrixH[i+1],
+					pp.PolyNTTVecSub(rpulppi.zs[t], rpulppi.cmt_zs[t][i], pp.paramLC),
+					pp.paramLC),
 				pp.PolyNTTMul(sigma_chs[t], pp.PolyNTTSub(c_hats[i], rpulppi.c_waves[i])))
 		}
 	}
@@ -585,7 +585,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 		for i := 0; i < n1; i++ {
 			f_t_i := pp.PolyNTTSub(
 				//<h_i,z_t>
-				pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], rpulppi.zs[t], pp.paramLc),
+				pp.PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], rpulppi.zs[t], pp.paramLC),
 				// sigma_c_t
 				pp.PolyNTTMul(sigma_chs[t], c_hats[i]))
 
@@ -611,7 +611,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 
 	psip = pp.PolyNTTSub(psip, pp.PolyNTTMul(ch, rpulppi.psi))
 	psip = pp.PolyNTTAdd(psip,
-		pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+6], rpulppi.zs[0], pp.paramLc))
+		pp.PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], rpulppi.zs[0], pp.paramLC))
 	/*	fmt.Printf("Verify\n")
 		fmt.Printf("psip = %v\n", psip)*/
 	//	p^(t)_j:
@@ -629,7 +629,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 			}
 
 			constPoly := pp.NewZeroPoly()
-			constPoly.coeffs[0] = pp.reduce(int64(pp.intMatrixInnerProduct(u_hats, gammas[t], m, pp.paramD)) * int64(pp.paramDInv))
+			constPoly.coeffs[0] = pp.reduce(int64(pp.intMatrixInnerProduct(u_hats, gammas[t], m, pp.paramDC)) * int64(pp.paramDCInv))
 
 			tmp = pp.PolyNTTSub(tmp, pp.NTT(constPoly))
 
@@ -656,19 +656,19 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 			tmp1 := pp.NewZeroPolyNTT()
 			for tau := 0; tau < pp.paramK; tau++ {
 
-				tmp := pp.NewZeroPolyNTTVec(pp.paramLc)
+				tmp := pp.NewZeroPolyNTTVec(pp.paramLC)
 
 				for j := 0; j < n2; j++ {
 					tmp = pp.PolyNTTVecAdd(
 						tmp,
-						pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixC[j+1], pp.paramLc),
-						pp.paramLc)
+						pp.PolyNTTVecScaleMul(p[t][j], pp.paramMatrixH[j+1], pp.paramLC),
+						pp.paramLC)
 				}
 
 				tmp1 = pp.PolyNTTAdd(
 					tmp1,
 					pp.sigmaPowerPolyNTT(
-						pp.PolyNTTVecInnerProduct(tmp, rpulppi.zs[(xi-tau+pp.paramK)%pp.paramK], pp.paramLc),
+						pp.PolyNTTVecInnerProduct(tmp, rpulppi.zs[(xi-tau+pp.paramK)%pp.paramK], pp.paramLC),
 						tau))
 			}
 
@@ -682,7 +682,7 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 
 		phips[xi] = pp.PolyNTTAdd(
 			phips[xi],
-			pp.PolyNTTVecInnerProduct(pp.paramMatrixC[pp.paramI+pp.paramJ+5], rpulppi.zs[xi], pp.paramLc))
+			pp.PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], rpulppi.zs[xi], pp.paramLC))
 
 		phips[xi] = pp.PolyNTTSub(
 			phips[xi],
@@ -707,9 +707,9 @@ func (pp PublicParameter) rpulpVerify(cmts []*Commitment, n int,
 
 // collectBytesForRPULP1 is an auxiliary function for rpulpProve and rpulpVerify to collect some information into a byte slice
 func (pp PublicParameter) collectBytesForELR(msg []byte, ringSize int, t_as []*PolyNTTVec, w_as []*PolyNTTVec, w_cs []*PolyNTTVec, w_hat_as []*PolyNTTVec, retkeyImg *PolyNTTVec) []byte {
-	seedj_tmp := make([]byte, 0, len(msg)+ringSize*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKc*pp.paramD*4+pp.paramKa*pp.paramD*4+pp.paramMa*pp.paramD*4)
+	seedj_tmp := make([]byte, 0, len(msg)+ringSize*pp.paramKA*pp.paramDC*4+pp.paramK*pp.paramKA*pp.paramDC*4+pp.paramK*pp.paramKC*pp.paramDC*4+pp.paramKA*pp.paramDC*4+pp.paramMa*pp.paramDC*4)
 	appendPolyNTTToBytes := func(a *PolyNTT) {
-		for k := 0; k < pp.paramD; k++ {
+		for k := 0; k < pp.paramDC; k++ {
 			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>0))
 			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>8))
 			seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>16))
@@ -722,16 +722,16 @@ func (pp PublicParameter) collectBytesForELR(msg []byte, ringSize int, t_as []*P
 	}
 	// List
 	for i := 0; i < ringSize; i++ {
-		for ii := 0; ii < pp.paramKa; ii++ {
+		for ii := 0; ii < pp.paramKA; ii++ {
 			appendPolyNTTToBytes(t_as[i].polyNTTs[ii])
 		}
 	}
 	// w_(a,j-1)^(t)   w_(c,j-1)^(t)
 	for i := 0; i < pp.paramK; i++ {
-		for ii := 0; ii < pp.paramKa; ii++ {
+		for ii := 0; ii < pp.paramKA; ii++ {
 			appendPolyNTTToBytes(w_as[i].polyNTTs[ii])
 		}
-		for ii := 0; ii < pp.paramKc+1; ii++ {
+		for ii := 0; ii < pp.paramKC+1; ii++ {
 			appendPolyNTTToBytes(w_cs[i].polyNTTs[ii])
 		}
 	}
@@ -768,15 +768,15 @@ func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg [
 	}
 
 	for j := 0; j < ringSize; j++ {
-		if len(t_as[j].polyNTTs) != pp.paramKa {
+		if len(t_as[j].polyNTTs) != pp.paramKA {
 			return nil, errors.New("the length of t_as is not accurate")
 		}
-		if len(t_cs[j].polyNTTs) != pp.paramKc+1 {
+		if len(t_cs[j].polyNTTs) != pp.paramKC+1 {
 			return nil, errors.New("the length of t_cs is not accurate")
 		}
 	}
 
-	if len(s_a.polyNTTs) != pp.paramLa || len(s_c.polyNTTs) != pp.paramLc {
+	if len(s_a.polyNTTs) != pp.paramLA || len(s_c.polyNTTs) != pp.paramLC {
 		return nil, errors.New("the length of s_a or s_c is not accurate")
 	}
 
@@ -787,26 +787,26 @@ func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg [
 		return nil, errors.New("the norm of s_c is not right")
 	}
 
-	if pp.PolyNTTVecEqualCheck(t_as[sidx], pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_a, pp.paramKa, pp.paramLa)) != true {
+	if pp.PolyNTTVecEqualCheck(t_as[sidx], pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_a, pp.paramKA, pp.paramLA)) != true {
 		return nil, errors.New("t_as not equal")
 	}
 
-	matrixBExt := make([]*PolyNTTVec, pp.paramKc+1)
-	for i := 0; i < pp.paramKc; i++ {
+	matrixBExt := make([]*PolyNTTVec, pp.paramKC+1)
+	for i := 0; i < pp.paramKC; i++ {
 		matrixBExt[i] = pp.paramMatrixB[i]
 	}
-	matrixBExt[pp.paramKc] = pp.paramMatrixC[0]
+	matrixBExt[pp.paramKC] = pp.paramMatrixH[0]
 
-	if pp.PolyNTTVecEqualCheck(t_cs[sidx], pp.PolyNTTMatrixMulVector(matrixBExt, s_c, pp.paramKc+1, pp.paramLc)) != true {
+	if pp.PolyNTTVecEqualCheck(t_cs[sidx], pp.PolyNTTMatrixMulVector(matrixBExt, s_c, pp.paramKC+1, pp.paramLC)) != true {
 		return nil, errors.New("t_cs not equal")
 	}
 
 	//	keyImgMatrices
 	imgMatrixs := make([][]*PolyNTTVec, ringSize)
 	for j := 0; j < ringSize; j++ {
-		tmp := make([]byte, 0, pp.paramKa*pp.paramD*4)
-		for ii := 0; ii < pp.paramKa; ii++ {
-			for jj := 0; jj < pp.paramD; jj++ {
+		tmp := make([]byte, 0, pp.paramKA*pp.paramDC*4)
+		for ii := 0; ii < pp.paramKA; ii++ {
+			for jj := 0; jj < pp.paramDC; jj++ {
 				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>0))
 				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>8))
 				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>16))
@@ -820,13 +820,13 @@ func (pp PublicParameter) elrsSign(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, msg [
 	}
 
 	//	keyImage I
-	retkeyImg := pp.PolyNTTMatrixMulVector(imgMatrixs[sidx], s_a, pp.paramMa, pp.paramLa)
+	retkeyImg := pp.PolyNTTMatrixMulVector(imgMatrixs[sidx], s_a, pp.paramMa, pp.paramLA)
 
 	retz_as := make([][]*PolyNTTVec, pp.paramK)
 	retz_cs := make([][]*PolyNTTVec, pp.paramK)
 	for j := 0; j < pp.paramK; j++ { //TODO
-		retz_as[j] = make([]*PolyNTTVec, pp.paramLa)
-		retz_cs[j] = make([]*PolyNTTVec, pp.paramLc)
+		retz_as[j] = make([]*PolyNTTVec, pp.paramLA)
+		retz_cs[j] = make([]*PolyNTTVec, pp.paramLC)
 	}
 	var retchseed []byte
 
@@ -851,9 +851,9 @@ elrsSignRestart:
 		}
 		y_cs[tau] = pp.NTTVec(maskC2)
 
-		w_as[tau] = pp.PolyNTTMatrixMulVector(pp.paramMatrixA, y_as[tau], pp.paramKa, pp.paramLa)
-		w_cs[tau] = pp.PolyNTTMatrixMulVector(matrixBExt, y_cs[tau], pp.paramKc+1, pp.paramLc)
-		w_hat_as[tau] = pp.PolyNTTMatrixMulVector(imgMatrixs[sidx], y_as[tau], pp.paramMa, pp.paramLa)
+		w_as[tau] = pp.PolyNTTMatrixMulVector(pp.paramMatrixA, y_as[tau], pp.paramKA, pp.paramLA)
+		w_cs[tau] = pp.PolyNTTMatrixMulVector(matrixBExt, y_cs[tau], pp.paramKC+1, pp.paramLC)
+		w_hat_as[tau] = pp.PolyNTTMatrixMulVector(imgMatrixs[sidx], y_as[tau], pp.paramMa, pp.paramLA)
 	}
 
 	var seedj []byte
@@ -888,17 +888,17 @@ elrsSignRestart:
 			sigma_tau_ch = pp.sigmaPowerPolyNTT(chj, tau)
 
 			w_as[tau] = pp.PolyNTTVecSub(
-				pp.PolyNTTMatrixMulVector(pp.paramMatrixA, retz_as[tau][j], pp.paramKa, pp.paramLa),
-				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_as[j], pp.paramKa),
-				pp.paramKa)
+				pp.PolyNTTMatrixMulVector(pp.paramMatrixA, retz_as[tau][j], pp.paramKA, pp.paramLA),
+				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_as[j], pp.paramKA),
+				pp.paramKA)
 
 			w_cs[tau] = pp.PolyNTTVecSub(
-				pp.PolyNTTMatrixMulVector(matrixBExt, retz_cs[tau][j], pp.paramKc+1, pp.paramLc),
-				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_cs[j], pp.paramKc+1),
-				pp.paramKc+1)
+				pp.PolyNTTMatrixMulVector(matrixBExt, retz_cs[tau][j], pp.paramKC+1, pp.paramLC),
+				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_cs[j], pp.paramKC+1),
+				pp.paramKC+1)
 
 			w_hat_as[tau] = pp.PolyNTTVecSub(
-				pp.PolyNTTMatrixMulVector(imgMatrixs[j], retz_as[tau][j], pp.paramMa, pp.paramLa),
+				pp.PolyNTTMatrixMulVector(imgMatrixs[j], retz_as[tau][j], pp.paramMa, pp.paramLA),
 				pp.PolyNTTVecScaleMul(sigma_tau_ch, retkeyImg, pp.paramMa),
 				pp.paramMa)
 		}
@@ -929,12 +929,12 @@ elrsSignRestart:
 	for tau := 0; tau < pp.paramK; tau++ {
 		sigma_tau_ch = pp.sigmaPowerPolyNTT(chj, tau)
 
-		retz_as[tau][sidx] = pp.PolyNTTVecAdd(y_as[tau], pp.PolyNTTVecScaleMul(sigma_tau_ch, s_a, pp.paramLa), pp.paramLa)
+		retz_as[tau][sidx] = pp.PolyNTTVecAdd(y_as[tau], pp.PolyNTTVecScaleMul(sigma_tau_ch, s_a, pp.paramLA), pp.paramLA)
 		if pp.NTTInvVec(retz_as[tau][sidx]).infNorm() > pp.paramEtaA-pp.paramBetaA {
 			goto elrsSignRestart
 		}
 
-		retz_cs[tau][sidx] = pp.PolyNTTVecAdd(y_cs[tau], pp.PolyNTTVecScaleMul(sigma_tau_ch, s_c, pp.paramLc), pp.paramLc)
+		retz_cs[tau][sidx] = pp.PolyNTTVecAdd(y_cs[tau], pp.PolyNTTVecScaleMul(sigma_tau_ch, s_c, pp.paramLC), pp.paramLC)
 		if pp.NTTInvVec(retz_cs[tau][sidx]).infNorm() > pp.paramEtaC2-pp.paramBetaC2 {
 			goto elrsSignRestart
 		}
@@ -971,10 +971,10 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 	ringSize := len(t_as)
 
 	for j := 0; j < ringSize; j++ {
-		if len(t_as[j].polyNTTs) != pp.paramKa {
+		if len(t_as[j].polyNTTs) != pp.paramKA {
 			return false
 		}
-		if len(t_cs[j].polyNTTs) != pp.paramKc+1 {
+		if len(t_cs[j].polyNTTs) != pp.paramKC+1 {
 			return false
 		}
 	}
@@ -1004,11 +1004,11 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 		}
 	}
 
-	matrixBExt := make([]*PolyNTTVec, pp.paramKc+1)
-	for i := 0; i < pp.paramKc; i++ {
+	matrixBExt := make([]*PolyNTTVec, pp.paramKC+1)
+	for i := 0; i < pp.paramKC; i++ {
 		matrixBExt[i] = pp.paramMatrixB[i]
 	}
-	matrixBExt[pp.paramKc] = pp.paramMatrixC[0]
+	matrixBExt[pp.paramKC] = pp.paramMatrixH[0]
 
 	w_as := make([]*PolyNTTVec, pp.paramK)
 	w_cs := make([]*PolyNTTVec, pp.paramK)
@@ -1023,9 +1023,9 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 		}
 		chj := pp.NTT(chtmp)
 
-		tmp := make([]byte, 0, pp.paramKa*pp.paramD*4)
-		for ii := 0; ii < pp.paramKa; ii++ {
-			for jj := 0; jj < pp.paramD; jj++ {
+		tmp := make([]byte, 0, pp.paramKA*pp.paramDC*4)
+		for ii := 0; ii < pp.paramKA; ii++ {
+			for jj := 0; jj < pp.paramDC; jj++ {
 				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>0))
 				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>8))
 				tmp = append(tmp, byte(t_as[j].polyNTTs[ii].coeffs[jj]>>16))
@@ -1041,24 +1041,24 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 			sigma_tau_ch := pp.sigmaPowerPolyNTT(chj, tau)
 
 			w_as[tau] = pp.PolyNTTVecSub(
-				pp.PolyNTTMatrixMulVector(pp.paramMatrixA, elrssig.z_as[tau][j], pp.paramKa, pp.paramLa),
-				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_as[j], pp.paramKa),
-				pp.paramKa)
+				pp.PolyNTTMatrixMulVector(pp.paramMatrixA, elrssig.z_as[tau][j], pp.paramKA, pp.paramLA),
+				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_as[j], pp.paramKA),
+				pp.paramKA)
 
 			w_cs[tau] = pp.PolyNTTVecSub(
-				pp.PolyNTTMatrixMulVector(matrixBExt, elrssig.z_cs[tau][j], pp.paramKc+1, pp.paramLc),
-				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_cs[j], pp.paramKc+1),
-				pp.paramKc+1)
+				pp.PolyNTTMatrixMulVector(matrixBExt, elrssig.z_cs[tau][j], pp.paramKC+1, pp.paramLC),
+				pp.PolyNTTVecScaleMul(sigma_tau_ch, t_cs[j], pp.paramKC+1),
+				pp.paramKC+1)
 
 			w_hat_as[tau] = pp.PolyNTTVecSub(
-				pp.PolyNTTMatrixMulVector(imgMatrix, elrssig.z_as[tau][j], pp.paramMa, pp.paramLa),
+				pp.PolyNTTMatrixMulVector(imgMatrix, elrssig.z_as[tau][j], pp.paramMa, pp.paramLA),
 				pp.PolyNTTVecScaleMul(sigma_tau_ch, elrssig.keyImg, pp.paramMa),
 				pp.paramMa)
 		}
 
-		//seedj_tmp := make([]byte, 0, len(msg)+ringSize*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKa*pp.paramD*4+pp.paramK*pp.paramKc*pp.paramD*4+pp.paramKa*pp.paramD*4+pp.paramMa*pp.paramD*4)
+		//seedj_tmp := make([]byte, 0, len(msg)+ringSize*pp.paramKA*pp.paramDC*4+pp.paramK*pp.paramKA*pp.paramDC*4+pp.paramK*pp.paramKC*pp.paramDC*4+pp.paramKA*pp.paramDC*4+pp.paramMa*pp.paramDC*4)
 		//appendPolyNTTToBytes := func(a *PolyNTT) {
-		//	for k := 0; k < pp.paramD; k++ {
+		//	for k := 0; k < pp.paramDC; k++ {
 		//		seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>0))
 		//		seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>8))
 		//		seedj_tmp = append(seedj_tmp, byte(a.coeffs[k]>>16))
@@ -1071,21 +1071,21 @@ func (pp *PublicParameter) elrsVerify(t_as []*PolyNTTVec, t_cs []*PolyNTTVec, ms
 		//}
 		//// List
 		//for i := 0; i < ringSize; i++ {
-		//	for ii := 0; ii < pp.paramKa; ii++ {
+		//	for ii := 0; ii < pp.paramKA; ii++ {
 		//		appendPolyNTTToBytes(t_as[i].polyNTTs[ii])
 		//	}
 		//}
 		//// w_(a,j-1)^(t)   w_(c,j-1)^(t)
 		//for i := 0; i < pp.paramK; i++ {
-		//	for ii := 0; ii < pp.paramKa; ii++ {
+		//	for ii := 0; ii < pp.paramKA; ii++ {
 		//		appendPolyNTTToBytes(w_as[i].polyNTTs[ii])
 		//	}
-		//	for ii := 0; ii < pp.paramKc+1; ii++ {
+		//	for ii := 0; ii < pp.paramKC+1; ii++ {
 		//		appendPolyNTTToBytes(w_cs[i].polyNTTs[ii])
 		//	}
 		//}
 		//// w_hat_(a,j-1)^(k-1)
-		//for i := 0; i < pp.paramKa; i++ {
+		//for i := 0; i < pp.paramKA; i++ {
 		//	appendPolyNTTToBytes(w_hat_as[pp.paramK-1].polyNTTs[i])
 		//}
 		//// I
@@ -1110,7 +1110,7 @@ func (pp *PublicParameter) generateMatrix(seed []byte, rowLength int, colLength 
 	var err error
 	// check the length of seed
 	ret := make([]*PolyVec, rowLength)
-	buf := make([]byte, colLength*pp.paramD*4)
+	buf := make([]byte, colLength*pp.paramDC*4)
 	XOF := sha3.NewShake128()
 	for i := 0; i < rowLength; i++ {
 		ret[i] = pp.NewZeroPolyVec(colLength)
@@ -1124,16 +1124,16 @@ func (pp *PublicParameter) generateMatrix(seed []byte, rowLength int, colLength 
 			if err != nil {
 				return nil, err
 			}
-			got := pp.rejectionUniformWithZq(buf, pp.paramD)
-			if len(got) < pp.paramD {
-				newBuf := make([]byte, pp.paramD*4)
+			got := pp.rejectionUniformWithZq(buf, pp.paramDC)
+			if len(got) < pp.paramDC {
+				newBuf := make([]byte, pp.paramDC*4)
 				_, err = XOF.Read(newBuf)
 				if err != nil {
 					return nil, err
 				}
-				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramDC-len(got))...)
 			}
-			for k := 0; k < pp.paramD; k++ {
+			for k := 0; k < pp.paramDC; k++ {
 				ret[i].polys[j].coeffs[k] = got[k]
 			}
 		}
@@ -1145,11 +1145,11 @@ func (pp *PublicParameter) generateNTTMatrix(seed []byte, rowLength int, colLeng
 	var err error
 	// check the length of seed
 	res := make([]*PolyNTTVec, rowLength)
-	buf := make([]byte, colLength*pp.paramD*4)
+	buf := make([]byte, colLength*pp.paramDC*4)
 	XOF := sha3.NewShake128()
 	for i := 0; i < rowLength; i++ {
 		res[i] = pp.NewZeroPolyNTTVec(colLength)
-		//		res[i] = NewPolyNTTVec(colLength, pp.paramD)
+		//		res[i] = NewPolyNTTVec(colLength, pp.paramDC)
 		for j := 0; j < colLength; j++ {
 			XOF.Reset()
 			_, err = XOF.Write(seed)
@@ -1164,16 +1164,16 @@ func (pp *PublicParameter) generateNTTMatrix(seed []byte, rowLength int, colLeng
 			if err != nil {
 				return nil, err
 			}
-			got := pp.rejectionUniformWithZq(buf, pp.paramD)
-			if len(got) < pp.paramLc {
-				newBuf := make([]byte, pp.paramD*4)
+			got := pp.rejectionUniformWithZq(buf, pp.paramDC)
+			if len(got) < pp.paramLC {
+				newBuf := make([]byte, pp.paramDC*4)
 				_, err = XOF.Read(newBuf)
 				if err != nil {
 					return nil, err
 				}
-				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramDC-len(got))...)
 			}
-			for k := 0; k < pp.paramD; k++ {
+			for k := 0; k < pp.paramDC; k++ {
 				res[i].polyNTTs[j].coeffs[k] = got[k]
 			}
 		}
@@ -1186,7 +1186,7 @@ func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []by
 	var err error
 	// check the length of seed
 	ret := pp.NewPolyVec(vecLen)
-	buf := make([]byte, pp.paramD*4)
+	buf := make([]byte, pp.paramDC*4)
 	XOF := sha3.NewShake128()
 	for i := 0; i < vecLen; i++ {
 		XOF.Reset()
@@ -1202,20 +1202,20 @@ func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []by
 		if err != nil {
 			return nil, err
 		}
-		_, got, err := randomnessFromProbabilityDistributions(buf, pp.paramD)
-		if len(got) < pp.paramLc {
-			newBuf := make([]byte, pp.paramD)
+		_, got, err := randomnessFromProbabilityDistributions(buf, pp.paramDC)
+		if len(got) < pp.paramLC {
+			newBuf := make([]byte, pp.paramDC)
 			_, err = XOF.Read(newBuf)
 			if err != nil {
 				return nil, err
 			}
-			_, newGot, err := randomnessFromProbabilityDistributions(newBuf, pp.paramD-len(got))
+			_, newGot, err := randomnessFromProbabilityDistributions(newBuf, pp.paramDC-len(got))
 			if err != nil {
 				return nil, err
 			}
 			got = append(got, newGot...)
 		}
-		for k := 0; k < pp.paramD; k++ {
+		for k := 0; k < pp.paramDC; k++ {
 			ret.polys[i].coeffs[k] = got[k]
 		}
 	}
@@ -1272,8 +1272,8 @@ func (pp *PublicParameter) rejectionUniformWithZq(seed []byte, length int) []int
 			t |= uint32(buf[pos+1]) << 8
 			t |= uint32(buf[pos+2]) << 16
 			t |= uint32(buf[pos+3]) << 24
-			if t < pp.paramQ {
-				res = append(res, int32(t-pp.paramQ))
+			if t < pp.paramQC {
+				res = append(res, int32(t-pp.paramQC))
 				curr += 1
 				if curr >= length {
 					break
@@ -1286,17 +1286,103 @@ func (pp *PublicParameter) rejectionUniformWithZq(seed []byte, length int) []int
 
 	return res
 }
+func (pp *PublicParameter) rejUniformWithZQa(seed []byte, length int) []int64 {
+	res := make([]int64, 0, length)
+	//q=1000_0000_0000_0000_0001_0000_0000_0001_0001
+	xof := sha3.NewShake128()
+	cnt := 1
+	var pos int
+	var t int64
+	for len(res) < length {
+		buf := make([]byte, (length-len(res))*4)
+		xof.Reset()
+		_, err := xof.Write(append(seed, byte(cnt)))
+		if err != nil {
+			continue
+		}
+		_, err = xof.Read(buf)
+		if err != nil {
+			continue
+		}
+		pos = 0
+		for pos+8 < len(buf) {
+			t = int64(buf[pos+0])
+			pos++
+			t |= int64(buf[pos+1]) << 8
+			pos++
+			t |= int64(buf[pos+2]) << 16
+			pos++
+			t |= int64(buf[pos+3]) << 24
+			pos++
+			t |= (int64(buf[pos]+4) >> 4) << 32
+			pos++
+			t &= 0xFFFFFFFFF
+			if t < pp.paramQA {
+				res = append(res, t-(pp.paramQA-1)/2)
+			}
+			t = int64(buf[pos+4]&0xF0) >> 4
+			pos++
+			t |= int64(buf[pos+5]) << 4
+			pos++
+			t |= int64(buf[pos+6]) << 12
+			pos++
+			t |= int64(buf[pos+7]) << 20
+			pos++
+			t |= int64(buf[pos+8]) << 28
+			pos++
+			t &= 0xFFFFFFFFF
+			if t < pp.paramQA {
+				res = append(res, t-(pp.paramQA-1)/2)
+			}
+		}
+		cnt++
+	}
+	return res
+}
 
 /**
 todo_DONE: generate MatrixA from pp.Cstr
 */
 // expandPubMatrixA generate the a matrix according to the given seed
 func (pp *PublicParameter) expandPubMatrixA(seed []byte) (matrixA []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(seed, pp.paramKa, pp.paramLa)
+	res := make([]*PolyNTTVec, pp.paramKA)
+	for i := 0; i < pp.paramKA; i++ {
+		res[i] = pp.NewZeroPolyNTTVec(pp.paramLA)
+		for j := 0; j < pp.paramKA; j++ {
+			for k := 0; k < pp.paramDC; k++ {
+				res[i].polyNTTs[j].coeffs[k] = 1
+			}
+		}
+	}
+	// generate the remained sub-matrix
+	matrix, err := pp.generateNTTMatrix(seed, pp.paramKA, 1+pp.paramLambdaA)
 	if err != nil {
 		return nil, err
 	}
-	return matrix, nil
+	for i := 0; i < len(matrix); i++ {
+		for j := 0; j < len(matrix[i].polyNTTs); j++ {
+			for k := 0; k < pp.paramDC; k++ {
+				res[i].polyNTTs[j+pp.paramKA].coeffs[k] = matrix[i].polyNTTs[j].coeffs[k]
+			}
+		}
+	}
+	return res, nil
+}
+
+func (pp *PublicParameter) expandPubVecA(seed []byte) (matrixA *PolyNTTVec, err error) {
+	res := pp.NewZeroPolyNTTVec(pp.paramLA)
+	for i := 0; i < pp.paramDC; i++ {
+		res.polyNTTs[pp.paramKA].coeffs[i] = 1
+	}
+	// generate the remained sub-matrix
+	matrix, err := pp.generateNTTMatrix(seed, 1, 1+pp.paramLambdaA)
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(matrix); i++ {
+		res.polyNTTs[i+pp.paramKA+1] = matrix[0].polyNTTs[i]
+	}
+	return res, nil
 }
 
 /**
@@ -1305,25 +1391,113 @@ todo_DONE: store the matrices in PP or generate them each time they are generate
 */
 // expandPubMatrixA generate the a matrix according to the given seed
 func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(seed, pp.paramKc, pp.paramLc)
+	res := make([]*PolyNTTVec, pp.paramKC)
+	for i := 0; i < pp.paramKC; i++ {
+		res[i] = pp.NewZeroPolyNTTVec(pp.paramLC)
+		for j := 0; j < pp.paramKC; j++ {
+			for k := 0; k < pp.paramDC; k++ {
+				res[i].polyNTTs[j].coeffs[k] = 1
+			}
+		}
+	}
+	// generate the remained sub-matrix
+	matrix, err := pp.generateNTTMatrix(seed, pp.paramKC, 1+pp.paramLambdaC)
 	if err != nil {
 		return nil, err
 	}
-	return matrix, nil
+	for i := 0; i < len(matrix); i++ {
+		for j := 0; j < len(matrix[i].polyNTTs); j++ {
+			for k := 0; k < pp.paramDC; k++ {
+				res[i].polyNTTs[j+pp.paramKC].coeffs[k] = matrix[i].polyNTTs[j].coeffs[k]
+			}
+		}
+	}
+	return res, nil
 }
 
 // expandPubMatrixA generate the a matrix according to the given seed
 func (pp *PublicParameter) expandPubMatrixC(seed []byte) (matrixC []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(seed, pp.paramI+pp.paramJ+7, pp.paramLc)
+	matrix, err := pp.generateNTTMatrix(seed, pp.paramI+pp.paramJ+7, pp.paramLC)
 	if err != nil {
 		return nil, err
 	}
 	return matrix, nil
 }
 
+func (pp *PublicParameter) expandPubMatrixH(seed []byte) (matrixH []*PolyNTTVec, err error) {
+	res := make([]*PolyNTTVec, pp.paramI+pp.paramJ+7)
+
+	unitPoly := pp.NewPoly()
+	var tmp *PolyNTT
+	for i := 0; i < pp.paramI+pp.paramJ+7; i++ {
+		res[i] = pp.NewZeroPolyNTTVec(pp.paramLC)
+		unitPoly.coeffs[i] = 1
+		tmp = pp.NTT(unitPoly)
+		for j := 0; j < pp.paramDC; j++ {
+			res[i].polyNTTs[pp.paramKC].coeffs[j] = tmp.coeffs[j]
+		}
+		unitPoly.coeffs[i] = 0
+	}
+
+	// generate the remained sub-matrix
+	matrix, err := pp.generateNTTMatrix(seed, pp.paramI+pp.paramJ+7, pp.paramLC-pp.paramKC-pp.paramI-pp.paramJ-7)
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < pp.paramI+pp.paramJ+7; i++ {
+		for j := 0; j < pp.paramLA-pp.paramKA-pp.paramI-pp.paramJ-7; j++ {
+			for k := 0; k < pp.paramDC; k++ {
+				res[i].polyNTTs[pp.paramKC+pp.paramI+pp.paramJ+7+j].coeffs[k] = matrix[i].polyNTTs[j].coeffs[k]
+			}
+		}
+	}
+	return res, nil
+}
+
+func (pp PublicParameter) expandBalCh(seed []byte) (*PolyNTT, error) {
+	length := pp.paramDC
+	// check the length of seed, make sure the randomness is enough
+	if seed == nil {
+		return nil, ErrLength
+	}
+	buf := make([]byte, length/4)
+	// handle the seed using sha3.shake128
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Write(seed)
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]int32, pp.paramDC)
+	var a1, a2, a3, a4, b1, b2, b3, b4 int32
+	for i := 0; i < length/4; i++ {
+		a1 = int32((seed[i] & (1 << 0)) >> 0)
+		b1 = int32((seed[i] & (1 << 1)) >> 1)
+		a2 = int32((seed[i] & (1 << 2)) >> 2)
+		b2 = int32((seed[i] & (1 << 3)) >> 3)
+		a3 = int32((seed[i] & (1 << 4)) >> 4)
+		b3 = int32((seed[i] & (1 << 5)) >> 5)
+		a4 = int32((seed[i] & (1 << 6)) >> 6)
+		b4 = int32((seed[i] & (1 << 7)) >> 7)
+		res[2*i+0] = a1 - b1
+		res[2*i+1] = a2 - b2
+		res[2*i+2] = a3 - b3
+		res[2*i+3] = a4 - b4
+	}
+	return &PolyNTT{coeffs: res}, nil
+}
+
+//func (pp PublicParameter) expandRand(seed []byte) (*PolyNTTVec, *PolyNTTVec, error) {
+//
+//}
+
 // expandKeyImgMatrix enerate the a matrix according to the given seed and a const string "IM"
 func (pp PublicParameter) expandKeyImgMatrix(seed []byte) (matrixH []*PolyNTTVec, err error) {
-	matrix, err := pp.generateNTTMatrix(append(seed, 'I', 'M'), pp.paramMa, pp.paramLa)
+	matrix, err := pp.generateNTTMatrix(append(seed, 'I', 'M'), pp.paramMa, pp.paramLA)
 	if err != nil {
 		return nil, err
 	}
@@ -1332,10 +1506,10 @@ func (pp PublicParameter) expandKeyImgMatrix(seed []byte) (matrixH []*PolyNTTVec
 
 // Deprecated: Before calling the function expandRandomnessA, you should got the random bytes
 func (pp *PublicParameter) sampleRandomnessA() (seed []byte, r *PolyVec, err error) {
-	polys := make([]*Poly, pp.paramLa)
-	for i := 0; i < pp.paramLa; i++ {
+	polys := make([]*Poly, pp.paramLA)
+	for i := 0; i < pp.paramLA; i++ {
 		var tmp []int32
-		seed, tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramD)
+		seed, tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramDC)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1358,7 +1532,7 @@ func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec, err error
 		return nil, ErrLength
 	}
 	seed = append(seed, 'A')
-	r, err = pp.generatePolyVecWithProbabilityDistributions(seed, pp.paramLa)
+	r, err = pp.generatePolyVecWithProbabilityDistributions(seed, pp.paramLA)
 	if err != nil {
 		return nil, err
 	}
@@ -1368,11 +1542,29 @@ func (pp *PublicParameter) expandRandomnessA(seed []byte) (r *PolyVec, err error
 // sampleRandomnessC sample a bytes slice to a PolyVec with length l_c from (S_r)^d.
 // And before calling, you should have got the seed.
 func (pp *PublicParameter) sampleRandomnessC() (r *PolyVec, err error) {
-	polys := make([]*Poly, pp.paramLc)
+	polys := make([]*Poly, pp.paramLC)
 
-	for i := 0; i < pp.paramLc; i++ {
+	for i := 0; i < pp.paramLC; i++ {
 		var tmp []int32
-		_, tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramD)
+		_, tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramDC)
+		if err != nil {
+			return nil, err
+		}
+		polys[i] = &Poly{coeffs: tmp}
+	}
+	rst := &PolyVec{
+		polys: polys,
+	}
+	return rst, nil
+}
+
+// sampleRandomnessR sample the ramdoness r for ComGen
+func (pp *PublicParameter) sampleRandomnessR() (r *PolyVec, err error) {
+	polys := make([]*Poly, pp.paramLC)
+
+	for i := 0; i < pp.paramLC; i++ {
+		var tmp []int32
+		_, tmp, err = randomnessFromProbabilityDistributions(nil, pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -1391,7 +1583,7 @@ func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec, err error
 		return nil, ErrLength
 	}
 	seed = append(seed, 'C')
-	r, err = pp.generatePolyVecWithProbabilityDistributions(seed, pp.paramLc)
+	r, err = pp.generatePolyVecWithProbabilityDistributions(seed, pp.paramLC)
 	if err != nil {
 		return nil, err
 	}
@@ -1401,10 +1593,10 @@ func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyVec, err error
 // sampleMaskA sample a bytes slice with given bytes slice to a PolyVec with length l_a from (S_etaA)^d.
 // And before calling, you should have got the seed.
 func (pp PublicParameter) sampleMaskA() (r *PolyVec, err error) {
-	polys := make([]*Poly, pp.paramLa)
+	polys := make([]*Poly, pp.paramLA)
 
-	for i := 0; i < pp.paramLa; i++ {
-		tmp, err := randomnessFromEtaA(nil, pp.paramD)
+	for i := 0; i < pp.paramLA; i++ {
+		tmp, err := randomnessFromEtaA(nil, pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -1418,10 +1610,10 @@ func (pp PublicParameter) sampleMaskA() (r *PolyVec, err error) {
 
 func (pp PublicParameter) sampleMaskC() (r *PolyVec, err error) {
 	// etaC
-	polys := make([]*Poly, pp.paramLc)
+	polys := make([]*Poly, pp.paramLC)
 
-	for i := 0; i < pp.paramLc; i++ {
-		tmp, err := randomnessFromEtaC(randomBytes(pp.paramSysBytes), pp.paramD)
+	for i := 0; i < pp.paramLC; i++ {
+		tmp, err := randomnessFromEtaC(randomBytes(pp.paramSysBytes), pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -1434,10 +1626,10 @@ func (pp PublicParameter) sampleMaskC() (r *PolyVec, err error) {
 }
 
 func (pp PublicParameter) sampleMaskC2() (r *PolyVec, err error) {
-	polys := make([]*Poly, pp.paramLc)
+	polys := make([]*Poly, pp.paramLC)
 
-	for i := 0; i < pp.paramLc; i++ {
-		tmp, err := randomnessFromEtaC2(nil, pp.paramD)
+	for i := 0; i < pp.paramLC; i++ {
+		tmp, err := randomnessFromEtaC2(nil, pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -1450,10 +1642,10 @@ func (pp PublicParameter) sampleMaskC2() (r *PolyVec, err error) {
 }
 
 func (pp PublicParameter) sampleZetaA() (r *PolyVec, err error) {
-	polys := make([]*Poly, pp.paramLa)
+	polys := make([]*Poly, pp.paramLA)
 
-	for i := 0; i < pp.paramLa; i++ {
-		tmp, err := randomnessFromZetaA(nil, pp.paramD)
+	for i := 0; i < pp.paramLA; i++ {
+		tmp, err := randomnessFromZetaA(nil, pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -1466,10 +1658,10 @@ func (pp PublicParameter) sampleZetaA() (r *PolyVec, err error) {
 }
 
 func (pp PublicParameter) sampleZetaC() (r *PolyVec, err error) {
-	polys := make([]*Poly, pp.paramLc)
+	polys := make([]*Poly, pp.paramLC)
 
-	for i := 0; i < pp.paramLc; i++ {
-		tmp, err := randomnessFromChallengeSpace(nil, pp.paramD)
+	for i := 0; i < pp.paramLC; i++ {
+		tmp, err := randomnessFromChallengeSpace(nil, pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -1483,10 +1675,10 @@ func (pp PublicParameter) sampleZetaC() (r *PolyVec, err error) {
 
 func (pp PublicParameter) sampleZetaC2() (r *PolyVec, err error) {
 
-	polys := make([]*Poly, pp.paramLc)
+	polys := make([]*Poly, pp.paramLC)
 
-	for i := 0; i < pp.paramLc; i++ {
-		tmp, err := randomnessFromZetaC2(nil, pp.paramD)
+	for i := 0; i < pp.paramLC; i++ {
+		tmp, err := randomnessFromZetaC2(nil, pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -1503,7 +1695,7 @@ func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte, err error) 
 		return nil, ErrLength
 	}
 	seed = append(seed, 'V')
-	r, err = pp.generateBits(seed, pp.paramD)
+	r, err = pp.generateBits(seed, pp.paramDC)
 	if err != nil {
 		return nil, err
 	}
@@ -1513,8 +1705,8 @@ func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte, err error) 
 func (pp *PublicParameter) sampleUniformPloyWithLowZeros() (r *Poly) {
 	ret := pp.NewZeroPoly()
 	seed := randomBytes(pp.paramSysBytes)
-	tmp := pp.rejectionUniformWithZq(seed, pp.paramD-pp.paramK)
-	for i := pp.paramK; i < pp.paramD; i++ {
+	tmp := pp.rejectionUniformWithZq(seed, pp.paramDC-pp.paramK)
+	for i := pp.paramK; i < pp.paramDC; i++ {
 		ret.coeffs[i] = tmp[i-pp.paramK]
 	}
 	return ret
@@ -1533,23 +1725,23 @@ func (pp *PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	buf := make([]byte, n1*pp.paramD*4)
+	buf := make([]byte, n1*pp.paramDC*4)
 	for i := 0; i < n1; i++ {
 		alphas[i] = pp.NewZeroPolyNTT()
 		_, err = XOF.Read(buf)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		got := pp.rejectionUniformWithZq(buf, pp.paramD)
-		if len(got) < pp.paramLc {
-			newBuf := make([]byte, pp.paramD*4)
+		got := pp.rejectionUniformWithZq(buf, pp.paramDC)
+		if len(got) < pp.paramLC {
+			newBuf := make([]byte, pp.paramDC*4)
 			_, err = XOF.Read(newBuf)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+			got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramDC-len(got))...)
 		}
-		for k := 0; k < pp.paramD; k++ {
+		for k := 0; k < pp.paramDC; k++ {
 			alphas[i].coeffs[k] = got[k]
 		}
 	}
@@ -1559,23 +1751,23 @@ func (pp *PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	buf = make([]byte, pp.paramK*pp.paramD*4)
+	buf = make([]byte, pp.paramK*pp.paramDC*4)
 	for i := 0; i < pp.paramK; i++ {
 		betas[i] = pp.NewZeroPolyNTT()
 		_, err = XOF.Read(buf)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		got := pp.rejectionUniformWithZq(buf, pp.paramD)
-		if len(got) < pp.paramLc {
-			newBuf := make([]byte, pp.paramD*4)
+		got := pp.rejectionUniformWithZq(buf, pp.paramDC)
+		if len(got) < pp.paramLC {
+			newBuf := make([]byte, pp.paramDC*4)
 			_, err = XOF.Read(newBuf)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+			got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramDC-len(got))...)
 		}
-		for k := 0; k < pp.paramD; k++ {
+		for k := 0; k < pp.paramDC; k++ {
 			betas[i].coeffs[k] = got[k]
 		}
 	}
@@ -1585,22 +1777,22 @@ func (pp *PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	buf = make([]byte, m*pp.paramD*4)
+	buf = make([]byte, m*pp.paramDC*4)
 	for i := 0; i < pp.paramK; i++ {
 		gammas[i] = make([][]int32, m)
 		_, err = XOF.Read(buf)
 		for j := 0; j < m; j++ {
-			gammas[i][j] = make([]int32, pp.paramD)
-			got := pp.rejectionUniformWithZq(buf, pp.paramD)
-			if len(got) < pp.paramLc {
-				newBuf := make([]byte, pp.paramD*4)
+			gammas[i][j] = make([]int32, pp.paramDC)
+			got := pp.rejectionUniformWithZq(buf, pp.paramDC)
+			if len(got) < pp.paramLC {
+				newBuf := make([]byte, pp.paramDC*4)
 				_, err = XOF.Read(newBuf)
 				if err != nil {
 					return nil, nil, nil, err
 				}
-				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramD-len(got))...)
+				got = append(got, pp.rejectionUniformWithZq(newBuf, pp.paramDC-len(got))...)
 			}
-			for k := 0; k < pp.paramD; k++ {
+			for k := 0; k < pp.paramDC; k++ {
 				gammas[i][j][k] = got[k]
 			}
 		}
@@ -1610,7 +1802,7 @@ func (pp *PublicParameter) expandUniformRandomnessInRqZq(seed []byte, n1 int, m 
 
 func (pp *PublicParameter) sampleUniformWithinEtaF() ([]int32, error) {
 	// 1<<28-1
-	return rejectionUniformWithinEtaF(randomBytes(pp.paramSysBytes), pp.paramD)
+	return rejectionUniformWithinEtaF(randomBytes(pp.paramSysBytes), pp.paramDC)
 }
 
 func rejectionUniformWithinEtaF(seed []byte, length int) ([]int32, error) {
@@ -1649,7 +1841,7 @@ func rejectionUniformWithinEtaF(seed []byte, length int) ([]int32, error) {
 func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
 	// extend seed via sha3.Shake128
 	ret := pp.NewZeroPoly()
-	buf := make([]byte, pp.paramD/4)
+	buf := make([]byte, pp.paramDC/4)
 	XOF := sha3.NewShake128()
 	XOF.Reset()
 	_, err = XOF.Write(append(seed, byte('C'), byte('h')))
@@ -1660,16 +1852,16 @@ func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
 	if err != nil {
 		return nil, err
 	}
-	got, err := randomnessFromChallengeSpace(seed, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
+	got, err := randomnessFromChallengeSpace(seed, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
 		ret.coeffs[i] = got[i]
 	}
 	return ret, nil
 }
 
 /*func (pp *PublicParameter) sigmaPolyNTT(polyNTT *PolyNTT) (r *PolyNTT) {
-	coeffs := make([]int32, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
+	coeffs := make([]int32, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
 		coeffs[i] = polyNTT.coeffs[pp.paramSigmaPermutation[i]]
 	}
 	return &PolyNTT{coeffs}
@@ -1679,8 +1871,8 @@ func (pp *PublicParameter) expandChallenge(seed []byte) (r *Poly, err error) {
  t: 0~(k-1)
 */
 func (pp *PublicParameter) sigmaPowerPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT) {
-	coeffs := make([]int32, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
+	coeffs := make([]int32, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
 		coeffs[i] = polyNTT.coeffs[pp.paramSigmaPermutations[t][i]]
 	}
 	return &PolyNTT{coeffs}
@@ -1688,8 +1880,8 @@ func (pp *PublicParameter) sigmaPowerPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNT
 
 // sigmaInvPolyNTT performances the sigma transformation where the sigma is defined as sigma_65 in {Z_256}^*
 func (pp *PublicParameter) sigmaInvPolyNTT(polyNTT *PolyNTT, t int) (r *PolyNTT) {
-	coeffs := make([]int32, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
+	coeffs := make([]int32, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
 		//coeffs[i] = polyNTT.coeffs[pp.paramSigmaInvPermutations[t][i]]
 		coeffs[i] = polyNTT.coeffs[pp.paramSigmaPermutations[(pp.paramK-t)%pp.paramK][i]]
 	}
@@ -1793,11 +1985,11 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 				p[t][j] = &PolyNTT{gammas[t][0]}
 			}
 			//	p[t][n] = NTT^{-1}(F^T gamma[t][0] + F_1^T gamma[t][1] + B^T gamma[t][2])
-			coeffs := make([]int32, pp.paramD)
-			for i := 0; i < pp.paramD; i++ {
+			coeffs := make([]int32, pp.paramDC)
+			for i := 0; i < pp.paramDC; i++ {
 				// F^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
 				// B^T[i]: ith-col of B
-				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][2], pp.paramD)
+				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC)
 				if i == 0 {
 					//coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i]))
 					coeffs[i] = pp.reduce(int64(coeffs[i]) + int64(gammas[t][1][i]) + int64(gammas[t][0][i]))
@@ -1822,8 +2014,8 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 
 			p[t][0] = &PolyNTT{gammas[t][0]}
 
-			minuscoeffs := make([]int32, pp.paramD)
-			for i := 0; i < pp.paramD; i++ {
+			minuscoeffs := make([]int32, pp.paramDC)
+			for i := 0; i < pp.paramDC; i++ {
 				minuscoeffs[i] = -gammas[t][0][i]
 			}
 			for j := 1; j < n; j++ {
@@ -1831,11 +2023,11 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 			}
 
 			//	p[t][n] = NTT^{-1}((-F)^T gamma[t][0] + F_1^T gamma[t][1] + B^T gamma[t][2])
-			coeffs := make([]int32, pp.paramD)
-			for i := 0; i < pp.paramD; i++ {
+			coeffs := make([]int32, pp.paramDC)
+			for i := 0; i < pp.paramDC; i++ {
 				//(-F)^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
 				// B^T[i]: ith-col of B
-				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][2], pp.paramD)
+				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC)
 				if i == 0 {
 					//coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] - gammas[t][0][i]))
 					coeffs[i] = pp.reduce(int64(coeffs[i]) + int64(gammas[t][1][i]) - int64(gammas[t][0][i]))
@@ -1866,17 +2058,17 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 				p[t][j] = &PolyNTT{gammas[t][1]}
 			}
 
-			coeffs_n := make([]int32, pp.paramD)
-			for i := 0; i < pp.paramD; i++ {
+			coeffs_n := make([]int32, pp.paramDC)
+			for i := 0; i < pp.paramDC; i++ {
 				coeffs_n[i] = pp.reduce(int64(-gammas[t][0][i]) + int64(-gammas[t][1][i]))
 			}
 			p[t][n] = &PolyNTT{coeffs_n}
 
 			//	p[t][n+1] = NTT^{-1}(F^T gamma[t][0] + F_1^T gamma[t][2] + B_1^T gamma[t][4])
-			coeffs_np1 := make([]int32, pp.paramD)
-			for i := 0; i < pp.paramD; i++ {
+			coeffs_np1 := make([]int32, pp.paramDC)
+			for i := 0; i < pp.paramDC; i++ {
 				//F^T[i] gamma[t][0] + F_1^T[i] gamma[t][2] + B^T[i] gamma[t][4]
-				coeffs_np1[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, i), gammas[t][4], pp.paramD)
+				coeffs_np1[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][4], pp.paramDC)
 				if i == 0 {
 					//coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i] + gammas[t][2][i] + gammas[t][0][i]))
 					coeffs_np1[i] = pp.reduce(int64(coeffs_np1[i]) + int64(gammas[t][2][i]) + int64(gammas[t][0][i]))
@@ -1891,10 +2083,10 @@ func (pp *PublicParameter) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]by
 			p[t][n+1] = &PolyNTT{coeffs_np1}
 
 			//	p[t][n+2] = NTT^{-1}(F^T gamma[t][1] + F_1^T gamma[t][3] + B_2^T gamma[t][4])
-			coeffs_np2 := make([]int32, pp.paramD)
-			for i := 0; i < pp.paramD; i++ {
+			coeffs_np2 := make([]int32, pp.paramDC)
+			for i := 0; i < pp.paramDC; i++ {
 				//F^T[i] gamma[t][1] + F_1^T[i] gamma[t][3] + B_2^T[i] gamma[t][4]
-				coeffs_np2[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramD, pp.paramD+i), gammas[t][4], pp.paramD)
+				coeffs_np2[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramDC, pp.paramDC+i), gammas[t][4], pp.paramDC)
 				if i == 0 {
 					//coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i] + gammas[t][3][i] + gammas[t][1][i]))
 					coeffs_np2[i] = pp.reduce(int64(coeffs_np2[i]) + int64(gammas[t][3][i]) + int64(gammas[t][1][i]))

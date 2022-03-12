@@ -6,35 +6,87 @@ import (
 	"log"
 )
 
-const (
-	PP_N = 51 //	N defines the value of V by V=2^N - 1
-	PP_I = 5  //	PP_I defines the maximum number of consumed coins of a transfer transaction
-	PP_J = 5  //	PP_J defines the maximum number of generated coins of a transaction
+func NewPublicParameterV2(
+	paramDA int, paramQA int64, paramThetaA int32, paramKA int, paramLA int, paramGammaA int32, paramEtaA int32,
+	paramI int, paramJ int, paramN int, paramDC int, paramDCInv int32, paramQC uint32, paramK int, paramKInv int32, paramKC int, paramLC int, paramBetaC int32, paramEtaC int32,
+	paramEtaF int32, paramSysBytes int,
+	paramZeta int32, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *kyber.ParameterSet) (*PublicParameterv2, error) {
+	res := &PublicParameterv2{
+		paramDA:       paramDA,
+		paramQA:       paramQA,
+		paramThetaA:   paramThetaA,
+		paramKA:       paramKA,
+		paramLambdaA:  paramLA - paramKA - 1,
+		paramLA:       paramLA,
+		paramGammaA:   paramGammaA,
+		paramEtaA:     paramEtaA,
+		paramI:        paramI,
+		paramJ:        paramJ,
+		paramN:        paramN,
+		paramDC:       paramDC,
+		paramDCInv:    paramDCInv,
+		paramQC:       paramQC,
+		paramQCm:      paramQC >> 1,
+		paramK:        paramK,
+		paramKInv:     paramKInv,
+		paramKC:       paramKC,
+		paramLambdaC:  paramLC - paramKC - paramI - paramJ - 7,
+		paramLC:       paramLC,
+		paramBetaC:    paramBetaC,
+		paramBetaC2:   paramBetaC,
+		paramEtaC:     paramEtaC,
+		paramEtaC2:    paramEtaC,
+		paramEtaF:     paramEtaF,
+		paramSysBytes: paramSysBytes,
 
-	PP_d   = 128
-	PP_q   = 4294962689 //	q=11111111111111111110111000000001 is a 32-bit prime such that q = 1 mod 512,
-	PP_q_m = 2147481344 //	q_m = q/2-1
-	// PP_l = 128	//	We use fully-splitting ring, namely l=d, thus we only use d
-	PP_k = 4
+		paramSigmaPermutations: paramSigmaPermutations,
+		paramZeta:              paramZeta,
+		paramCStr:              paramCStr,
+		paramKem:               paramKem,
+	}
+	seed, err := Hash(res.paramCStr)
+	if err != nil {
+		return nil, err
+	}
 
-	PP_k_a    = 10
-	PP_l_a    = 10
-	PP_eta_a  = 1024 - 1
-	PP_beta_a = 2
+	// generate the public matrix paramMatrixA from seed
+	tmpa := make([]byte, 32)
+	sha3.ShakeSum256(tmpa, append([]byte{'M', 'C'}, seed...))
+	res.paramMatrixA, err = res.expandPubMatrixA(tmpa)
+	if err != nil {
+		return nil, err
+	}
 
-	PP_k_c      = 10
-	PP_l_c      = 10
-	PP_eta_c    = 1024 - 1
-	PP_beta_c   = 2
-	PP_eta_c_1  = 1024 - 1
-	PP_beta_c_1 = 2
+	// generate the public matrix paramVecA from seed
+	tmpamin := make([]byte, 32)
+	sha3.ShakeSum256(tmpamin, append([]byte{'M', 'C', 'a'}, seed...))
+	res.paramVecA, err = res.expandPubVecAv2(tmpamin)
 
-	PP_m_a   = 1
-	PP_eta_f = 1024 - 1
-)
+	// generate the public matrix paramMatrixB from seed
+	tmpb := make([]byte, 32)
+	sha3.ShakeSum256(tmpb, append([]byte{'M', 'B'}, seed...))
+	res.paramMatrixB, err = res.expandPubMatrixB(tmpb)
+	if err != nil {
+		return nil, err
+	}
 
-//TODO_DONE : change the int to intX or uintX
-type PublicParameter struct {
+	// generate the public matrix paramMatrixH from seed
+	tmpc := make([]byte, 32)
+	sha3.ShakeSum256(tmpc, append([]byte{'M', 'H'}, seed...))
+	res.paramMatrixH, err = res.expandPubMatrixH(tmpc)
+	if err != nil {
+		return nil, err
+	}
+
+	res.paramMu = make([]int32, res.paramDC)
+	for i := 0; i < res.paramN; i++ {
+		res.paramMu[i] = 1
+	}
+
+	return res, nil
+}
+
+type PublicParameterv2 struct {
 
 	// Paramter for Address
 	paramDA int
@@ -131,15 +183,15 @@ type PublicParameter struct {
 	paramCStr []byte
 
 	// paramMatrixA is expand from paramCStr, with size k_a rows, each row with size l_a
-	paramMatrixA []*PolyNTTVec
+	paramMatrixA []*PolyVecv2
 
-	paramVecA *PolyNTTVec
+	paramVecA *PolyVecv2
 
 	//paramMatrixB is expand from paramCStr, with size k_c rows, each row with size l_c
-	paramMatrixB []*PolyNTTVec
+	paramMatrixB []*PolyNTTVecv2
 
 	// paramMatrixH is expand from paramCStr, with size (paramI + paramJ + 7) rows, each row with size l_c
-	paramMatrixH []*PolyNTTVec
+	paramMatrixH []*PolyNTTVecv2
 
 	// paramMu defines the const mu, which is determined by the value of N and d
 	paramMu []int32
@@ -148,131 +200,54 @@ type PublicParameter struct {
 	paramKem *kyber.ParameterSet
 }
 
-// NewPublicParameter construct a PublicParameter with some parameters
-func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramDInv int32, paramQ uint32, paramZeta int32, paramK int, paramKInv int32, paramSigmaPermutations [][]int, paramKa int, paramLa int, paramEtaA int32, paramBetaA int32, paramKc int, paramLc int, paramEtaC int32, paramBetaC int32, paramEtaC2 int32, paramBetaC2 int32, paramMa int, paramCStr []byte, paramEtaF int32, paramKem *kyber.ParameterSet, paramSysBytes int) (*PublicParameter, error) {
-	res := &PublicParameter{paramN: paramN, paramI: paramI, paramJ: paramJ, paramDC: paramD, paramDCInv: paramDInv, paramQC: paramQ, paramZeta: paramZeta, paramK: paramK, paramKInv: paramKInv, paramSigmaPermutations: paramSigmaPermutations, paramKA: paramKa, paramLA: paramLa, paramEtaA: paramEtaA, paramBetaA: paramBetaA, paramKC: paramKc, paramLC: paramLc, paramEtaC: paramEtaC, paramBetaC: paramBetaC, paramEtaC2: paramEtaC2, paramBetaC2: paramBetaC2, paramMa: paramMa, paramCStr: paramCStr, paramEtaF: paramEtaF, paramKem: paramKem, paramSysBytes: paramSysBytes}
-	res.paramQCm = res.paramQC >> 1
-	seed, err := Hash(res.paramCStr)
+func (pp *PublicParameterv2) expandPubMatrixA(seed []byte) (matrixA []*PolyVecv2, err error) {
+	res := make([]*PolyVecv2, pp.paramKA)
+	for i := 0; i < pp.paramKA; i++ {
+		res[i] = NewPolyVecv2(R_QA, pp.paramDA, pp.paramLA)
+		res[i].polys[i].coeffs2[0] = 1
+	}
+	// generate the remained sub-matrix
+	matrix, err := generateMatrix(seed, R_QA, pp.paramDA, pp.paramKA, 1+pp.paramLambdaA)
 	if err != nil {
 		return nil, err
 	}
-	// generate the public matrix paramMatrixA from seed
-	tmpa := make([]byte, 32)
-	sha3.ShakeSum256(tmpa, append([]byte{'M', 'C'}, seed...))
-	res.paramMatrixA, err = res.expandPubMatrixA(tmpa)
-	if err != nil {
-		return nil, err
-	}
-	// generate the public matrix paraVecA from seed
-	tmpamin := make([]byte, 32)
-	sha3.ShakeSum256(tmpamin, append([]byte{'M', 'C', 'a'}, seed...))
-	res.paramVecA, err = res.expandPubVecA(tmpamin)
-	// generate the public matrix paramMatrixB from seed
-	tmpb := make([]byte, 32)
-	sha3.ShakeSum256(tmpb, append([]byte{'M', 'B'}, seed...))
-	res.paramMatrixB, err = res.expandPubMatrixB(tmpb)
-	if err != nil {
-		return nil, err
-	}
-
-	// generate the public matrix paramMatrixH from seed
-	tmpc := make([]byte, 32)
-	sha3.ShakeSum256(tmpc, append([]byte{'M', 'H'}, seed...))
-	res.paramMatrixH, err = res.expandPubMatrixH(tmpc)
-	if err != nil {
-		return nil, err
-	}
-
-	res.paramMu = make([]int32, res.paramDC)
-	for i := 0; i < res.paramN; i++ {
-		res.paramMu[i] = 1
+	for i := 0; i < len(matrix); i++ {
+		for j := 0; j < len(matrix[i].polys); j++ {
+			for k := 0; k < pp.paramDC; k++ {
+				res[i].polys[j+pp.paramKA].coeffs2[k] = matrix[i].polys[j].coeffs2[k]
+			}
+		}
 	}
 	return res, nil
 }
 
-/*
-func (p *PublicParameter) MasterKeyGen(seed []byte) (*MasterPublicKey, *MasterSecretViewKey, *MasterSecretSignKey) {
-	panic("implement me")
-	//b=reduce(a,q)
-	//return masterKeyGen(pp Param,seed)
-}
+var DefaultPPV2 *PublicParameterv2
 
-func (p *PublicParameter) CoinbaseTxGen(vin int32, txos []*TxOutputDesc) *CoinbaseTx {
-	panic("implement me")
-}
-
-func (p *PublicParameter) CoinbaseTxVerify(tx *CoinbaseTx) bool {
-	panic("implement me")
-}
-
-func (p *PublicParameter) TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, pk *MasterPublicKey, key *MasterSecretViewKey) (bool, int32) {
-	panic("implement me")
-}
-
-func (p *PublicParameter) TransferTXGen(descs []*TxInputDesc, descs2 []*TxOutputDesc) *TransferTx {
-	panic("implement me")
-}
-
-func (p *PublicParameter) TransferTXVerify(tx *TransferTx) bool {
-	panic("implement me")
-}*/
-
-// DefaultPP is a public parameter which will be generated by the default parameters
-var DefaultPP *PublicParameter
-
-// PQRingCT TODO_DONE: optimize the interface using array?  not
-//
-//type PQRingCT interface {
-//	MasterKeyGen(seed []byte) (*MasterPublicKey, *MasterSecretViewKey, *MasterSecretSignKey)
-//	CoinbaseTxGen(vin int32, txos []*TxOutputDesc) *CoinbaseTx //(dpk *DerivedPubKey,commit []byte,vc []byte)
-//	CoinbaseTxVerify(tx *CoinbaseTx) bool
-//	TXOCoinReceive(dpk *DerivedPubKey, commitment []byte, vc []byte, pk *MasterPublicKey, key *MasterSecretViewKey) (bool, int32)
-//	TransferTXGen([]*TxInputDesc, []*TxOutputDesc) *TransferTx
-//	TransferTXVerify(tx *TransferTx) bool
-//}
-
-//type PubParams struct {
-//	// the length must be paramLA
-//	A []PolyNTTVec
-//	// the length must be paramLC
-//	B []PolyNTTVec
-//	// the length must be paramI + paramJ + 7
-//	C []PolyNTTVec //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
-//}
-
-// reduce is private function for helping the overall operation is in Zq which is described by paramQC
-func (pp *PublicParameter) reduce(a int64) int32 {
-	rst := a % int64(pp.paramQC)
-	rst = (rst + int64(pp.paramQC)) % int64(pp.paramQC)
-	if rst > int64(pp.paramQCm) {
-		rst = rst - int64(pp.paramQC)
-	}
-	return int32(rst)
-}
-
-func (pp *PublicParameter) reduceInt64(a int64) int64 {
-	rst := a % int64(pp.paramQC)
-	rst = (rst + int64(pp.paramQC)) % int64(pp.paramQC)
-	if rst > int64(pp.paramQCm) {
-		rst = rst - int64(pp.paramQC)
-	}
-	return rst
-}
-
-// init set the default public parameter for package importer
 func init() {
 	var err error
-	DefaultPP, err = NewPublicParameter(
+	DefaultPPV2, err = NewPublicParameterV2(
+		256,
+		34360786961,
+		60,
+		5,
+		10,
+		5,
+		559557,
+		5,
+		5,
 		51,
-		5,
-		5,
-
 		128,
 		-33554396,
 		4294962689,
-		27080629,
 		4,
 		-1073740672,
+		10,
+		37,
+		128,
+		1<<22,
+		268435168,
+		256/32,
+		27080629,
 		[][]int{
 			{
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -315,26 +290,10 @@ func init() {
 				80, 17, 82, 19, 84, 21, 86, 23, 88, 25, 90, 27, 92, 29, 94, 31,
 			},
 		},
-		10,
-		20,
-		1<<22-1,
-		256,
-
-		10,
-		36,
-		1<<25-1,
-		128,
-
-		1<<23-1,
-		256,
-
-		1,
 		[]byte("This is experiment const string"),
-		1<<28-1,
 		kyber.Kyber768,
-		32,
 	)
 	if err != nil {
-		log.Fatalln("init error")
+		log.Fatalln(err)
 	}
 }

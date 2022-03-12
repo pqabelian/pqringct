@@ -397,38 +397,3 @@ func randomFromDistribution(seed []byte, dist Distribution, length int) ([]byte,
 	return seed, res
 
 }
-
-//func sampleRandomness4A() {
-//
-//	panic("implement me")
-//
-//}
-//func sampleRandomness4C() {
-//
-//	panic("implement me")
-//}
-//func sampleEtaA() {
-//
-//	panic("implement me")
-//}
-//
-//func sampleEtaC() {
-//
-//	panic("implement me")
-//}
-//
-//func sampleZetaA() {
-//	panic("implement me")
-//}
-//
-//func sampleZetaC() {
-//	panic("implement me")
-//}
-//
-//func sampleZetaC2() {
-//	panic("implement me")
-//}
-//
-//func generateChallenge() {
-//	panic("implement me")
-//}

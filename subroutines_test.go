@@ -8,11 +8,11 @@ import (
 
 func TestIntBinaryNTT(t *testing.T) {
 	pp := PublicParameter{}
-	pp.paramD = 8
+	pp.paramDC = 8
 
 	v := uint64(9)
-	binstr := intToBinary(v, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
+	binstr := intToBinary(v, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
 		k := binstr[i]
 		fmt.Println(k)
 	}
@@ -29,10 +29,10 @@ func TestMod(t *testing.T) {
 
 func TestSampleUniformPloyWithLowZeros(t *testing.T) {
 	pp := PublicParameter{}
-	pp.paramD = 20
+	pp.paramDC = 20
 	pp.paramSysBytes = 128
 	pp.paramK = 4
-	pp.paramQ = 4294962689
+	pp.paramQC = 4294962689
 
 	myPoly := pp.sampleUniformPloyWithLowZeros()
 	fmt.Println(myPoly)
@@ -41,7 +41,7 @@ func TestSampleUniformPloyWithLowZeros(t *testing.T) {
 func TestSampleUniformWithinEtaF(t *testing.T) {
 	pp := PublicParameter{}
 	pp.paramSysBytes = 128
-	pp.paramD = 128
+	pp.paramDC = 128
 	pp.paramEtaF = 1024 - 1
 	res, err := pp.sampleUniformWithinEtaF()
 	if err != nil {
@@ -53,13 +53,13 @@ func sigma(a []int32, k int) []int32 {
 	pp := DefaultPP
 	res := make([]int32, len(a))
 	j := 0
-	for i := 0; i < pp.paramD; i++ {
+	for i := 0; i < pp.paramDC; i++ {
 		x := a[i]
 		// j&N取第8位，如果j的第8位为0，则-(j&N)为0x00000000，右移31位后还是0x00000000，如果j的第8位为1， 则-(j&N)为-128的补码0xFFFFFFF8，右移31位后为0xFFFFFFFF
 		// x ^ -x 将最低有效位去掉，高位置1
 		// 整体的结果取决于 j 的第8位，如果是0，则为x，否则为-x
-		x ^= int32(-(j&pp.paramD)>>31) & (x ^ -x)
-		res[j&(pp.paramD-1)] = x
+		x ^= int32(-(j&pp.paramDC)>>31) & (x ^ -x)
+		res[j&(pp.paramDC-1)] = x
 		j += k
 	}
 	return res
@@ -67,7 +67,7 @@ func sigma(a []int32, k int) []int32 {
 func sigma1(a []int32, k int) []int32 {
 	pp := DefaultPP
 	res := make([]int32, len(a))
-	for i := 0; i < pp.paramD; i++ {
+	for i := 0; i < pp.paramDC; i++ {
 		quotient := (i * k) / 128
 		remainder := (i * k) % 128
 		if quotient&1 == 1 {
@@ -80,7 +80,7 @@ func sigma1(a []int32, k int) []int32 {
 }
 func Test_222(t *testing.T) {
 	pp := DefaultPP
-	f, _ := randomnessFromEtaA(nil, pp.paramD)
+	f, _ := randomnessFromEtaA(nil, pp.paramDC)
 	k := 193
 	f1 := sigma(f, k)
 	f2 := sigma1(f, k)
@@ -91,7 +91,7 @@ func Test_222(t *testing.T) {
 func TestPublicParameter_sigmaPowerPolyNTT(t *testing.T) {
 	// ntt( sigma(f)) == sigma_ntt(ntt(f)) <=> sigma(f) == invntt(sigma_ntt(ntt(f)))
 	pp := DefaultPP
-	//f,_ :=randomnessFromEtaA(nil,pp.paramD)
+	//f,_ :=randomnessFromEtaA(nil,pp.paramDC)
 	f := []int32{617098079, 888976855, 37740892, 412733221, 785245544, 163371564, 780306816, 703186513, 794557760, 620518208, 61812886, 18737084, 341485081, 716703218, 532786294, 1072666219, 1017778630, 605846189, 454516855, 707192092, 549481533, 935047144, 609022876, 905921008, 946211112, 201300466, 64148636, 994076530, 587174595, 101389602, 927439398, 1052279688, 504282642, 885843723, 257790532, 690549047, 652421676, 161571590, 66365599, 260760145, 765079718, 1036959557, 25296503, 307589082, 92569797, 361953622, 233971403, 18423977, 624807120, 704853513, 689185691, 884049572, 625956729, 830601660, 740041194, 536890086, 727602215, 958449412, 647271183, 568183614, 654288412, 332086484, 908099909, 307740158, 956194998, 559419898, 1020462919, 704740995, 279876736, 904554580, 702765596, 249768839, 1052707816, 701128581, 200537061, 148774154, 294861086, 294544648, 377734661, 406992752, 110211064, 747286497, 1070288789, 778183943, 685467750, 642793106, 75648453, 503704012, 267786791, 1070949372, 114250784, 945681952, 211383247, 347896957, 1013286847, 97882862, 947150053, 852447379, 910468089, 729313072, 326962256, 758668402, 153495233, 580452571, 991413911, 461710545, 429757142, 487692964, 188073492, 237965250, 516563400, 76304886, 1006262949, 112340601, 928056089, 16446390, 733303030, 944381859, 62502190, 187879406, 985378185, 794365083, 891529414, 738759396, 844100879, 424426291, 265204374, 666962361}
 	fmt.Println(f)
 	sigma65 := sigma(f, 65)
@@ -158,7 +158,7 @@ func TestPublicParameter_sigmaPowerPolyNTT(t *testing.T) {
 }
 func Test_11(t *testing.T) {
 	pp := DefaultPP
-	f, _ := randomnessFromEtaA(nil, pp.paramD)
+	f, _ := randomnessFromEtaA(nil, pp.paramDC)
 	p := &Poly{coeffs: f}
 	sigmaf := sigma(f, 65)
 	nttF := pp.NTT(p)
@@ -170,23 +170,23 @@ func Test_11(t *testing.T) {
 		fmt.Println(sigma65_ntt_f)
 	}
 	//sigmfa:=sigma([]int32{912210275, 140610747, 997724590, 1029111095, 706852024, 86483400, 1055148559, 65569626, 1018450129, 925998364, 114046004, 495242290, 984623100, 89044476, 416825808, 603760292, 179341495, 787150347, 319413684, 1015198938, 620042710, 494241682, 420455786, 345355767, 886538499, 928465373, 681348647, 749168824, 646473346, 508821633, 7380036, 1039902010, 315122115, 312500164, 423109099, 1020839347, 173660029, 265078857, 582977049, 876545995, 208453846, 654327601, 974765498, 726145682, 421874950, 335610096, 1006807688, 1029125461, 120506836, 268015402, 150505124, 42304371, 825107267, 272778091, 739384563, 66903968, 820610951, 1050474174, 878616118, 770031888, 365347200, 73315898, 376431190, 148138300, 566513267, 539102752, 559590304, 996374892, 1053403751, 928966312, 472045052, 503508827, 317525385, 457517152, 810755015, 201108856, 720243920, 1012196808, 954422915, 274542471, 534575619, 916297900, 1055037045, 64423097, 463855378, 439351374, 262025688, 267227205, 888014845, 852697634, 155217761, 316596199, 419547757, 140368833, 521616849, 867126834, 286006076, 148627013, 27239252, 279442024, 479714221, 891730284, 150349286, 447427938, 347242635, 911677852, 374954761, 1065546536, 389477639, 326237125, 595735527, 945729920, 228295247, 382001896, 286129585, 994123481, 1026488387, 279383673, 579222543, 922088007, 429968721, 24751546, 64667489, 750809152, 825789163, 727438224, 115229391, 312288538},65)
-	//for i := 0; i < pp.paramD; i++ {
+	//for i := 0; i < pp.paramDC; i++ {
 	//	fmt.Printf("%d, ",sigmfa[i])
 	//}
 
 }
 func TestPublicParameter_Simga(t *testing.T) {
 	pp := DefaultPP
-	f, _ := randomnessFromEtaA(nil, pp.paramD)
+	f, _ := randomnessFromEtaA(nil, pp.paramDC)
 	sigmaF := sigma(f, 65)
 	p := &Poly{coeffs: f}
 	nttP := pp.NTT(p)
 	nttSigmaP := pp.NTT(&Poly{coeffs: sigmaF})
 	m := map[int32]int{}
-	for i := 0; i < pp.paramD; i++ {
+	for i := 0; i < pp.paramDC; i++ {
 		m[nttP.coeffs[i]] = i
 	}
-	for i := 0; i < pp.paramD; i++ {
+	for i := 0; i < pp.paramDC; i++ {
 		if loc, ok := m[nttSigmaP.coeffs[i]]; ok {
 			fmt.Printf("%d, ", loc)
 		} else {
@@ -200,7 +200,7 @@ func TestPublicParameter_Simga(t *testing.T) {
 }
 func TestPublicParameter_SigmaAndSigmaInv(t *testing.T) {
 	pp := DefaultPP
-	f, _ := randomnessFromEtaA(nil, pp.paramD)
+	f, _ := randomnessFromEtaA(nil, pp.paramDC)
 	p := &Poly{coeffs: f}
 	nttP := pp.NTT(p)
 	for k := 0; k < pp.paramK; k++ {
@@ -218,7 +218,7 @@ func TestPublicParameter_sigmaPowerPolyNTTAndSigmaInv(t *testing.T) {
 		polyNTT *PolyNTT
 		t       int
 	}
-	a1, _ := randomnessFromEtaA(nil, pp.paramD)
+	a1, _ := randomnessFromEtaA(nil, pp.paramDC)
 	a := &Poly{a1}
 	b := pp.NTT(a)
 	tests := []struct {
@@ -315,7 +315,7 @@ func TestPublicParameter_Tree(t *testing.T) {
 	//	}
 	//}
 	pp := DefaultPP
-	a1, _ := randomnessFromEtaA(nil, pp.paramD)
+	a1, _ := randomnessFromEtaA(nil, pp.paramDC)
 	a := &Poly{a1}
 	fmt.Println("a = ", a1)
 	sigmaA := sigma(a1, 193)
@@ -380,7 +380,6 @@ func Test_rejectionUniformWithinEtaF(t *testing.T) {
 		want    []int32
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "test1",
 			args: args{
@@ -404,4 +403,49 @@ func Test_rejectionUniformWithinEtaF(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPublicParameter_ELRSSign(t *testing.T) {
+	//ringSize := 7
+	//seeds := make([][]byte, ringSize)
+	//pks := make([]*PublicKey, ringSize)
+	//sks := make([]*SecretKey, ringSize)
+	//cmts := make([]*Commitment, ringSize)
+	//rs := make([]*PolyNTTVec, ringSize)
+	//var err error
+	//for i := 0; i < ringSize; i++ {
+	//	seeds[i] = randomBytes(DefaultPPV2.paramSysBytes)
+	//	seeds[i], pks[i], sks[i], err = DefaultPPV2.KeyGen(seeds[i])
+	//	if err != nil {
+	//		log.Fatalln(err)
+	//	}
+	//	cmts[i], rs[i], err = DefaultPPV2.ComGen(uint64(ringSize - i))
+	//}
+	//lTXOList := make([]LGRTXO, ringSize)
+	//for i := 0; i < ringSize; i++ {
+	//	lTXOList[i] = LGRTXO{
+	//		TXOv2: TXOv2{
+	//			PublicKey:  pks[i],
+	//			Commitment: cmts[i],
+	//		},
+	//		id: []byte{byte(i)},
+	//	}
+	//}
+	//msg := []byte("this is a test message")
+	//index := 0
+	//
+	//ma := DefaultPPV2.PolyNTTSub(DefaultPPV2.PolyNTTAdd(pks[index].e, DefaultPPV2.ExpandKIDR(&lTXOList[index].TXOv2, lTXOList[index].id)), DefaultPPV2.PolyNTTVecInnerProduct(DefaultPPV2.paramVecA, sks[index].s, DefaultPPV2.paramLA))
+	//
+	//mtmp := intToBinary(uint64(ringSize), DefaultPPV2.paramDC)
+	//m := &PolyNTT{coeffs: mtmp}
+	//
+	//cmt, rcp, _ := DefaultPPV2.ComGen(uint64(ringSize))
+	//got, err := DefaultPPV2.ELRSSign(lTXOList, ma, cmt, msg, index, sks[0].s, rs[0], rcp, m)
+	//if err != nil {
+	//	t.Errorf(err.Error())
+	//}
+	//log.Printf("%+v\n", got)
+	//if DefaultPPV2.ELRSVerify(lTXOList, ma, cmt, msg, got) {
+	//	t.Errorf("Not matched")
+	//}
 }

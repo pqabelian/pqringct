@@ -53,7 +53,6 @@ type CbTxWitness struct {
 
 type TransferTx struct {
 	//	Version uint32
-
 	Inputs     []*TrTxInput
 	OutputTxos []*TXO
 	Fee        uint64
@@ -112,7 +111,7 @@ type elrsSignature struct {
 }
 
 func (pp *PublicParameter) GetMasterPublicKeyByteLen() uint32 {
-	return uint32(pp.paramKem.CryptoPublicKeyBytes() + 4 + pp.paramKa*pp.paramD*4)
+	return uint32(pp.paramKem.CryptoPublicKeyBytes() + 4 + pp.paramKA*pp.paramDC*4)
 }
 
 // GetTxoSerializeSize return the default serialize size of a txo
@@ -121,11 +120,11 @@ func (pp *PublicParameter) GetTxoSerializeSize() uint32 {
 	return uint32(
 		1 + // dpk existence identifier
 			1 + VarIntSerializeSize2(uint64(pp.paramKem.CryptoCiphertextBytes())) + pp.paramKem.CryptoCiphertextBytes() + // dpk.ckem
-			1 + VarIntSerializeSize2(uint64(pp.paramKa)) + pp.paramKa*VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKa*pp.paramD*4 + // dpk.t
+			1 + VarIntSerializeSize2(uint64(pp.paramKA)) + pp.paramKA*VarIntSerializeSize2(uint64(pp.paramDC)) + pp.paramKA*pp.paramDC*4 + // dpk.t
 			1 + // cmt existence identifier
-			1 + VarIntSerializeSize2(uint64(pp.paramKc)) + pp.paramKc*VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramKc*pp.paramD*4 + // cmt.b
-			1 + VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramD*4 + // cmt.c
-			1 + VarIntSerializeSize2(uint64(pp.paramD)) + pp.paramD, // vc
+			1 + VarIntSerializeSize2(uint64(pp.paramKC)) + pp.paramKC*VarIntSerializeSize2(uint64(pp.paramDC)) + pp.paramKC*pp.paramDC*4 + // cmt.b
+			1 + VarIntSerializeSize2(uint64(pp.paramDC)) + pp.paramDC*4 + // cmt.c
+			1 + VarIntSerializeSize2(uint64(pp.paramDC)) + pp.paramDC, // vc
 	)
 }
 
@@ -137,43 +136,43 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	var res uint32 = 0
 	// b_hat
 	res += 1
-	res += VarIntSerializeSize(uint64(pp.paramKc))
-	res += uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramKc * pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramKC))
+	res += uint32(pp.paramKC) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramKC * pp.paramDC * 4)
 
 	// c_hats
 	if I == 1 {
 		res += VarIntSerializeSize(uint64(I + J + 2))
-		res += uint32(I+J+2) * VarIntSerializeSize(uint64(pp.paramD))
-		res += uint32((I + J + 2) * pp.paramD * 4)
+		res += uint32(I+J+2) * VarIntSerializeSize(uint64(pp.paramDC))
+		res += uint32((I + J + 2) * pp.paramDC * 4)
 	} else {
 		res += VarIntSerializeSize(uint64(I + J + 4))
-		res += uint32(I+J+4) * VarIntSerializeSize(uint64(pp.paramD))
-		res += uint32((I + J + 4) * pp.paramD * 4)
+		res += uint32(I+J+4) * VarIntSerializeSize(uint64(pp.paramDC))
+		res += uint32((I + J + 4) * pp.paramDC * 4)
 	}
 
 	// u_p
-	res += VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramDC * 4)
 
 	// rpulpproof
 	res += 1
 	// rpulpproof.c_waves
 	res += VarIntSerializeSize(uint64(I + J))
-	res += uint32(I+J) * VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32((I + J) * pp.paramD * 4)
+	res += uint32(I+J) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32((I + J) * pp.paramDC * 4)
 	// rpulpproof.c_hat_g
 	res += 1
-	res += VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramDC * 4)
 	// rpulpproof.psi
 	res += 1
-	res += VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramDC * 4)
 	// rpulpproof.phi
 	res += 1
-	res += VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramDC * 4)
 	// rpulpproof.chseed
 	res += 1
 	res += VarIntSerializeSize(32)
@@ -181,26 +180,26 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	// rpulpproof.cmt_zs
 	res += VarIntSerializeSize(uint64(pp.paramK))
 	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(I+J))
-	res += uint32(pp.paramK) * uint32(I+J) * VarIntSerializeSize(uint64(pp.paramLc))
-	res += uint32(pp.paramK) * uint32(I+J) * uint32(pp.paramLc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(pp.paramK*(I+J)*pp.paramLc*pp.paramD)
+	res += uint32(pp.paramK) * uint32(I+J) * VarIntSerializeSize(uint64(pp.paramLC))
+	res += uint32(pp.paramK) * uint32(I+J) * uint32(pp.paramLC) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += 4 * uint32(pp.paramK*(I+J)*pp.paramLC*pp.paramDC)
 	// rpulpproof.zs
 	res += VarIntSerializeSize(uint64(pp.paramK))
-	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(pp.paramLc))
-	res += uint32(pp.paramK) * uint32(pp.paramLc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(pp.paramK*pp.paramLc*pp.paramD)
+	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(pp.paramLC))
+	res += uint32(pp.paramK) * uint32(pp.paramLC) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += 4 * uint32(pp.paramK*pp.paramLC*pp.paramDC)
 
 	// cmtps
 	res += VarIntSerializeSize(uint64(I))
 	// cmtps.b
 	res += uint32(1 * I)
-	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramKc))
-	res += uint32(I) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(I*pp.paramKc*pp.paramD)
+	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramKC))
+	res += uint32(I) * uint32(pp.paramKC) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += 4 * uint32(I*pp.paramKC*pp.paramDC)
 	// cmtps.c
 	res += uint32(1 * I)
-	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(I*pp.paramD)
+	res += uint32(I) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += 4 * uint32(I*pp.paramDC)
 
 	// elrsSigs
 	res += VarIntSerializeSize(uint64(I))
@@ -212,23 +211,23 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 	for i := 0; i < I; i++ {
 		res += VarIntSerializeSize(uint64(pp.paramK))
 		res += uint32(pp.paramK) * VarIntSerializeSize(uint64(inputRingSizes[i]))
-		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramLa))
-		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramLa) * VarIntSerializeSize(uint64(pp.paramD))
-		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramLa*pp.paramD)
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramLA))
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramLA) * VarIntSerializeSize(uint64(pp.paramDC))
+		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramLA*pp.paramDC)
 	}
 	// elrsSigs.z_cs
 	for i := 0; i < I; i++ {
 		res += VarIntSerializeSize(uint64(pp.paramK))
 		res += uint32(pp.paramK) * VarIntSerializeSize(uint64(inputRingSizes[i]))
-		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramLc))
-		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramLc) * VarIntSerializeSize(uint64(pp.paramD))
-		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramLc*pp.paramD)
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * VarIntSerializeSize(uint64(pp.paramLC))
+		res += uint32(pp.paramK) * uint32(inputRingSizes[i]) * uint32(pp.paramLC) * VarIntSerializeSize(uint64(pp.paramDC))
+		res += 4 * uint32(pp.paramK*inputRingSizes[i]*pp.paramLC*pp.paramDC)
 	}
 	// keyImg
 	res += uint32(1 * I)
 	res += uint32(I) * VarIntSerializeSize(1)
-	res += uint32(I) * 1 * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(I * 1 * pp.paramD)
+	res += uint32(I) * 1 * VarIntSerializeSize(uint64(pp.paramDC))
+	res += 4 * uint32(I*1*pp.paramDC)
 
 	return res
 }
@@ -239,37 +238,37 @@ func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
 	var res uint32 = 0
 	// b_hat
 	res += 1
-	res += VarIntSerializeSize(uint64(pp.paramKc))
-	res += uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramKc * pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramKC))
+	res += uint32(pp.paramKC) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramKC * pp.paramDC * 4)
 
 	// c_hats
 	res += VarIntSerializeSize(uint64(J + 2))
-	res += uint32(J+2) * VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32((J + 2) * pp.paramD * 4)
+	res += uint32(J+2) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32((J + 2) * pp.paramDC * 4)
 
 	// u_p
-	res += VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramDC * 4)
 
 	// rpulpproof
 	res += 1
 	// rpulpproof.c_waves
 	res += VarIntSerializeSize(uint64(J))
-	res += uint32(J) * VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32((J) * pp.paramD * 4)
+	res += uint32(J) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32((J) * pp.paramDC * 4)
 	// rpulpproof.c_hat_g
 	res += 1
-	res += VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramDC * 4)
 	// rpulpproof.psi
 	res += 1
-	res += VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramDC * 4)
 	// rpulpproof.phi
 	res += 1
-	res += VarIntSerializeSize(uint64(pp.paramD))
-	res += uint32(pp.paramD * 4)
+	res += VarIntSerializeSize(uint64(pp.paramDC))
+	res += uint32(pp.paramDC * 4)
 	// rpulpproof.chseed
 	res += 1
 	res += VarIntSerializeSize(32)
@@ -277,14 +276,14 @@ func (pp *PublicParameter) GetCbTxWitnessMaxLen() uint32 {
 	// rpulpproof.cmt_zs
 	res += VarIntSerializeSize(uint64(pp.paramK))
 	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(J))
-	res += uint32(pp.paramK) * uint32(J) * VarIntSerializeSize(uint64(pp.paramKc))
-	res += uint32(pp.paramK) * uint32(J) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(pp.paramK*(J)*pp.paramKc*pp.paramD)
+	res += uint32(pp.paramK) * uint32(J) * VarIntSerializeSize(uint64(pp.paramKC))
+	res += uint32(pp.paramK) * uint32(J) * uint32(pp.paramKC) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += 4 * uint32(pp.paramK*(J)*pp.paramKC*pp.paramDC)
 	// rpulpproof.zs
 	res += VarIntSerializeSize(uint64(pp.paramK))
-	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(pp.paramKc))
-	res += uint32(pp.paramK) * uint32(pp.paramKc) * VarIntSerializeSize(uint64(pp.paramD))
-	res += 4 * uint32(pp.paramK*pp.paramKc*pp.paramD)
+	res += uint32(pp.paramK) * VarIntSerializeSize(uint64(pp.paramKC))
+	res += uint32(pp.paramK) * uint32(pp.paramKC) * VarIntSerializeSize(uint64(pp.paramDC))
+	res += 4 * uint32(pp.paramK*pp.paramKC*pp.paramDC)
 
 	return res
 }
@@ -349,11 +348,11 @@ func Setup() (pp *PublicParameter) {
 // If the seed is nil, this function will random a seed whose length is paramSysBytes.
 // This function requires the length of seed is at least 2*paramSysBytes.
 func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
-	/*	mpk := MasterPublicKey{}
+	/*	pk := MasterPublicKey{}
 		msvk := MasterSecretViewKey{}
 		mssk := MasterSecretSignKey{}
 
-		return &mpk, &msvk, &mssk, nil*/
+		return &pk, &msvk, &mssk, nil*/
 
 	var s *PolyNTTVec
 	var randomnessA *PolyVec
@@ -387,7 +386,7 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *Maste
 
 	s = pp.NTTVec(randomnessA)
 	// t = A * s, will be as a part of public key
-	t := pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKa, pp.paramLa)
+	t := pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKA, pp.paramLA)
 
 	rstmpk := &MasterPublicKey{
 		kemPK,
@@ -407,9 +406,9 @@ func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *Maste
 
 // collectBytesForCoinbase1 is an auxiliary function for CoinbaseTxGen and CoinbaseTxVerify to collect some information into a byte slice
 func (pp *PublicParameter) collectBytesForCoinbase1(vin uint64, cmts []*Commitment, ws []*PolyNTTVec, deltas []*PolyNTT) []byte {
-	tmp := make([]byte, pp.paramD*4+(pp.paramKc+1)*pp.paramD*4+(pp.paramKc+1)*pp.paramD*4)
+	tmp := make([]byte, pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4)
 	appendPolyNTTToBytes := func(a *PolyNTT) {
-		for k := 0; k < pp.paramD; k++ {
+		for k := 0; k < pp.paramDC; k++ {
 			tmp = append(tmp, byte(a.coeffs[k]>>0))
 			tmp = append(tmp, byte(a.coeffs[k]>>8))
 			tmp = append(tmp, byte(a.coeffs[k]>>16))
@@ -417,7 +416,7 @@ func (pp *PublicParameter) collectBytesForCoinbase1(vin uint64, cmts []*Commitme
 		}
 	}
 
-	mbin := intToBinary(vin, pp.paramD)
+	mbin := intToBinary(vin, pp.paramDC)
 	m := &PolyNTT{mbin}
 	appendPolyNTTToBytes(m)
 
@@ -427,7 +426,7 @@ func (pp *PublicParameter) collectBytesForCoinbase1(vin uint64, cmts []*Commitme
 	appendPolyNTTToBytes(cmts[0].c)
 
 	for i := 0; i < pp.paramK; i++ {
-		for j := 0; j < pp.paramKc; j++ {
+		for j := 0; j < pp.paramKC; j++ {
 			appendPolyNTTToBytes(ws[i].polyNTTs[j])
 		}
 		appendPolyNTTToBytes(deltas[i])
@@ -437,16 +436,16 @@ func (pp *PublicParameter) collectBytesForCoinbase1(vin uint64, cmts []*Commitme
 
 // collectBytesForCoinbase2 is an auxiliary function for CoinbaseTxGen and CoinbaseTxVerify to collect some information into a byte slice
 func (pp *PublicParameter) collectBytesForCoinbase2(b_hat *PolyNTTVec, c_hats []*PolyNTT) []byte {
-	res := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*len(c_hats))
+	res := make([]byte, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
 	appendPolyNTTToBytes := func(a *PolyNTT) {
-		for k := 0; k < pp.paramD; k++ {
+		for k := 0; k < pp.paramDC; k++ {
 			res = append(res, byte(a.coeffs[k]>>0))
 			res = append(res, byte(a.coeffs[k]>>8))
 			res = append(res, byte(a.coeffs[k]>>16))
 			res = append(res, byte(a.coeffs[k]>>24))
 		}
 	}
-	for i := 0; i < pp.paramKc; i++ {
+	for i := 0; i < pp.paramKC; i++ {
 		appendPolyNTTToBytes(b_hat.polyNTTs[i])
 	}
 	for i := 0; i < len(c_hats); i++ {
@@ -517,8 +516,8 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			}
 			ys[t] = pp.NTTVec(maskC)
 
-			ws[t] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKc, pp.paramLc)
-			deltas[t] = pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], ys[t], pp.paramLc)
+			ws[t] = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKC, pp.paramLC)
+			deltas[t] = pp.PolyNTTVecInnerProduct(pp.paramMatrixH[0], ys[t], pp.paramLC)
 		}
 
 		chseed, err := Hash(pp.collectBytesForCoinbase1(vin, cmts, ws, deltas))
@@ -534,8 +533,8 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		for t := 0; t < pp.paramK; t++ {
 			zs[t] = pp.PolyNTTVecAdd(
 				ys[t],
-				pp.PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(ch, t), cmt_rs[0], pp.paramLc),
-				pp.paramLc)
+				pp.PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(ch, t), cmt_rs[0], pp.paramLC),
+				pp.paramLC)
 			// check the norm
 			tmp := pp.NTTInvVec(zs[t])
 			norm := tmp.infNorm()
@@ -560,21 +559,21 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		msg_hats := make([][]int32, n2)
 
 		u_hats := make([][]int32, 3)
-		u_hats[0] = intToBinary(vin, pp.paramD)
+		u_hats[0] = intToBinary(vin, pp.paramDC)
 
 		for j := 0; j < J; j++ {
-			msg_hats[j] = intToBinary(txOutputDescs[j].value, pp.paramD)
+			msg_hats[j] = intToBinary(txOutputDescs[j].value, pp.paramDC)
 		}
 
-		u := intToBinary(vin, pp.paramD)
+		u := intToBinary(vin, pp.paramDC)
 
 		//	f is the carry vector, such that, u = m_0 + m_1 + ... + m_{J-1}
 		//	f[0] = 0, and for i=1 to d-1,
 		//	m_0[i-1]+ ... + m_{J-1}[i-1] + f[i-1] = u[i-1] + 2 f[i],
 		//	m_0[i-1]+ ... + m_{J-1}[i-1] + f[i-1] = u[i-1]
-		f := make([]int32, pp.paramD)
+		f := make([]int32, pp.paramDC)
 		f[0] = 0
-		for i := 1; i < pp.paramD; i++ {
+		for i := 1; i < pp.paramDC; i++ {
 			tmp := int32(0)
 			for j := 0; j < J; j++ {
 				tmp = tmp + msg_hats[j][i-1]
@@ -585,7 +584,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		msg_hats[J] = f
 
 	cbTxGenJ2Restart:
-		e := make([]int32, pp.paramD)
+		e := make([]int32, pp.paramDC)
 		e, err := pp.sampleUniformWithinEtaF()
 		if err != nil {
 			return nil, err
@@ -599,30 +598,30 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		r_hat := pp.NTTVec(randomnessC)
 
 		// b_hat =B * r_hat
-		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKc, pp.paramLc)
+		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKC, pp.paramLC)
 
 		for i := 0; i < n2; i++ { // n2 = J+2
 			c_hats[i] = pp.PolyNTTAdd(
-				pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], r_hat, pp.paramLc),
+				pp.PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], r_hat, pp.paramLC),
 				&PolyNTT{msg_hats[i]})
 		}
 
 		//	todo: check the scope of u_p in theory
-		u_p := make([]int32, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		u_p_tmp := make([]int64, pp.paramD)
+		u_p := make([]int32, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		u_p_tmp := make([]int64, pp.paramDC)
 
 		seed_binM, err := Hash(pp.collectBytesForCoinbase2(b_hat, c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
 			return nil, err
 		}
-		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
+		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
 		// todo: check B f + e
-		for i := 0; i < pp.paramD; i++ {
+		for i := 0; i < pp.paramDC; i++ {
 			u_p_tmp[i] = int64(e[i])
-			for j := 0; j < pp.paramD; j++ {
+			for j := 0; j < pp.paramDC; j++ {
 				if (binM[i][j/8]>>(j%8))&1 == 1 {
 					u_p_tmp[i] = u_p_tmp[i] + int64(f[j])
 				}
@@ -639,7 +638,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			u_p[i] = pp.reduce(u_p_tmp[i])
 		}
 
-		u_hats[1] = make([]int32, pp.paramD)
+		u_hats[1] = make([]int32, pp.paramDC)
 		u_hats[2] = u_p
 
 		n1 := n
@@ -732,16 +731,16 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 			return false
 		}
 		ch := pp.NTT(chtmp)
-		msg := intToBinary(cbTx.Vin, pp.paramD)
+		msg := intToBinary(cbTx.Vin, pp.paramDC)
 		for t := 0; t < pp.paramK; t++ {
 			sigma_t_ch := pp.sigmaPowerPolyNTT(ch, t)
 
 			ws[t] = pp.PolyNTTVecSub(
-				pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], pp.paramKc, pp.paramLc),
-				pp.PolyNTTVecScaleMul(sigma_t_ch, cbTx.OutputTxos[0].cmt.b, pp.paramKc),
-				pp.paramKc)
+				pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], pp.paramKC, pp.paramLC),
+				pp.PolyNTTVecScaleMul(sigma_t_ch, cbTx.OutputTxos[0].cmt.b, pp.paramKC),
+				pp.paramKC)
 			deltas[t] = pp.PolyNTTSub(
-				pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cbTx.TxWitness.rpulpproof.zs[t], pp.paramLc),
+				pp.PolyNTTVecInnerProduct(pp.paramMatrixH[0], cbTx.TxWitness.rpulpproof.zs[t], pp.paramLC),
 				pp.PolyNTTMul(
 					sigma_t_ch,
 					pp.PolyNTTSub(cbTx.OutputTxos[0].cmt.c, &PolyNTT{msg})))
@@ -769,10 +768,10 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 
 		//	infNorm of u'
 		infNorm := int32(0)
-		if len(cbTx.TxWitness.u_p) != pp.paramD {
+		if len(cbTx.TxWitness.u_p) != pp.paramDC {
 			return false
 		}
-		for i := 0; i < pp.paramD; i++ {
+		for i := 0; i < pp.paramDC; i++ {
 			infNorm = cbTx.TxWitness.u_p[i]
 			if infNorm < 0 {
 				infNorm = -infNorm
@@ -787,14 +786,14 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTx) bool {
 		if err != nil {
 			return false
 		}
-		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
+		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, pp.paramDC)
 		if err != nil {
 			return false
 		}
 
 		u_hats := make([][]int32, 3)
-		u_hats[0] = intToBinary(cbTx.Vin, pp.paramD)
-		u_hats[1] = make([]int32, pp.paramD)
+		u_hats[0] = intToBinary(cbTx.Vin, pp.paramDC)
+		u_hats[1] = make([]int32, pp.paramDC)
 		u_hats[2] = cbTx.TxWitness.u_p
 
 		cmts := make([]*Commitment, n)
@@ -827,8 +826,8 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	s_p := pp.NTTVec(sptmp)
 	t_hat_p := pp.PolyNTTVecAdd(
 		mpk.t,
-		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa),
-		pp.paramKa)
+		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKA, pp.paramLA),
+		pp.paramKA)
 
 	if pp.PolyNTTVecEqualCheck(txo.dpk.t, t_hat_p) != true {
 		return false, 0
@@ -840,23 +839,23 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 	if err != nil {
 		return false, 0
 	}
-	for i := 0; i < pp.paramD; i++ {
+	for i := 0; i < pp.paramDC; i++ {
 		v |= uint64(sk[i]^txo.vc[i]) << i
 	}
 	// check value
 	if v > uint64(1<<pp.paramN-1) {
 		return false, 0
 	}
-	m := intToBinary(v, pp.paramD)
+	m := intToBinary(v, pp.paramDC)
 	cmtrtmp, err := pp.expandRandomnessC(kappa) // TODO_DONE handle the err
 	if err != nil {
 		return false, 0
 	}
 	cmt_r := pp.NTTVec(cmtrtmp)
 	cmt := &Commitment{}
-	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_r, pp.paramKc, pp.paramLc)
+	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_r, pp.paramKC, pp.paramLC)
 	cmt.c = pp.PolyNTTAdd(
-		pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cmt_r, pp.paramLc),
+		pp.PolyNTTVecInnerProduct(pp.paramMatrixH[0], cmt_r, pp.paramLC),
 		&PolyNTT{m})
 
 	if pp.PolyNTTVecEqualCheck(cmt.b, txo.cmt.b) != true {
@@ -872,16 +871,16 @@ func (pp *PublicParameter) TxoCoinReceive(txo *TXO, mpk *MasterPublicKey, msvk *
 
 // collectBytesForTransfer is an auxiliary function for TransferTxGen and TransferTxVerify to collect some information into a byte slice
 func (pp *PublicParameter) collectBytesForTransfer(b_hat *PolyNTTVec, c_hats []*PolyNTT) []byte {
-	res := make([]byte, pp.paramKc*pp.paramD*4+pp.paramD*4*len(c_hats))
+	res := make([]byte, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
 	appendPolyNTTToBytes := func(a *PolyNTT) {
-		for k := 0; k < pp.paramD; k++ {
+		for k := 0; k < pp.paramDC; k++ {
 			res = append(res, byte(a.coeffs[k]>>0))
 			res = append(res, byte(a.coeffs[k]>>8))
 			res = append(res, byte(a.coeffs[k]>>16))
 			res = append(res, byte(a.coeffs[k]>>24))
 		}
 	}
-	for i := 0; i < pp.paramKc; i++ {
+	for i := 0; i < pp.paramKC; i++ {
 		appendPolyNTTToBytes(b_hat.polyNTTs[i])
 	}
 	for i := 0; i < len(c_hats); i++ {
@@ -925,7 +924,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			return nil, errors.New("the master public key is nil")
 		}
 		if !outputDescItem.mpk.WellformCheck(pp) {
-			return nil, errors.New("the mpk is not well-form")
+			return nil, errors.New("the pk is not well-form")
 		}
 	}
 
@@ -1019,7 +1018,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 
 		cmts[I+j] = rettrTx.OutputTxos[j].cmt
-		msg_hats[I+j] = intToBinary(outputDescs[j].value, pp.paramD)
+		msg_hats[I+j] = intToBinary(outputDescs[j].value, pp.paramDC)
 	}
 
 	for i := 0; i < I; i++ {
@@ -1044,7 +1043,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 	cmtps := make([]*Commitment, I)
 
 	for i := 0; i < I; i++ {
-		msg_hats[i] = intToBinary(inputDescs[i].value, pp.paramD)
+		msg_hats[i] = intToBinary(inputDescs[i].value, pp.paramDC)
 
 		//	dpk = inputDescs[i].txoList[inputDescs[i].sidx].dpk = (C, t)
 		kappa := inputDescs[i].msvk.skkem.CryptoKemDec(inputDescs[i].txoList[inputDescs[i].sidx].dpk.ckem)
@@ -1056,7 +1055,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		s_a := pp.PolyNTTVecAdd(
 			inputDescs[i].mssk.s,
 			pp.NTTVec(satmp),
-			pp.paramLa)
+			pp.paramLA)
 
 		randomnessC, err := pp.sampleRandomnessC()
 		if err != nil {
@@ -1064,9 +1063,9 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 		cmt_rs[i] = pp.NTTVec(randomnessC)
 		cmtps[i] = &Commitment{}
-		cmtps[i].b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_rs[i], pp.paramKc, pp.paramLc)
+		cmtps[i].b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_rs[i], pp.paramKC, pp.paramLC)
 		cmtps[i].c = pp.PolyNTTAdd(
-			pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cmt_rs[i], pp.paramLc),
+			pp.PolyNTTVecInnerProduct(pp.paramMatrixH[0], cmt_rs[i], pp.paramLC),
 			&PolyNTT{msg_hats[i]})
 
 		cmts[i] = cmtps[i]
@@ -1077,7 +1076,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		s_c := pp.PolyNTTVecSub(
 			pp.NTTVec(sctmp),
 			cmt_rs[i],
-			pp.paramLc)
+			pp.paramLC)
 
 		t_c_p := cmtps[i].toPolyNTTVec()
 
@@ -1087,11 +1086,11 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		for j := 0; j < ringSize; j++ {
 			t_as[j] = inputDescs[i].txoList[j].dpk.t
 
-			if len(inputDescs[i].txoList[j].cmt.b.polyNTTs) != pp.paramKc {
+			if len(inputDescs[i].txoList[j].cmt.b.polyNTTs) != pp.paramKC {
 				return nil, errors.New("the length of cmt.b is not accurate")
 			}
 			t_cs[j] = inputDescs[i].txoList[j].cmt.toPolyNTTVec()
-			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKc+1)
+			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKC+1)
 		}
 
 		elrsSigs[i], err = pp.elrsSign(t_as, t_cs, msgTrTxConHash, inputDescs[i].sidx, s_a, s_c)
@@ -1101,7 +1100,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 	}
 
 	//	u
-	u := intToBinary(fee, pp.paramD)
+	u := intToBinary(fee, pp.paramDC)
 
 	if I == 1 {
 		c_hats := make([]*PolyNTT, n2) //	n2 = n+2
@@ -1110,9 +1109,9 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		//	f[0] = 0, and for i=1 to d-1,
 		//	m_0[i-1] + 2 f[i] = m_1[i-1] + .. + m_{n-1}[i-1] + u[i-1] + f[i-1],
 		//	m_0[d-1] 		  = m_1[d-1] + .. + m_{n-1}[d-1] + f[d-1],
-		f := make([]int32, pp.paramD)
+		f := make([]int32, pp.paramDC)
 		f[0] = 0
-		for i := 1; i < pp.paramD; i++ {
+		for i := 1; i < pp.paramDC; i++ {
 			tmp := int32(0)
 			for j := 1; j < n; j++ {
 				tmp = tmp + msg_hats[j][i-1]
@@ -1133,28 +1132,28 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			return nil, err
 		}
 		r_hat := pp.NTTVec(randomnessC)
-		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKc, pp.paramLc)
+		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKC, pp.paramLC)
 		for i := 0; i < n2; i++ { // n2 = I+J+4 = n+4
 			c_hats[i] = pp.PolyNTTAdd(
-				pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], r_hat, pp.paramLc),
+				pp.PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], r_hat, pp.paramLC),
 				&PolyNTT{msg_hats[i]})
 		}
 
 		// todo: check the scope of u_p in theory
-		u_p := make([]int32, pp.paramD)
-		u_p_temp := make([]int64, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		u_p := make([]int32, pp.paramDC)
+		u_p_temp := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
 		seed_binM, err := Hash(pp.collectBytesForTransfer(b_hat, c_hats))
 		if err != nil {
 			return nil, err
 		}
-		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
+		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
 		// todo: check B f + e
-		for i := 0; i < pp.paramD; i++ {
+		for i := 0; i < pp.paramDC; i++ {
 			u_p_temp[i] = int64(e[i])
-			for j := 0; j < pp.paramD; j++ {
+			for j := 0; j < pp.paramDC; j++ {
 				if (binM[i][j/8]>>(j%8))&1 == 1 {
 					u_p_temp[i] += int64(f[j])
 				}
@@ -1174,7 +1173,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 		u_hats := make([][]int32, 3)
 		u_hats[0] = u
-		u_hats[1] = make([]int32, pp.paramD)
+		u_hats[1] = make([]int32, pp.paramDC)
 		u_hats[2] = u_p
 
 		n1 := n
@@ -1197,15 +1196,15 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 
 		c_hats := make([]*PolyNTT, n2) //	n2 = n+4
 
-		msg_hats[n] = intToBinary(inputTotal, pp.paramD) //	v_in
+		msg_hats[n] = intToBinary(inputTotal, pp.paramDC) //	v_in
 
 		//	f1 is the carry vector, such that, m_0 + m_1+ ... + m_{I-1} = m_{n}
 		//	f1[0] = 0, and for i=1 to d-1,
 		//	m_0[i-1] + .. + m_{I-1}[i-1] + f1[i-1] = m_n[i-1] + 2 f[i] ,
 		//	m_0[d-1] + .. + m_{I-1}[d-1] + f1[d-1] = m_n[d-1] ,
-		f1 := make([]int32, pp.paramD)
+		f1 := make([]int32, pp.paramDC)
 		f1[0] = 0
-		for i := 1; i < pp.paramD; i++ {
+		for i := 1; i < pp.paramDC; i++ {
 			tmp := int32(0)
 			for j := 0; j < I; j++ {
 				tmp = tmp + msg_hats[j][i-1]
@@ -1218,9 +1217,9 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		//	f2[0] = 0, and for i=1 to d-1,
 		//	m_I[i-1] + .. + m_{I+J-1}[i-1] + u[i-1] + f2[i-1] = m_n[i-1] + 2 f[i] ,
 		//	m_I[d-1] + .. + m_{I+J-1}[d-1] + u[d-1] + f2[d-1] = m_n[d-1] ,
-		f2 := make([]int32, pp.paramD)
+		f2 := make([]int32, pp.paramDC)
 		f2[0] = 0
-		for i := 1; i < pp.paramD; i++ {
+		for i := 1; i < pp.paramDC; i++ {
 			tmp := int32(0)
 			for j := 0; j < J; j++ {
 				tmp = tmp + msg_hats[I+j][i-1]
@@ -1242,22 +1241,22 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 		r_hat := pp.NTTVec(randomnessC)
 
-		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKc, pp.paramLc)
+		b_hat := pp.PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKC, pp.paramLC)
 
 		for i := 0; i < n2; i++ { // n2 = I+J+4 = n+4
 			c_hats[i] = pp.PolyNTTAdd(
-				pp.PolyNTTVecInnerProduct(pp.paramMatrixC[i+1], r_hat, pp.paramLc),
+				pp.PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], r_hat, pp.paramLC),
 				&PolyNTT{msg_hats[i]})
 		}
 
 		// todo: check the scope of u_p in theory
-		u_p := make([]int32, pp.paramD)
-		u_p_temp := make([]int64, pp.paramD) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		u_p := make([]int32, pp.paramDC)
+		u_p_temp := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
 		seed_binM, err := Hash(pp.collectBytesForTransfer(b_hat, c_hats))
 		if err != nil {
 			return nil, err
 		}
-		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
+		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, 2*pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -1268,15 +1267,15 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 		betaF = betaF - 1
 
-		for i := 0; i < pp.paramD; i++ {
+		for i := 0; i < pp.paramDC; i++ {
 			u_p_temp[i] = int64(e[i])
-			for j := 0; j < pp.paramD; j++ {
+			for j := 0; j < pp.paramDC; j++ {
 				//	u_p_temp[i] = u_p_temp[i] + int64(e[j])
 
 				if (binM[i][j/8]>>(j%8))&1 == 1 {
 					u_p_temp[i] += int64(f1[j])
 				}
-				if (binM[i][(pp.paramD+j)/8]>>((pp.paramD+j)%8))&1 == 1 {
+				if (binM[i][(pp.paramDC+j)/8]>>((pp.paramDC+j)%8))&1 == 1 {
 					u_p_temp[i] += int64(f2[j])
 				}
 			}
@@ -1294,14 +1293,14 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 		}
 
 		u_hats := make([][]int32, 5)
-		u_hats[0] = make([]int32, pp.paramD)
+		u_hats[0] = make([]int32, pp.paramDC)
 		// todo_DONE: -u
-		u_hats[1] = make([]int32, pp.paramD)
+		u_hats[1] = make([]int32, pp.paramDC)
 		for i := 0; i < len(u_hats[1]); i++ {
 			u_hats[1][i] = -u[i]
 		}
-		u_hats[2] = make([]int32, pp.paramD)
-		u_hats[3] = make([]int32, pp.paramD)
+		u_hats[2] = make([]int32, pp.paramDC)
+		u_hats[3] = make([]int32, pp.paramDC)
 		u_hats[4] = u_p
 
 		n1 := n + 1
@@ -1422,7 +1421,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 			t_as[j] = trTx.Inputs[i].TxoList[j].dpk.t
 
 			t_cs[j] = trTx.Inputs[i].TxoList[j].cmt.toPolyNTTVec()
-			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKc+1)
+			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKC+1)
 		}
 		valid := pp.elrsVerify(t_as, t_cs, msgTrTxConHash, trTx.TxWitness.elrsSigs[i])
 		if !valid {
@@ -1440,7 +1439,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		cmts[I+j] = trTx.OutputTxos[j].cmt
 	}
 
-	u := intToBinary(trTx.Fee, pp.paramD)
+	u := intToBinary(trTx.Fee, pp.paramDC)
 
 	if I == 1 {
 		n2 := n + 2
@@ -1463,14 +1462,14 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		if err != nil {
 			return false
 		}
-		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, pp.paramD)
+		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, pp.paramDC)
 		if err != nil {
 			return false
 		}
 
 		u_hats := make([][]int32, 3)
 		u_hats[0] = u
-		u_hats[1] = make([]int32, pp.paramD)
+		u_hats[1] = make([]int32, pp.paramDC)
 		u_hats[2] = trTx.TxWitness.u_p
 
 		flag := pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx1, binM, I, J, 3, u_hats, trTx.TxWitness.rpulpproof)
@@ -1500,20 +1499,20 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTx) bool {
 		}
 
 		seed_binM, err := Hash(pp.collectBytesForTransfer(trTx.TxWitness.b_hat, trTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
-		binM, err := expandBinaryMatrix(seed_binM, pp.paramD, 2*pp.paramD)
+		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, 2*pp.paramDC)
 		if err != nil {
 			return false
 		}
 
 		u_hats := make([][]int32, 5)
-		u_hats[0] = make([]int32, pp.paramD)
+		u_hats[0] = make([]int32, pp.paramDC)
 		// todo_DONE: -u
-		u_hats[1] = make([]int32, pp.paramD)
+		u_hats[1] = make([]int32, pp.paramDC)
 		for i := 0; i < len(u_hats[1]); i++ {
 			u_hats[1][i] = -u[i]
 		}
-		u_hats[2] = make([]int32, pp.paramD)
-		u_hats[3] = make([]int32, pp.paramD)
+		u_hats[2] = make([]int32, pp.paramDC)
+		u_hats[3] = make([]int32, pp.paramDC)
 		u_hats[4] = trTx.TxWitness.u_p
 
 		flag := pp.rpulpVerify(cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 5, u_hats, trTx.TxWitness.rpulpproof)
@@ -1533,10 +1532,10 @@ func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r
 	// expand the kappa to a PolyVec
 	s_prime, err := pp.expandRandomnessA(kappa)
 	s_p := pp.NTTVec(s_prime)
-	// t = mpk.t + A * s_p
+	// t = pk.t + A * s_p
 	t := pp.PolyNTTVecAdd(mpk.t,
-		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKa, pp.paramLa),
-		pp.paramKa)
+		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, s_p, pp.paramKA, pp.paramLA),
+		pp.paramKA)
 	//	dpk = (C, t)
 	dpk := &DerivedPubKey{
 		ckem: C,
@@ -1550,13 +1549,13 @@ func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r
 	}
 	cmtr := pp.NTTVec(sctmp)
 
-	mtmp := intToBinary(vin, pp.paramD)
+	mtmp := intToBinary(vin, pp.paramDC)
 	m := &PolyNTT{coeffs: mtmp}
 	// [b c]^T = C*r + [0 m]^T
 	cmt := &Commitment{}
-	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmtr, pp.paramKc, pp.paramLc)
+	cmt.b = pp.PolyNTTMatrixMulVector(pp.paramMatrixB, cmtr, pp.paramKC, pp.paramLC)
 	cmt.c = pp.PolyNTTAdd(
-		pp.PolyNTTVecInnerProduct(pp.paramMatrixC[0], cmtr, pp.paramLc),
+		pp.PolyNTTVecInnerProduct(pp.paramMatrixH[0], cmtr, pp.paramLC),
 		m,
 	)
 
@@ -1566,8 +1565,8 @@ func (pp *PublicParameter) txoGen(mpk *MasterPublicKey, vin uint64) (txo *TXO, r
 	if err != nil {
 		return nil, nil, err
 	}
-	vc := make([]byte, pp.paramD)
-	for i := 0; i < pp.paramD; i++ {
+	vc := make([]byte, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
 		vc[i] = sk[i] ^ byte(mtmp[i])
 	}
 
@@ -1592,7 +1591,7 @@ func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, ms
 
 	dpk := txo.dpk
 
-	// todo: check the well-formness of dpk, mpk, msvk, and mssk
+	// todo: check the well-formness of dpk, pk, msvk, and mssk
 
 	kappa := msvk.skkem.CryptoKemDec(dpk.ckem)
 	sptmp, err := pp.expandRandomnessA(kappa)
@@ -1602,17 +1601,17 @@ func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, ms
 	sp := pp.NTTVec(sptmp)
 	t_hat_p := pp.PolyNTTVecAdd(
 		mpk.t,
-		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, sp, pp.paramKa, pp.paramLa),
-		pp.paramKa)
+		pp.PolyNTTMatrixMulVector(pp.paramMatrixA, sp, pp.paramKA, pp.paramLA),
+		pp.paramKA)
 
 	if pp.PolyNTTVecEqualCheck(dpk.t, t_hat_p) != true {
 		return nil, errors.New("not equal")
 	}
 
 	//keyImgMatrix,err := pp.expandKeyImgMatrix(dpk.t)
-	tmp := make([]byte, 0, pp.paramKa*pp.paramD*4)
-	for ii := 0; ii < pp.paramKa; ii++ {
-		for jj := 0; jj < pp.paramD; jj++ {
+	tmp := make([]byte, 0, pp.paramKA*pp.paramDC*4)
+	for ii := 0; ii < pp.paramKA; ii++ {
+		for jj := 0; jj < pp.paramDC; jj++ {
 			tmp = append(tmp, byte(dpk.t.polyNTTs[ii].coeffs[jj]>>0))
 			tmp = append(tmp, byte(dpk.t.polyNTTs[ii].coeffs[jj]>>8))
 			tmp = append(tmp, byte(dpk.t.polyNTTs[ii].coeffs[jj]>>16))
@@ -1624,9 +1623,9 @@ func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, ms
 		// TODO: define Const Error Variable
 		return nil, errors.New("not equal")
 	}
-	s_hat := pp.PolyNTTVecAdd(mssk.s, sp, pp.paramLa)
+	s_hat := pp.PolyNTTVecAdd(mssk.s, sp, pp.paramLA)
 
-	keyImg := pp.PolyNTTMatrixMulVector(keyImgMatrix, s_hat, pp.paramMa, pp.paramLa)
+	keyImg := pp.PolyNTTMatrixMulVector(keyImgMatrix, s_hat, pp.paramMa, pp.paramLA)
 
 	// todo_DONE: serialize keyImg and compute the corresponding hash
 	return pp.keyImgToSerialNumber(keyImg)
@@ -1635,7 +1634,7 @@ func (pp *PublicParameter) TxoSerialNumberGen(txo *TXO, mpk *MasterPublicKey, ms
 // keyImgToSerialNumber generates the serial number from key image, it is a auxiliary function for TxoSerialNumberGen and TransferTxVerify
 func (pp *PublicParameter) keyImgToSerialNumber(keyImg *PolyNTTVec) (sn []byte, err error) {
 
-	seed := make([]byte, 0, pp.paramKa*pp.paramD*4)
+	seed := make([]byte, 0, pp.paramKA*pp.paramDC*4)
 	for i := 0; i < len(keyImg.polyNTTs); i++ {
 		for j := 0; j < len(keyImg.polyNTTs[i].coeffs); j++ {
 			seed = append(seed, byte(keyImg.polyNTTs[i].coeffs[j]>>0))
@@ -1649,7 +1648,7 @@ func (pp *PublicParameter) keyImgToSerialNumber(keyImg *PolyNTTVec) (sn []byte, 
 	if err != nil {
 		return nil, err
 	}
-	tmp := make([]byte, 0, pp.paramMa*pp.paramLa*pp.paramD*4)
+	tmp := make([]byte, 0, pp.paramMa*pp.paramLA*pp.paramDC*4)
 	for i := 0; i < len(imgM); i++ {
 		for j := 0; j < len(imgM[i].polyNTTs); j++ {
 			for k := 0; k < len(imgM[i].polyNTTs[j].coeffs); k++ {
@@ -1725,8 +1724,8 @@ func (mpk *MasterPublicKey) Deserialize(mpkSer []byte) error {
 	tmp := make([]*PolyNTT, length)
 	for i := 0; i < length; i++ {
 		tmp[i] = new(PolyNTT)
-		tmp[i].coeffs = make([]int32, DefaultPP.paramD)
-		for j := 0; j < DefaultPP.paramD; j++ {
+		tmp[i].coeffs = make([]int32, DefaultPP.paramDC)
+		for j := 0; j < DefaultPP.paramDC; j++ {
 			tmp[i].coeffs[j] = int32(mpkSer[pos+0])<<24 | int32(mpkSer[pos+1])<<16 | int32(mpkSer[pos+2])<<8 | int32(mpkSer[pos+3])<<0
 			pos += 4
 		}
@@ -1785,8 +1784,8 @@ func (mssk *MasterSecretSignKey) Deserialize(msskSer []byte) error {
 	tmp := make([]*PolyNTT, length)
 	for i := 0; i < length; i++ {
 		tmp[i] = new(PolyNTT)
-		tmp[i].coeffs = make([]int32, DefaultPP.paramD)
-		for j := 0; j < DefaultPP.paramD; j++ {
+		tmp[i].coeffs = make([]int32, DefaultPP.paramDC)
+		for j := 0; j < DefaultPP.paramDC; j++ {
 			tmp[i].coeffs[j] = int32(msskSer[pos+0])<<24 | int32(msskSer[pos+1])<<16 | int32(msskSer[pos+2])<<8 | int32(msskSer[pos+3])<<0
 			pos += 4
 		}
