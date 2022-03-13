@@ -72,7 +72,7 @@ func (pp PublicParameterv2) sampleZetaC2v2() (r *PolyVecv2, err error) {
 func (pp *PublicParameterv2) sampleUniformWithinEtaFv2() ([]int32, error) {
 	//  qc =					1111_1111_1111_1111_1110_1110_0000_0001
 	// (qc-1)/16 = 268435168 = 	1111_1111_1111_1111_1110_1110_0000
-	seed := randomBytes(pp.paramSysBytes)
+	seed := randomBytes(pp.paramSeedBytesLen)
 	length := pp.paramDC
 	res := make([]int32, 0, length)
 	var curr int
@@ -468,7 +468,7 @@ func (pp *PublicParameterv2) sampleMaskCv2() (r *PolyVecv2, err error) {
 	polys := make([]*Polyv2, pp.paramLC)
 
 	for i := 0; i < pp.paramLC; i++ {
-		tmp, err := randomnessFromEtaCv2(randomBytes(pp.paramSysBytes), pp.paramDC)
+		tmp, err := randomnessFromEtaCv2(randomBytes(pp.paramSeedBytesLen), pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -481,7 +481,7 @@ func (pp *PublicParameterv2) sampleMaskCv2() (r *PolyVecv2, err error) {
 }
 func (pp *PublicParameterv2) sampleUniformPloyWithLowZeros() (r *Polyv2) {
 	ret := NewPolyv2(R_QC, pp.paramDC)
-	seed := randomBytes(pp.paramSysBytes)
+	seed := randomBytes(pp.paramSeedBytesLen)
 	tmp := rejectionUniformWithQc(seed, pp.paramDC-pp.paramK)
 	for i := pp.paramK; i < pp.paramDC; i++ {
 		ret.coeffs1[i] = tmp[i-pp.paramK]

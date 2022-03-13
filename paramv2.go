@@ -7,40 +7,41 @@ import (
 )
 
 func NewPublicParameterV2(
-	paramDA int, paramQA int64, paramThetaA int32, paramKA int, paramLA int, paramGammaA int32, paramEtaA int32,
-	paramI int, paramJ int, paramN int, paramDC int, paramDCInv int32, paramQC uint32, paramK int, paramKInv int32, paramKC int, paramLC int, paramBetaC int32, paramEtaC int32,
-	paramEtaF int32, paramSysBytes int,
-	paramZeta int32, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *kyber.ParameterSet) (*PublicParameterv2, error) {
+	paramDA int, paramQA int64, paramThetaA int, paramKA int, paramLambdaA int, paramGammaA int, paramEtaA int32, paramBetaA int,
+	paramI int, paramJ int, paramN int,
+	paramDC int, paramQC int64, paramK int, paramKC int, paramLambdaC int, paramEtaC int32, paramBetaC int,
+	paramEtaF int64, paramSysBytes int,
+	paramDCInv int64, paramKInv int64,
+	paramZeta int64, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *kyber.ParameterSet) (*PublicParameterv2, error) {
+
 	res := &PublicParameterv2{
 		paramDA:       paramDA,
 		paramQA:       paramQA,
 		paramThetaA:   paramThetaA,
 		paramKA:       paramKA,
-		paramLambdaA:  paramLA - paramKA - 1,
-		paramLA:       paramLA,
+		paramLambdaA:  paramLambdaA,
+		paramLA:       paramKA + paramLambdaA + 1,
 		paramGammaA:   paramGammaA,
 		paramEtaA:     paramEtaA,
+		paramBetaA: 	paramBetaA,
 		paramI:        paramI,
 		paramJ:        paramJ,
 		paramN:        paramN,
 		paramDC:       paramDC,
-		paramDCInv:    paramDCInv,
 		paramQC:       paramQC,
-		paramQCm:      paramQC >> 1,
-		paramK:        paramK,
-		paramKInv:     paramKInv,
-		paramKC:       paramKC,
-		paramLambdaC:  paramLC - paramKC - paramI - paramJ - 7,
-		paramLC:       paramLC,
-		paramBetaC:    paramBetaC,
-		paramBetaC2:   paramBetaC,
-		paramEtaC:     paramEtaC,
-		paramEtaC2:    paramEtaC,
-		paramEtaF:     paramEtaF,
-		paramSysBytes: paramSysBytes,
-
-		paramSigmaPermutations: paramSigmaPermutations,
+		paramK:            paramK,
+		paramKC:           paramKC,
+		paramLambdaC:      paramLambdaC,
+		paramLC:           paramKC + paramI + paramJ + 7 + paramLambdaC,
+		paramEtaC:         paramEtaC,
+		paramBetaC:        paramBetaC,
+		paramEtaF:         paramEtaF,
+		paramSeedBytesLen: paramSysBytes,
+		paramQCm:      	paramQC >> 1,
+		paramDCInv:    	paramDCInv,
+		paramKInv:      paramKInv,
 		paramZeta:              paramZeta,
+		paramSigmaPermutations: paramSigmaPermutations,
 		paramCStr:              paramCStr,
 		paramKem:               paramKem,
 	}
@@ -87,20 +88,23 @@ func NewPublicParameterV2(
 }
 
 type PublicParameterv2 struct {
-
 	// Paramter for Address
 	paramDA int
 	paramQA int64
 	// For challenge
-	paramThetaA int32
-	// paramLA = paramKA + 1 + paramLambdaA
+	paramThetaA int
+
 	paramKA      int
 	paramLambdaA int
-	paramLA      int
+	// paramLA = paramKA + paramLambdaA + 1
+	paramLA int
+
 	// For randomness
-	paramGammaA int32
+	paramGammaA int
 	// For masking
 	paramEtaA int32
+	// For bounding
+	paramBetaA int
 
 	// Parameter for Commit
 	// paramI defines the maximum number of consumed coins of a transfer transaction
@@ -119,38 +123,48 @@ type PublicParameterv2 struct {
 	// values, such as d=128, 256, 512, and even 1024, on any platform/OS, since int maybe int32 or int64.
 	// require: d >= 128
 	paramDC int
-	//paramDCInv = d^{-1} mod q
-	paramDCInv int32
 	// paramQC is the module to define R_q[X] = Z_q[X] / (X^d +1)
 	// q = 1 mod 2d will guarantee that R_q[X] is a fully-splitting ring, say that X^d+1 = (X-\zeta)(X-\zetz^3)...(X-\zeta^{2d-1}),
 	// where \zeta is a primitive 2d-th root of unity in Z_q^*.
 	// For efficiency, q is expected to small. Considering the security, q (approx.)= 2^32 is fine.
 	// For uint32, q lies in [0, 2^32-1], and Z_q = [-(q-1)/2, (q-1)/1], int32 will be fine to denote the values in Z_q.
 	// q_m = (q-1)/2, as this value will be often used in computation, we define it as a parameter, rather than compute it each time.
-	paramQC uint32
-	// paramQCm = (q-1)/2, as this value will be often used in computation, we define it as a parameter, rather than compute it each time.
-	paramQCm uint32
+	paramQC int64
 	// paramK is a power of two such that k|d and q^{-k} is negligible.
 	// As we will also loop for k, we define it with 'int' type.
 	paramK int
 	// paramKInv = k^{-1} mod q
-	paramKInv int32
-	// paramLC = paramKC + paramI + paramJ + 7 + paramLambdaC
+
 	// As we need to loop for paramKC, we define it with 'int' type
 	paramKC      int
 	paramLambdaC int
-	// As we need to loop for paramLC, we define it with 'int' type
+	// paramLC = paramKC + paramI + paramJ + 7 + paramLambdaC
 	paramLC int
-	// As paramBetaC is used to specify the infNorm of polys in Ring, thus we define it with type 'int32' (as q)
-	paramBetaC int32
+
 	// As paramEtaC is used to specify the infNorm of polys in Ring, thus we define it with type 'int32' (as q)
 	paramEtaC int32
-	// As paramEtaF may be (q_c-1)/16, we define it with 'uint32' type
-	paramEtaF int32
 
-	paramSysBytes int
+	// As paramBetaC is used to specify the infNorm of polys in Ring
+	paramBetaC int
+
+	// As paramEtaF may be (q_c-1)/16, we define it with 'int64' type
+	paramEtaF int64
+
+	paramSeedBytesLen int
+
 
 	// Some Helpful parameter
+	// paramQCm = (q_c -1)/2, as this value will be often used in computation, we define it as a parameter, rather than compute it each time.
+	paramQCm int64
+	//paramDCInv = d_c^{-1} mod q_c
+	paramDCInv int64
+	//paramKInv = k^{-1} mod q_c
+	paramKInv int64
+
+	// paramZeta is a primitive 2d-th root of unity in Z_q^*.
+	// As zeta \in Z_q, we define it with 'int32' type.
+	paramZeta int64
+
 	// paramSigmaPermutations is determined by (d,k) and the selection of sigma
 	// paramSigmaPermutations [t] with t=0~(k-1) works for sigma^t
 	paramSigmaPermutations [][]int
@@ -161,23 +175,10 @@ type PublicParameterv2 struct {
 	//*/
 	//paramSigmaInvPermutations [][]int
 
-	// paramZeta is a primitive 2d-th root of unity in Z_q^*.
-	// As zeta \in Z_q, we define it with 'int32' type.
-	paramZeta int32
+
 
 	// As we need to loop paramKA, we define it with 'int' type
 	//paramKA int
-
-	// As we need to loop paramLA, we define it with 'int' type
-	//paramLA int
-	paramBetaA int32
-
-	paramEtaC2  int32
-	paramBetaC2 int32
-
-	// paramMa is used to specify the row number of Key Image Matrix
-	// As we need to loop for m_a, we define it with 'int' type
-	paramMa int
 
 	// As paramCStr is used to generate the public matrix, such as paramMatrixA, paramMatrixB, paramMatrixH
 	paramCStr []byte
@@ -225,29 +226,31 @@ var DefaultPPV2 *PublicParameterv2
 
 func init() {
 	var err error
+
 	DefaultPPV2, err = NewPublicParameterV2(
 		256,
-		34360786961,
+		137438953937,
 		60,
 		5,
-		10,
+		4,
 		5,
-		559557,
+		524287,
+		300,
 		5,
 		5,
 		51,
 		128,
-		-33554396,
-		4294962689,
+		9007199254746113,
 		4,
-		-1073740672,
 		10,
-		37,
+		10,
+		16777215,
 		128,
-		1<<22,
-		268435168,
-		256/32,
-		27080629,
+		(137438953937-1)>>4,
+		256,
+		268435168, // todo: paramDCInv
+		256/32,	// todo: paramKInv
+		27080629, // todo: zeta
 		[][]int{
 			{
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -290,7 +293,7 @@ func init() {
 				80, 17, 82, 19, 84, 21, 86, 23, 88, 25, 90, 27, 92, 29, 94, 31,
 			},
 		},
-		[]byte("This is experiment const string"),
+		[]byte("Welcome to Post Quantum World!"), // todo:
 		kyber.Kyber768,
 	)
 	if err != nil {

@@ -414,7 +414,7 @@ func TestPublicParameter_ELRSSign(t *testing.T) {
 	//rs := make([]*PolyNTTVec, ringSize)
 	//var err error
 	//for i := 0; i < ringSize; i++ {
-	//	seeds[i] = randomBytes(DefaultPPV2.paramSysBytes)
+	//	seeds[i] = randomBytes(DefaultPPV2.paramSeedBytesLen)
 	//	seeds[i], pks[i], sks[i], err = DefaultPPV2.KeyGen(seeds[i])
 	//	if err != nil {
 	//		log.Fatalln(err)

@@ -118,16 +118,16 @@ func (pp *PublicParameterv2) KeyGen(seed []byte) (retSeed []byte, pk *PublicKey,
 	var kemSK *kyber.SecretKey
 
 	// check the validity of the length of seed
-	if seed != nil && len(seed) != pp.paramSysBytes {
+	if seed != nil && len(seed) != pp.paramSeedBytesLen {
 		return nil, nil, nil, errors.New("the length of seed is invalid")
 	}
 	if seed == nil {
-		seed = randomBytes(pp.paramSysBytes)
+		seed = randomBytes(pp.paramSeedBytesLen)
 	}
 
 	// this temporary byte slice is for protect seed unmodified
-	tmp := make([]byte, pp.paramSysBytes)
-	for i := 0; i < pp.paramSysBytes; i++ {
+	tmp := make([]byte, pp.paramSeedBytesLen)
+	for i := 0; i < pp.paramSeedBytesLen; i++ {
 		tmp[i] = seed[i]
 	}
 	s, err = pp.expandRandomnessAv2(tmp)
@@ -135,15 +135,15 @@ func (pp *PublicParameterv2) KeyGen(seed []byte) (retSeed []byte, pk *PublicKey,
 		return seed, nil, nil, err
 	}
 
-	tmp = make([]byte, pp.paramSysBytes+2)
-	for i := 0; i < pp.paramSysBytes; i++ {
+	tmp = make([]byte, pp.paramSeedBytesLen+2)
+	for i := 0; i < pp.paramSeedBytesLen; i++ {
 		tmp[i] = seed[i]
 	}
 	mat := rejectionUniformWithQa(append(tmp, 'M', 'A'), pp.paramDA)
 	ma := &Polyv2{coeffs2: mat}
 
-	tmp = make([]byte, pp.paramSysBytes)
-	for i := 0; i < pp.paramSysBytes; i++ {
+	tmp = make([]byte, pp.paramSeedBytesLen)
+	for i := 0; i < pp.paramSeedBytesLen; i++ {
 		tmp[i] = seed[i]
 	}
 	kemPK, kemSK, err = pp.paramKem.CryptoKemKeyPair(tmp)
@@ -842,7 +842,7 @@ func (pp *PublicParameterv2) ELRSSign(
 		if i == index {
 			continue
 		}
-		seed_js[i] = randomBytes(pp.paramSysBytes)
+		seed_js[i] = randomBytes(pp.paramSeedBytesLen)
 		var tmp *Polyv2
 		d_a_js[i], err = pp.expandSigAChv2(seed_js[i])
 		if err != nil {

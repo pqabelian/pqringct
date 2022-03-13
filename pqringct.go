@@ -345,8 +345,8 @@ func Setup() (pp *PublicParameter) {
 }
 
 // MasterKeyGen generates the master public key, master view key, and master sign key.
-// If the seed is nil, this function will random a seed whose length is paramSysBytes.
-// This function requires the length of seed is at least 2*paramSysBytes.
+// If the seed is nil, this function will random a seed whose length is paramSeedBytesLen.
+// This function requires the length of seed is at least 2*paramSeedBytesLen.
 func (pp *PublicParameter) MasterKeyGen(seed []byte) (retSeed []byte, mpk *MasterPublicKey, msvk *MasterSecretViewKey, mssk *MasterSecretSignKey, err error) {
 	/*	pk := MasterPublicKey{}
 		msvk := MasterSecretViewKey{}
