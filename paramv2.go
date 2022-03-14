@@ -37,7 +37,7 @@ func NewPublicParameterV2(
 		paramBetaC:        paramBetaC,
 		paramEtaF:         paramEtaF,
 		paramSeedBytesLen: paramSysBytes,
-		paramQCm:      	paramQC >> 1,
+//		paramQCm:      	paramQC >> 1,
 		paramDCInv:    	paramDCInv,
 		paramKInv:      paramKInv,
 		paramZeta:              paramZeta,
@@ -154,8 +154,8 @@ type PublicParameterv2 struct {
 
 
 	// Some Helpful parameter
-	// paramQCm = (q_c -1)/2, as this value will be often used in computation, we define it as a parameter, rather than compute it each time.
-	paramQCm int64
+/*	// paramQCm = (q_c -1)/2, as this value will be often used in computation, we define it as a parameter, rather than compute it each time.
+	paramQCm int64*/
 	//paramDCInv = d_c^{-1} mod q_c
 	paramDCInv int64
 	//paramKInv = k^{-1} mod q_c
@@ -184,15 +184,16 @@ type PublicParameterv2 struct {
 	paramCStr []byte
 
 	// paramMatrixA is expand from paramCStr, with size k_a rows, each row with size l_a
-	paramMatrixA []*PolyVecv2
+	paramMatrixA []*PolyANTTVec
 
-	paramVecA *PolyVecv2
+	// paramVecA is expand from paramCStr, with size l_a
+	paramVecA *PolyANTTVec
 
 	//paramMatrixB is expand from paramCStr, with size k_c rows, each row with size l_c
-	paramMatrixB []*PolyNTTVecv2
+	paramMatrixB []*PolyCNTTVec
 
 	// paramMatrixH is expand from paramCStr, with size (paramI + paramJ + 7) rows, each row with size l_c
-	paramMatrixH []*PolyNTTVecv2
+	paramMatrixH []*PolyCNTTVec
 
 	// paramMu defines the const mu, which is determined by the value of N and d
 	paramMu []int32
