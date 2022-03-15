@@ -54,39 +54,47 @@ func (polyCVec *PolyCVec) infNorm() (infNorm int64) {
 	return rst
 }
 
+var nttCFactors = []int{
+	127, 63, 95, 31, 111, 47, 79, 15, 119, 55, 87, 23,
+	103, 39, 71, 7, 123, 59, 91, 27, 107, 43, 75, 11, 115,
+	51, 83, 19, 99, 35, 67, 3, 125, 61, 93, 29, 109, 45, 77, 13,
+	117, 53, 85, 21, 101, 37, 69, 5, 121, 57, 89, 25, 105, 41, 73,
+	9, 113, 49, 81, 17, 97, 33, 65, 1,
+}
+
 func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
+	//	NTT
+	slotNum := pp.paramDC	// fully splitting
+	segNum := 1
+	segLen := pp.paramDC
+	factors := make([]int, 1)
+	factors[0] = slotNum / 2
+
 	coeffs := make([]big.Int, pp.paramDC)
 	for i := 0; i < len(polyC.coeffs); i++ {
 		coeffs[i].SetInt64(polyC.coeffs[i])
 	}
-
-	//	NTT
-	segNum := 1
-	segLen := pp.paramDC
-	factors := make([]int, 1)
-	factors[0] = pp.paramDC / 2
-
-	var tmp, xtmp, zetaTmp big.Int
+	var tmp, tmp1, tmp2, zetaTmp big.Int
 	for {
 		segLenHalf := segLen / 2
 		for k := 0; k < segNum; k++ {
 			zetaTmp.SetInt64(zetas[factors[k]])
 			for i := 0; i < segLenHalf; i++ {
-				//				tmpx := int64(coeffs[k*segLen+i+segLenHalf]) * zetas[factors[k]]
+				//				tmp := int64(coeffs[k*segLen+i+segLenHalf]) * zetas[factors[k]]
 				tmp.Mul(&coeffs[k*segLen+i+segLenHalf], &zetaTmp)
 				//				tmp1 := reduceToQc(int64(coeffs[k*segLen+i]) - tmp)
-				xtmp.Sub(&coeffs[k*segLen+i], &tmp)
+				tmp1.Sub(&coeffs[k*segLen+i], &tmp)
 				//				coeffs[k*segLen+i] = tmp1
-				coeffs[k*segLen+i].SetInt64(reduce(&xtmp, pp.paramQC))
+				coeffs[k*segLen+i].SetInt64(reduce(&tmp1, pp.paramQC))
 				//				tmp2 := reduceToQc(int64(coeffs[k*segLen+i]) + tmp)
-				xtmp.Add(&coeffs[k*segLen+i], &tmp)
+				tmp2.Add(&coeffs[k*segLen+i], &tmp)
 				//				coeffs[k*segLen+i+segLenHalf] = tmp2
-				coeffs[k*segLen+i+segLenHalf].SetInt64(reduce(&xtmp, pp.paramQC))
+				coeffs[k*segLen+i+segLenHalf].SetInt64(reduce(&tmp2, pp.paramQC))
 			}
 		}
 		segNum = segNum << 1
 		segLen = segLen >> 1
-		if segNum == pp.paramDC {
+		if segNum == slotNum {
 			break
 		}
 		tmpFactors := make([]int, 2*len(factors))
@@ -97,31 +105,43 @@ func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
 		factors = tmpFactors
 	}
 
-	finalFactors := make([]int, 2*len(factors))
+/*	finalFactors := make([]int, 2*len(factors))
 	for i := 0; i < len(factors); i++ {
 		finalFactors[2*i] = factors[i] + pp.paramDC
 		finalFactors[2*i+1] = factors[i]
 	}
+
 	nttCoeffs := make([]int64, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
 		nttCoeffs[(finalFactors[i]-1)/2] = coeffs[i].Int64()
 	}
-	return &PolyCNTT{nttcoeffs: nttCoeffs}
+	return &PolyCNTT{nttcoeffs: nttCoeffs}*/
+
+	rst := pp.NewPolyCNTT()
+	for i := 0; i < pp.paramDC; i++ {
+		rst.nttcoeffs[i] = coeffs[i].Int64()
+	}
+	return rst
 }
 
 func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
-	nttCoeffs := make([]big.Int, pp.paramDC)
-	segNum := pp.paramDC
+	slotNum := pp.paramDC //	fully splitting
+	segNum := slotNum
 	segLen := 1
 	factors := nttFactors
 
-	finalFactors := make([]int, 2*len(factors))
+/*	finalFactors := make([]int, 2*len(factors))
 	for i := 0; i < len(factors); i++ {
 		finalFactors[2*i] = factors[i] + pp.paramDC
 		finalFactors[2*i+1] = factors[i]
 	}
 	for i := 0; i < pp.paramDC; i++ {
 		nttCoeffs[i].SetInt64( polyCNTT.nttcoeffs[(finalFactors[i]-1)/2] )
+	}*/
+
+	nttCoeffs := make([]big.Int, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
+		nttCoeffs[i].SetInt64( polyCNTT.nttcoeffs[i] )
 	}
 	// twoInv := int64((pp.paramQC+1)/2) - int64(pp.paramQC)
 	var twoInv, tmp1, tmp2, tmpZeta big.Int
@@ -131,7 +151,8 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 		segLenDouble := segLen * 2
 
 		for k := 0; k < segNum/2; k++ {
-			tmpZeta.SetInt64( zetas[2*pp.paramDC-factors[k]] )
+			// tmpZeta.SetInt64( zetas[2*pp.paramDC-factors[k]] )
+			tmpZeta.SetInt64( zetas[factors[k]] )
 			for i := 0; i < segLen; i++ {
 				//				tmp1 := reduceToQc(pp.reduceInt64(int64(nttCoeffs[k*segLenDouble+i+segLen])+int64(nttCoeffs[k*segLenDouble+i])) * twoInv)
 				//				nttCoeffs[k*segLenDouble+i] = tmp1
@@ -157,11 +178,11 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 		factors = tmpFactors
 	}
 
-	coeffs := make([]int64, pp.paramDC)
+	rst := pp.NewPolyC()
 	for i := 0; i < pp.paramDC; i++ {
-		coeffs[i] = nttCoeffs[i].Int64()
+		rst.coeffs[i] = nttCoeffs[i].Int64()
 	}
-	return &PolyC{coeffs: coeffs}
+	return rst
 }
 
 
@@ -428,3 +449,4 @@ func reduce(a *big.Int, q int64) int64  {
 	}
 	return r
 }
+

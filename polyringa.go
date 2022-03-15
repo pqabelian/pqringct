@@ -57,19 +57,117 @@ func (polyAVec *PolyAVec) infNorm() (infNorm int64) {
 }
 
 
-
-// todo: R_{q_a} is not fully-splitting
 func (pp *PublicParameterv2) NTTPolyA(polyA *PolyA) *PolyANTT {
-	panic("implement me")
+	//	NTT
+	slotNum := 8	//	will factor to 8 factors
+	segNum := 1
+	segLen := pp.paramDA
+	factors := make([]int, 1)
+	factors[0] = slotNum / 2
 
-	return nil
+	coeffs := make([]big.Int, pp.paramDA)
+	for i := 0; i < len(polyA.coeffs); i++ {
+		coeffs[i].SetInt64(polyA.coeffs[i])
+	}
+	var tmp, tmp1, tmp2, zetaTmp big.Int
+	for {
+		segLenHalf := segLen / 2
+		for k := 0; k < segNum; k++ {
+			zetaTmp.SetInt64(zetaAs[factors[k]])
+			for i := 0; i < segLenHalf; i++ {
+				//				tmp := int64(coeffs[k*segLen+i+segLenHalf]) * zetas[factors[k]]
+				tmp.Mul(&coeffs[k*segLen+i+segLenHalf], &zetaTmp)
+				//				tmp1 := reduceToQc(int64(coeffs[k*segLen+i]) - tmp)
+				tmp1.Sub(&coeffs[k*segLen+i], &tmp)
+				//				coeffs[k*segLen+i] = tmp1
+				coeffs[k*segLen+i].SetInt64(reduce(&tmp1, pp.paramQA))
+				//				tmp2 := reduceToQc(int64(coeffs[k*segLen+i]) + tmp)
+				tmp2.Add(&coeffs[k*segLen+i], &tmp)
+				//				coeffs[k*segLen+i+segLenHalf] = tmp2
+				coeffs[k*segLen+i+segLenHalf].SetInt64(reduce(&tmp2, pp.paramQA))
+			}
+		}
+		segNum = segNum << 1
+		segLen = segLen >> 1
+		if segNum == slotNum {
+			break
+		}
+		tmpFactors := make([]int, 2*len(factors))
+		for i := 0; i < len(factors); i++ {
+			tmpFactors[2*i] = (factors[i] + slotNum) / 2
+			tmpFactors[2*i+1] = factors[i] / 2
+		}
+		factors = tmpFactors
+	}
+
+	//	factors: 7, 3, 5, 1
+/*	finalFactors := make([]int, 2*len(factors))
+	for i := 0; i < len(factors); i++ {
+		finalFactors[2*i] = factors[i] + slotNum
+		finalFactors[2*i+1] = factors[i]
+	}
+	//	finalFactors: 15,7, 11,3, 13,5, 9,1*/
+
+	rst := pp.NewPolyANTT()
+	for i := 0; i < pp.paramDA; i++ {
+		rst.nttcoeffs[i] = coeffs[i].Int64()
+	}
+	return rst
 }
 
-// todo:
-func (pp *PublicParameterv2) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
-	panic("implement me")
+var nttAFactors = []int{
+	7, 3, 5, 1}
 
-	return nil
+func (pp *PublicParameterv2) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
+	nttCoeffs := make([]big.Int, pp.paramDA)
+	for i := 0; i < pp.paramDC ; i++ {
+		nttCoeffs[i].SetInt64(polyANTT.nttcoeffs[i])
+	}
+
+	slotNum := 8	//	8 NTT slots
+	segNum := slotNum
+	segLen := pp.paramDA / segNum
+	factors := nttAFactors
+
+	// twoInv := int64((pp.paramQC+1)/2) - int64(pp.paramQC)
+	var twoInv, tmp1, tmp2, tmpZeta big.Int
+	twoInv.SetInt64((pp.paramQA+1)/2 - pp.paramQA)
+
+	for {
+		segLenDouble := segLen * 2
+
+		for k := 0; k < segNum/2; k++ {
+			tmpZeta.SetInt64( zetaAs[factors[k]] )
+			for i := 0; i < segLen; i++ {
+				//				tmp1 := reduceToQc(pp.reduceInt64(int64(nttCoeffs[k*segLenDouble+i+segLen])+int64(nttCoeffs[k*segLenDouble+i])) * twoInv)
+				//				nttCoeffs[k*segLenDouble+i] = tmp1
+				tmp1.Add(&nttCoeffs[k*segLenDouble+i+segLen],&nttCoeffs[k*segLenDouble+i])
+				tmp1.Mul(&tmp1, &twoInv)
+				nttCoeffs[k*segLenDouble+i].SetInt64(reduce(&tmp1, pp.paramQA))
+				//				tmp2 := reduceToQc(pp.reduceInt64(pp.reduceInt64(int64(nttCoeffs[k*segLenDouble+i+segLen])-int64(nttCoeffs[k*segLenDouble+i]))*twoInv) * zetas[2*pp.paramDC-factors[k]])
+				//				nttCoeffs[k*segLenDouble+i+segLen] = tmp2
+				tmp2.Sub(&nttCoeffs[k*segLenDouble+i+segLen], &nttCoeffs[k*segLenDouble+i])
+				tmp2.Mul(&tmp2, &tmpZeta)
+				nttCoeffs[k*segLenDouble+i+segLen].SetInt64(reduce(&tmp2, pp.paramQA))
+			}
+		}
+		segNum = segNum >> 1
+		segLen = segLen << 1
+		if segNum == 1 {
+			break
+		}
+		tmpFactors := make([]int, len(factors)/2)
+		for i := 0; i < len(tmpFactors); i++ {
+			tmpFactors[i] = factors[2*i+1] * 2
+		}
+		factors = tmpFactors
+	}
+
+	rst := pp.NewPolyA()
+	for i := 0; i < pp.paramDA; i++ {
+		rst.coeffs[i] = nttCoeffs[i].Int64()
+	}
+	return rst
 }
 
 
@@ -615,3 +713,7 @@ func (pp *PublicParameterv2) Mul(a, b *Polyv2) *Polyv2 {
 }
 */
 //	todo: implement NTT on non-fully-spliting ring end
+
+//	todo:
+var zetaAs = []int64{
+	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15 }
