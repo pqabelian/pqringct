@@ -418,11 +418,7 @@ func reduce(a *big.Int, q int64) int64  {
 
 	b.SetInt64(q)
 
-	// make sure a is positive, so that the initial remainder is positive
-	if a.Sign() < 0 {
-		rst.Add(a, &b)
-	}
-	rst.Mod(&rst, &b)
+	rst.Mod(a, &b)
 
 	r := rst.Int64()
 
