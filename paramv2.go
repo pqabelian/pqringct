@@ -4,15 +4,17 @@ import (
 	"github.com/cryptosuite/kyber-go/kyber"
 	"golang.org/x/crypto/sha3"
 	"log"
+	"math/big"
 )
 
 func NewPublicParameterV2(
 	paramDA int, paramQA int64, paramThetaA int, paramKA int, paramLambdaA int, paramGammaA int, paramEtaA int32, paramBetaA int,
 	paramI int, paramJ int, paramN int,
-	paramDC int, paramQC int64, paramK int, paramKC int, paramLambdaC int, paramEtaC int32, paramBetaC int,
+	paramDC int, paramQC int64, paramK int, paramKC int, paramLambdaC int, paramEtaC int64, paramBetaC int,
 	paramEtaF int64, paramSysBytes int,
 	paramDCInv int64, paramKInv int64,
-	paramZeta int64, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *kyber.ParameterSet) (*PublicParameterv2, error) {
+	paramZetaA int64, paramZetaAOrder int,
+	paramZetaC int64, paramZetaCOrder int, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *kyber.ParameterSet) (*PublicParameterv2, error) {
 
 	res := &PublicParameterv2{
 		paramDA:           paramDA,
@@ -24,6 +26,8 @@ func NewPublicParameterV2(
 		paramGammaA:       paramGammaA,
 		paramEtaA:         paramEtaA,
 		paramBetaA:        paramBetaA,
+		paramZetaA:        paramZetaA,
+		paramZetaAOrder:   paramZetaAOrder,
 		paramI:            paramI,
 		paramJ:            paramJ,
 		paramN:            paramN,
@@ -40,11 +44,22 @@ func NewPublicParameterV2(
 		//		paramQCm:      	paramQC >> 1,
 		paramDCInv:             paramDCInv,
 		paramKInv:              paramKInv,
-		paramZeta:              paramZeta,
+		paramZetaC:             paramZetaC,
+		paramZetaCOrder:        paramZetaCOrder,
 		paramSigmaPermutations: paramSigmaPermutations,
 		paramCStr:              paramCStr,
 		paramKem:               paramKem,
 	}
+	//  parameters for Number Theory Transform
+	res.paramZetasC = make([]int64, res.paramZetaCOrder)
+	for i := 0; i < res.paramZetaCOrder; i++ {
+		res.paramZetasC[i] = powerAndModP(res.paramZetaC, int64(i), res.paramQC)
+	}
+	res.paramZetasA = make([]int64, res.paramZetaAOrder)
+	for i := 0; i < res.paramZetaAOrder; i++ {
+		res.paramZetasA[i] = powerAndModP(res.paramZetaA, int64(i), res.paramQA)
+	}
+
 	seed, err := Hash(res.paramCStr)
 	if err != nil {
 		return nil, err
@@ -79,7 +94,7 @@ func NewPublicParameterV2(
 		return nil, err
 	}
 
-	res.paramMu = make([]int32, res.paramDC)
+	res.paramMu = make([]int64, res.paramDC)
 	for i := 0; i < res.paramN; i++ {
 		res.paramMu[i] = 1
 	}
@@ -105,6 +120,12 @@ type PublicParameterv2 struct {
 	paramEtaA int32
 	// For bounding
 	paramBetaA int
+
+	paramZetaA int64
+	// For splitting
+	paramZetasA      []int64
+	paramZetaAOrder  int
+	paramNTTAFactors []int
 
 	// Parameter for Commit
 	// paramI defines the maximum number of consumed coins of a transfer transaction
@@ -160,9 +181,13 @@ type PublicParameterv2 struct {
 	//paramKInv = k^{-1} mod q_c
 	paramKInv int64
 
-	// paramZeta is a primitive 2d-th root of unity in Z_q^*.
+	// paramZetaC is a primitive 2d-th root of unity in Z_q^*.
 	// As zeta \in Z_q, we define it with 'int32' type.
-	paramZeta int64
+	paramZetaC int64
+	// For splitting
+	paramZetasC      []int64
+	paramZetaCOrder  int
+	paramNTTCFactors []int
 
 	// paramSigmaPermutations is determined by (d,k) and the selection of sigma
 	// paramSigmaPermutations [t] with t=0~(k-1) works for sigma^t
@@ -199,11 +224,18 @@ type PublicParameterv2 struct {
 	paramKem *kyber.ParameterSet
 }
 
-func (pp *PublicParameterv2) expandPubMatrixA(seed []byte) (matrixA []*PolyVecv2, err error) {
-	res := make([]*PolyVecv2, pp.paramKA)
+func (pp *PublicParameterv2) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
+	res := make([]*PolyANTTVec, pp.paramKA)
+	unit := pp.NewPolyA()
+	unit.coeffs[0] = 1
+	pp.NTTPolyA(unit)
 	for i := 0; i < pp.paramKA; i++ {
-		res[i] = NewPolyVecv2(R_QA, pp.paramDA, pp.paramLA)
-		res[i].polys[i].coeffs2[0] = 1
+		res[i] = pp.NewPolyANTTVec(pp.paramLA)
+		for j := 0; j < pp.paramLA; j++ {
+			for k := 0; k < pp.paramDA; k++ {
+				res[i].polyANTTs[j].coeffs[k] = unit.coeffs[k]
+			}
+		}
 	}
 	// generate the remained sub-matrix
 	matrix, err := generateMatrix(seed, R_QA, pp.paramDA, pp.paramKA, 1+pp.paramLambdaA)
@@ -246,9 +278,12 @@ func init() {
 		128,
 		(137438953937-1)>>4,
 		256,
-		-70368744177704,   // todo_DONE: paramDCInv
-		-2251799813686528, // todo_DONE: paramKInv
-		-396137427805508,  // todo_DONE: zeta
+		-70368744177704,
+		-2251799813686528,
+		-12372710086,
+		16,
+		-396137427805508,
+		256,
 		[][]int{
 			{
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -297,4 +332,15 @@ func init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func powerAndModP(base int64, power int64, p int64) int64 {
+	a := big.NewInt(base)
+	b := big.NewInt(power)
+	mod := big.NewInt(p)
+	res := big.NewInt(1).Exp(a, b, mod).Int64()
+	if res > (p-1)>>1 {
+		res -= p
+	}
+	return res
 }
