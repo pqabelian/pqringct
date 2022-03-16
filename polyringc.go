@@ -78,26 +78,31 @@ func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
 	factors := make([]int, 1)
 	factors[0] = slotNum / 2
 
-	coeffs := make([]big.Int, pp.paramDC)
+	coeffs := make([]int64, pp.paramDC)
 	for i := 0; i < len(polyC.coeffs); i++ {
-		coeffs[i].SetInt64(polyC.coeffs[i])
+		coeffs[i] = polyC.coeffs[i]
 	}
-	var tmp, tmp1, tmp2, zetaTmp big.Int
+	var qcBig, tmp, tmp1, tmp2, zetaTmp big.Int
+	qcBig.SetInt64(pp.paramQC)
 	for {
 		segLenHalf := segLen / 2
 		for k := 0; k < segNum; k++ {
 			zetaTmp.SetInt64(zetas[factors[k]])
 			for i := 0; i < segLenHalf; i++ {
 				//				tmp := int64(coeffs[k*segLen+i+segLenHalf]) * zetas[factors[k]]
-				tmp.Mul(&coeffs[k*segLen+i+segLenHalf], &zetaTmp)
+				tmp.SetInt64(coeffs[k*segLen+i+segLenHalf])
+				tmp.Mul(&tmp, &zetaTmp)
+				tmp.Mod(&tmp, &qcBig)
 				//				tmp1 := reduceToQc(int64(coeffs[k*segLen+i]) - tmp)
-				tmp1.Sub(&coeffs[k*segLen+i], &tmp)
-				//				coeffs[k*segLen+i] = tmp1
-				coeffs[k*segLen+i].SetInt64(reduceBigInt(&tmp1, pp.paramQC))
 				//				tmp2 := reduceToQc(int64(coeffs[k*segLen+i]) + tmp)
-				tmp2.Add(&coeffs[k*segLen+i], &tmp)
+				tmp1.SetInt64(coeffs[k*segLen+i])
+				tmp2.SetInt64(coeffs[k*segLen+i])
+				tmp1.Sub(&tmp1, &tmp)
+				tmp2.Add(&tmp2, &tmp)
+				//				coeffs[k*segLen+i] = tmp1
 				//				coeffs[k*segLen+i+segLenHalf] = tmp2
-				coeffs[k*segLen+i+segLenHalf].SetInt64(reduceBigInt(&tmp2, pp.paramQC))
+				coeffs[k*segLen+i]=tmp1.Int64()
+				coeffs[k*segLen+i+segLenHalf] =tmp2.Int64()
 			}
 		}
 		segNum = segNum << 1
@@ -107,29 +112,29 @@ func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
 		}
 		tmpFactors := make([]int, 2*len(factors))
 		for i := 0; i < len(factors); i++ {
-			tmpFactors[2*i] = (factors[i] + pp.paramDC) / 2
+			tmpFactors[2*i] = (factors[i] + slotNum) / 2
 			tmpFactors[2*i+1] = factors[i] / 2
 		}
 		factors = tmpFactors
 	}
 
-/*	finalFactors := make([]int, 2*len(factors))
+	finalFactors := make([]int, 2*len(factors))
 	for i := 0; i < len(factors); i++ {
-		finalFactors[2*i] = factors[i] + pp.paramDC
+		finalFactors[2*i] = factors[i] + slotNum
 		finalFactors[2*i+1] = factors[i]
 	}
 
 	nttCoeffs := make([]int64, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
-		nttCoeffs[(finalFactors[i]-1)/2] = coeffs[i].Int64()
+		nttCoeffs[(finalFactors[i]-1)/2] = reduceInt64(coeffs[i], pp.paramQC )
 	}
-	return &PolyCNTT{coeffs: nttCoeffs}*/
+	return &PolyCNTT{coeffs: nttCoeffs}
 
-	rst := pp.NewPolyCNTT()
+/*	rst := pp.NewPolyCNTT()
 	for i := 0; i < pp.paramDC; i++ {
 		rst.coeffs[i] = coeffs[i].Int64()
 	}
-	return rst
+	return rst*/
 }
 
 //	todo: this should be set as a system parameter, together with zetaCs[], decided by d_c, q_c
@@ -149,22 +154,25 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 	segLen := 1
 	factors := nttFactors
 
-/*	finalFactors := make([]int, 2*len(factors))
+	finalFactors := make([]int, 2*len(factors))
 	for i := 0; i < len(factors); i++ {
-		finalFactors[2*i] = factors[i] + pp.paramDC
+		finalFactors[2*i] = factors[i] + slotNum
 		finalFactors[2*i+1] = factors[i]
 	}
-	for i := 0; i < pp.paramDC; i++ {
-		nttCoeffs[i].SetInt64( polyCNTT.coeffs[(finalFactors[i]-1)/2] )
-	}*/
 
-	nttCoeffs := make([]big.Int, pp.paramDC)
+	nttCoeffs := make([]int64, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
+		nttCoeffs[i] = polyCNTT.coeffs[(finalFactors[i]-1)/2]
+	}
+
+/*	nttCoeffs := make([]big.Int, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
 		nttCoeffs[i].SetInt64( polyCNTT.coeffs[i] )
-	}
+	}*/
 	// twoInv := int64((pp.paramQC+1)/2) - int64(pp.paramQC)
-	var twoInv, tmp1, tmp2, tmpZetaInv big.Int
+	var twoInv, qcBig, tmp1, tmp2, tmpZetaInv big.Int
 	twoInv.SetInt64((pp.paramQC+1)/2 - pp.paramQC)
+	qcBig.SetInt64(pp.paramQC)
 
 	for {
 		segLenDouble := segLen * 2
@@ -175,15 +183,19 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 			for i := 0; i < segLen; i++ {
 				//				tmp1 := reduceToQc(pp.reduceInt64(int64(nttCoeffs[k*segLenDouble+i+segLen])+int64(nttCoeffs[k*segLenDouble+i])) * twoInv)
 				//				nttCoeffs[k*segLenDouble+i] = tmp1
-				tmp1.Add(&nttCoeffs[k*segLenDouble+i+segLen],&nttCoeffs[k*segLenDouble+i])
+				tmp1.SetInt64(nttCoeffs[k*segLenDouble+i+segLen] + nttCoeffs[k*segLenDouble+i])
 				tmp1.Mul(&tmp1, &twoInv)
-				nttCoeffs[k*segLenDouble+i].SetInt64(reduceBigInt(&tmp1, pp.paramQC))
+				tmp1.Mod(&tmp1, &qcBig)
 				//				tmp2 := reduceToQc(pp.reduceInt64(pp.reduceInt64(int64(nttCoeffs[k*segLenDouble+i+segLen])-int64(nttCoeffs[k*segLenDouble+i]))*twoInv) * zetas[2*pp.paramDC-factors[k]])
 				//				nttCoeffs[k*segLenDouble+i+segLen] = tmp2
-				tmp2.Sub(&nttCoeffs[k*segLenDouble+i+segLen], &nttCoeffs[k*segLenDouble+i])
+				tmp2.SetInt64(nttCoeffs[k*segLenDouble+i+segLen] - nttCoeffs[k*segLenDouble+i])
 				tmp2.Mul(&tmp2, &twoInv)
+				tmp2.Mod(&tmp2, &qcBig)
 				tmp2.Mul(&tmp2, &tmpZetaInv)
-				nttCoeffs[k*segLenDouble+i+segLen].SetInt64(reduceBigInt(&tmp2, pp.paramQC))
+				tmp2.Mod(&tmp2, &qcBig)
+
+				nttCoeffs[k*segLenDouble+i] = tmp1.Int64()
+				nttCoeffs[k*segLenDouble+i+segLen] = tmp2.Int64()
 			}
 		}
 		segNum = segNum >> 1
@@ -200,7 +212,7 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 
 	rst := pp.NewPolyC()
 	for i := 0; i < pp.paramDC; i++ {
-		rst.coeffs[i] = nttCoeffs[i].Int64()
+		rst.coeffs[i] = reduceInt64(nttCoeffs[i], pp.paramQC)
 	}
 	return rst
 }
@@ -313,12 +325,13 @@ func (pp *PublicParameterv2) PolyCNTTAdd(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT)
 		panic("the length of the input polyCNTT is not paramDC")
 	}
 	rst := pp.NewPolyCNTT()
-	var tmp, tmp1, tmp2 big.Int
+//	var tmp, tmp1, tmp2 big.Int
 	for i := 0; i < pp.paramDC; i++ {
-		tmp1.SetInt64(a.coeffs[i])
+/*		tmp1.SetInt64(a.coeffs[i])
 		tmp2.SetInt64(b.coeffs[i])
 		tmp.Add(&tmp1, &tmp2)
-		rst.coeffs[i] = reduceBigInt(&tmp, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmp, pp.paramQC)*/
+		rst.coeffs[i] = reduceInt64(a.coeffs[i] + b.coeffs[i], pp.paramQC)
 	}
 	return rst
 }
@@ -328,12 +341,13 @@ func (pp *PublicParameterv2) PolyCNTTSub(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT)
 		panic("the length of the input polyCNTT is not paramDC")
 	}
 	rst := pp.NewPolyCNTT()
-	var tmp, tmp1, tmp2 big.Int
+//	var tmp, tmp1, tmp2 big.Int
 	for i := 0; i < pp.paramDC; i++ {
-		tmp1.SetInt64(a.coeffs[i])
+/*		tmp1.SetInt64(a.coeffs[i])
 		tmp2.SetInt64(b.coeffs[i])
 		tmp.Sub(&tmp1, &tmp2)
-		rst.coeffs[i] = reduceBigInt(&tmp, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmp, pp.paramQC)*/
+		rst.coeffs[i] = reduceInt64(a.coeffs[i] - b.coeffs[i], pp.paramQC)
 	}
 	return rst
 }
@@ -418,12 +432,13 @@ func (pp *PublicParameterv2) PolyCAdd(a *PolyC, b *PolyC) (r *PolyC) {
 	}
 
 	rst := pp.NewPolyC()
-	var tmp1, tmp2, tmpx big.Int
+//	var tmp1, tmp2, tmpx big.Int
 	for i := 0; i < pp.paramDC; i++ {
-		tmp1.SetInt64(a.coeffs[i])
+/*		tmp1.SetInt64(a.coeffs[i])
 		tmp2.SetInt64(b.coeffs[i])
 		tmpx.Add(&tmp1, &tmp2)
-		rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQC)*/
+		rst.coeffs[i] = reduceInt64(a.coeffs[i] + b.coeffs[i], pp.paramQC)
 	}
 
 	return rst
@@ -435,12 +450,13 @@ func (pp *PublicParameterv2) PolyCSub(a *PolyC, b *PolyC) (r *PolyC) {
 	}
 
 	rst := pp.NewPolyC()
-	var tmp1, tmp2, tmpx big.Int
+//	var tmp1, tmp2, tmpx big.Int
 	for i := 0; i < pp.paramDC; i++ {
-		tmp1.SetInt64(a.coeffs[i])
+/*		tmp1.SetInt64(a.coeffs[i])
 		tmp2.SetInt64(b.coeffs[i])
 		tmpx.Sub(&tmp1, &tmp2)
-		rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQC)*/
+		rst.coeffs[i] = reduceInt64(a.coeffs[i] - b.coeffs[i], pp.paramQC)
 	}
 
 	return rst
@@ -463,7 +479,7 @@ func (pp *PublicParameterv2) PolyCVecSub(a *PolyCVec, b *PolyCVec, vecLen int) (
 	}
 	rst := pp.NewPolyCVec(vecLen)
 	for i := 0; i < vecLen; i++ {
-		rst.polyCs[i] = pp.PolyCAdd(a.polyCs[i], b.polyCs[i])
+		rst.polyCs[i] = pp.PolyCSub(a.polyCs[i], b.polyCs[i])
 	}
 	return rst
 }

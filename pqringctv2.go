@@ -158,7 +158,7 @@ func (pp *PublicParameterv2) AddressKeyGen(seed []byte) (apk *AddressPublicKey, 
 
 	//	todo: put the tag in ahead
 	mat := rejectionUniformWithQa(append(tmp, 'M', 'A'), pp.paramDA)
-	ma := &PolyANTT{nttcoeffs: mat}
+	ma := &PolyANTT{coeffs: mat}
 
 	// t = A * s, will be as a part of public key
 	t := pp.PolyANTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKA, pp.paramLA)
