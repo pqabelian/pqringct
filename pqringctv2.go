@@ -258,7 +258,7 @@ func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk *ValuePublicKey, 
 }
 
 
-func (pp *PublicParameterv2) rpulpProve(cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec, n int,
+func (pp *PublicParameterv2) rpulpProve(message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec, n int,
 	b_hat *PolyCNTTVec, r_hat *PolyCNTTVec, c_hats []*PolyCNTT, msg_hats [][]int64, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte,
 	I int, J int, m int, u_hats [][]int64) (rpulppi *rpulpProofv2, err error) {
@@ -302,7 +302,7 @@ rpUlpProveRestart:
 	c_hat_g := pp.PolyCNTTAdd(pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], r_hat, pp.paramLC), g)
 
 	// splicing the data to be processed
-	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws, c_hat_g)
+	tmp := pp.collectBytesForRPULP1(message, n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws, c_hat_g)
 	seed_rand, err := Hash(tmp) // todo_DONE
 	if err != nil {
 		return nil, err
@@ -505,8 +505,8 @@ rpUlpProveRestart:
 	return retrpulppi, nil
 }
 
-func (pp PublicParameterv2) rpulpVerify(cmts []*Commitmentv2, n int,
-	b_hat *PolyNTTVecv2, c_hats []*PolyNTTv2, n2 int,
+func (pp PublicParameterv2) rpulpVerify(cmts []*ValueCommitment, n int,
+	b_hat *PolyCNTTVec, c_hats []*PolyCNTT, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, m int, u_hats [][]int32,
 	rpulppi *rpulpProofv2) (valid bool) {
 
@@ -548,7 +548,7 @@ func (pp PublicParameterv2) rpulpVerify(cmts []*Commitmentv2, n int,
 
 	}
 	// check the well-formness of the \pi
-	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs1) != pp.paramDC || len(rpulppi.psi.coeffs1) != pp.paramDC || len(rpulppi.phi.coeffs1) != pp.paramDC || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyNTTs) != pp.paramLC {
+	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramDC || len(rpulppi.psi.coeffs) != pp.paramDC || len(rpulppi.phi.coeffs1) != pp.paramDC || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyNTTs) != pp.paramLC {
 		return false
 	}
 	if rpulppi == nil {
@@ -573,10 +573,10 @@ func (pp PublicParameterv2) rpulpVerify(cmts []*Commitmentv2, n int,
 	}
 
 	//	(phi_t[0] ... phi_t[k-1] = 0)
-	phiPoly := pp.NTTInvInRQc(rpulppi.phi)
+	phiPoly := pp.NTTInvPolyC(rpulppi.phi)
 	//fmt.Println("phiPoly", phiPoly.coeffs1)
 	for t := 0; t < pp.paramK; t++ {
-		if phiPoly.coeffs1[t] != 0 {
+		if phiPoly.coeffs[t] != 0 {
 			// TODO 20210609 exist something theoretical error
 			return false
 		}
@@ -586,12 +586,12 @@ func (pp PublicParameterv2) rpulpVerify(cmts []*Commitmentv2, n int,
 	for t := 0; t < pp.paramK; t++ {
 
 		for i := 0; i < n; i++ {
-			if pp.NTTInvVecInRQc(rpulppi.cmt_zs[t][i]).infNormQc() > pp.paramEtaC-pp.paramBetaC {
+			if pp.NTTInvPolyCVec(rpulppi.cmt_zs[t][i]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 				return false
 			}
 		}
 
-		if pp.NTTInvVecInRQc(rpulppi.zs[t]).infNormQc() > pp.paramEtaC-pp.paramBetaC {
+		if pp.NTTInvPolyCVec(rpulppi.zs[t]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 			return false
 		}
 
@@ -600,27 +600,25 @@ func (pp PublicParameterv2) rpulpVerify(cmts []*Commitmentv2, n int,
 	if err != nil {
 		return false
 	}
-	ch := pp.NTTInRQc(chmp)
+	ch := pp.NTTPolyC(chmp)
 
-	sigma_chs := make([]*PolyNTTv2, pp.paramK)
+	sigma_chs := make([]*PolyCNTT, pp.paramK)
 	//	w^t_i, w_t
-	cmt_ws := make([][]*PolyNTTVecv2, pp.paramK)
-	ws := make([]*PolyNTTVecv2, pp.paramK)
+	cmt_ws := make([][]*PolyCNTTVec, pp.paramK)
+	ws := make([]*PolyCNTTVec, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
-		sigma_chs[t] = pp.sigmaPowerPolyNTT(ch, R_QC, t)
+		sigma_chs[t] = pp.sigmaPowerPolyCNTT(ch, t)
 
-		cmt_ws[t] = make([]*PolyNTTVecv2, n)
+		cmt_ws[t] = make([]*PolyCNTTVec, n)
 		for i := 0; i < n; i++ {
-			cmt_ws[t][i] = PolyNTTVecSub(
-				PolyNTTMatrixMulVector(pp.paramMatrixB, rpulppi.cmt_zs[t][i], R_QC, pp.paramKC, pp.paramLC),
-				PolyNTTVecScaleMul(sigma_chs[t], cmts[i].b, R_QC, pp.paramKC),
-				R_QC,
+			cmt_ws[t][i] = pp.PolyCNTTVecSub(
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, rpulppi.cmt_zs[t][i], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTVecScaleMul(sigma_chs[t], cmts[i].b, pp.paramKC),
 				pp.paramKC)
 		}
-		ws[t] = PolyNTTVecSub(
-			PolyNTTMatrixMulVector(pp.paramMatrixB, rpulppi.zs[t], R_QC, pp.paramKC, pp.paramLC),
-			PolyNTTVecScaleMul(sigma_chs[t], b_hat, R_QC, pp.paramKC),
-			R_QC,
+		ws[t] = pp.PolyCNTTVecSub(
+			pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, rpulppi.zs[t], pp.paramKC, pp.paramLC),
+			pp.PolyCNTTVecScaleMul(sigma_chs[t], b_hat, pp.paramKC),
 			pp.paramKC)
 	}
 

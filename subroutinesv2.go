@@ -573,7 +573,8 @@ func (pp *PublicParameterv2) sampleUniformPloyWithLowZeros() (r *Polyv2) {
 	return ret
 }
 
-func (pp *PublicParameterv2) collectBytesForRPULP1(
+// todo
+func (pp *PublicParameterv2) collectBytesForRPULP1( message []byte,
 	n int, n1 int, n2 int, binMatrixB [][]byte, m int,
 	cmts []*ValueCommitment, b_hat *PolyCNTTVec, c_hats []*PolyCNTT,
 	rpulpType RpUlpType, I int, J int, u_hats [][]int64, c_waves []*PolyCNTT,
