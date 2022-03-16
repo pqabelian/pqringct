@@ -54,17 +54,10 @@ func (polyCVec *PolyCVec) infNorm() (infNorm int64) {
 	return rst
 }
 
-var nttCFactors = []int{
-	127, 63, 95, 31, 111, 47, 79, 15, 119, 55, 87, 23,
-	103, 39, 71, 7, 123, 59, 91, 27, 107, 43, 75, 11, 115,
-	51, 83, 19, 99, 35, 67, 3, 125, 61, 93, 29, 109, 45, 77, 13,
-	117, 53, 85, 21, 101, 37, 69, 5, 121, 57, 89, 25, 105, 41, 73,
-	9, 113, 49, 81, 17, 97, 33, 65, 1,
-}
-
 func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
 	//	NTT
-	slotNum := pp.paramDC	// fully splitting
+	zetaCOrder := 2 * pp.paramDC	//	todo: this should be set as a system parameter, together with zetaCs[], decided by d_c, q_c
+	slotNum := zetaCOrder / 2	// fully splitting
 	segNum := 1
 	segLen := pp.paramDC
 	factors := make([]int, 1)
@@ -124,8 +117,19 @@ func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
 	return rst
 }
 
+//	todo: this should be set as a system parameter, together with zetaCs[], decided by d_c, q_c
+var nttCFactors = []int{
+	127, 63, 95, 31, 111, 47, 79, 15, 119, 55, 87, 23,
+	103, 39, 71, 7, 123, 59, 91, 27, 107, 43, 75, 11, 115,
+	51, 83, 19, 99, 35, 67, 3, 125, 61, 93, 29, 109, 45, 77, 13,
+	117, 53, 85, 21, 101, 37, 69, 5, 121, 57, 89, 25, 105, 41, 73,
+	9, 113, 49, 81, 17, 97, 33, 65, 1,
+}
+
 func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
-	slotNum := pp.paramDC //	fully splitting
+	//	NTT Inverse
+	zetaCOrder := 2 * pp.paramDC	//	todo: this should be set as a system parameter, together with zetaCs[], decided by d_c, q_c
+	slotNum := zetaCOrder / 2 //	have been factored to irreducible factors, i.e., fully splitting
 	segNum := slotNum
 	segLen := 1
 	factors := nttFactors
@@ -144,7 +148,7 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 		nttCoeffs[i].SetInt64( polyCNTT.nttcoeffs[i] )
 	}
 	// twoInv := int64((pp.paramQC+1)/2) - int64(pp.paramQC)
-	var twoInv, tmp1, tmp2, tmpZeta big.Int
+	var twoInv, tmp1, tmp2, tmpZetaInv big.Int
 	twoInv.SetInt64((pp.paramQC+1)/2 - pp.paramQC)
 
 	for {
@@ -152,7 +156,7 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 
 		for k := 0; k < segNum/2; k++ {
 			// tmpZeta.SetInt64( zetas[2*pp.paramDC-factors[k]] )
-			tmpZeta.SetInt64( zetas[factors[k]] )
+			tmpZetaInv.SetInt64( zetas[zetaCOrder - factors[k]] )
 			for i := 0; i < segLen; i++ {
 				//				tmp1 := reduceToQc(pp.reduceInt64(int64(nttCoeffs[k*segLenDouble+i+segLen])+int64(nttCoeffs[k*segLenDouble+i])) * twoInv)
 				//				nttCoeffs[k*segLenDouble+i] = tmp1
@@ -162,7 +166,8 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 				//				tmp2 := reduceToQc(pp.reduceInt64(pp.reduceInt64(int64(nttCoeffs[k*segLenDouble+i+segLen])-int64(nttCoeffs[k*segLenDouble+i]))*twoInv) * zetas[2*pp.paramDC-factors[k]])
 				//				nttCoeffs[k*segLenDouble+i+segLen] = tmp2
 				tmp2.Sub(&nttCoeffs[k*segLenDouble+i+segLen], &nttCoeffs[k*segLenDouble+i])
-				tmp2.Mul(&tmp2, &tmpZeta)
+				tmp2.Mul(&tmp2, &twoInv)
+				tmp2.Mul(&tmp2, &tmpZetaInv)
 				nttCoeffs[k*segLenDouble+i+segLen].SetInt64(reduce(&tmp2, pp.paramQC))
 			}
 		}
