@@ -302,6 +302,7 @@ rpUlpProveRestart:
 	c_hat_g := pp.PolyCNTTAdd(pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], r_hat, pp.paramLC), g)
 
 	// splicing the data to be processed
+	// todo
 	tmp := pp.collectBytesForRPULP1(message, n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws, c_hat_g)
 	seed_rand, err := Hash(tmp) // todo_DONE
 	if err != nil {
@@ -505,9 +506,10 @@ rpUlpProveRestart:
 	return retrpulppi, nil
 }
 
-func (pp PublicParameterv2) rpulpVerify(cmts []*ValueCommitment, n int,
+func (pp PublicParameterv2) rpulpVerify(message []byte,
+	cmts []*ValueCommitment, n int,
 	b_hat *PolyCNTTVec, c_hats []*PolyCNTT, n2 int,
-	n1 int, rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, m int, u_hats [][]int32,
+	n1 int, rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, m int, u_hats [][]int64,
 	rpulppi *rpulpProofv2) (valid bool) {
 
 	if !(n >= 2 && n <= n1 && n1 <= n2 && n <= pp.paramI+pp.paramJ && n2 <= pp.paramI+pp.paramJ+4) {
@@ -624,7 +626,7 @@ func (pp PublicParameterv2) rpulpVerify(cmts []*ValueCommitment, n int,
 
 	// splicing the data to be processed
 
-	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, rpulppi.c_waves, cmt_ws, ws, rpulppi.c_hat_g)
+	tmp := pp.collectBytesForRPULP1(message, n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, rpulppi.c_waves, cmt_ws, ws, rpulppi.c_hat_g)
 	seed_rand, err := Hash(tmp)
 	if err != nil {
 		return false
@@ -636,151 +638,152 @@ func (pp PublicParameterv2) rpulpVerify(cmts []*ValueCommitment, n int,
 	}
 
 	//	\tilde{\delta}^(t)_i, \hat{\delta}^(t)_i,
-	delta_waves := make([][]*PolyNTTv2, pp.paramK)
-	delta_hats := make([][]*PolyNTTv2, pp.paramK)
+	delta_waves := make([][]*PolyCNTT, pp.paramK)
+	delta_hats := make([][]*PolyCNTT, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
-		delta_waves[t] = make([]*PolyNTTv2, n)
-		delta_hats[t] = make([]*PolyNTTv2, n)
+		delta_waves[t] = make([]*PolyCNTT, n)
+		delta_hats[t] = make([]*PolyCNTT, n)
 
 		for i := 0; i < n; i++ {
-			delta_waves[t][i] = PolyNTTSub(
-				PolyNTTVecInnerProduct(
-					PolyNTTVecSub(pp.paramMatrixH[i+1], pp.paramMatrixH[0], R_QC, pp.paramLC),
+			delta_waves[t][i] = pp.PolyCNTTSub(
+				pp.PolyCNTTVecInnerProduct(
+					pp.PolyCNTTVecSub(pp.paramMatrixH[i+1], pp.paramMatrixH[0], pp.paramLC),
 					rpulppi.cmt_zs[t][i],
-					R_QC,
 					pp.paramLC),
-				PolyNTTMul(sigma_chs[t], PolyNTTSub(rpulppi.c_waves[i], cmts[i].c, R_QC), R_QC),
-				R_QC)
+				pp.PolyCNTTMul(sigma_chs[t], pp.PolyCNTTSub(rpulppi.c_waves[i], cmts[i].c)),
+				)
 
-			delta_hats[t][i] = PolyNTTSub(
-				PolyNTTVecInnerProduct(
+			delta_hats[t][i] = pp.PolyCNTTSub(
+				pp.PolyCNTTVecInnerProduct(
 					pp.paramMatrixH[i+1],
-					PolyNTTVecSub(rpulppi.zs[t], rpulppi.cmt_zs[t][i], R_QC, pp.paramLC),
-					R_QC,
+					pp.PolyCNTTVecSub(rpulppi.zs[t], rpulppi.cmt_zs[t][i], pp.paramLC),
 					pp.paramLC),
-				PolyNTTMul(sigma_chs[t], PolyNTTSub(c_hats[i], rpulppi.c_waves[i], R_QC), R_QC),
-				R_QC)
+				pp.PolyCNTTMul(sigma_chs[t], pp.PolyCNTTSub(c_hats[i], rpulppi.c_waves[i])),
+				)
 		}
 	}
 	// psi'
-	psip := NewPolyNTTv2(R_QC, pp.paramDC)
-	mu := &PolyNTTv2{coeffs1: pp.paramMu}
+	psip := pp.NewZeroPolyCNTT()
+	mu := &PolyCNTT{coeffs: pp.paramMu}
 	for t := 0; t < pp.paramK; t++ {
 
-		tmp1 := NewPolyNTTv2(R_QC, pp.paramDC)
-		tmp2 := NewPolyNTTv2(R_QC, pp.paramDC)
+		tmp1 := pp.NewZeroPolyCNTT()
+		tmp2 := pp.NewZeroPolyCNTT()
 
 		for i := 0; i < n1; i++ {
-			f_t_i := PolyNTTSub(
+			f_t_i := pp.PolyCNTTSub(
 				//<h_i,z_t>
-				PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], rpulppi.zs[t], R_QC, pp.paramLC),
+				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], rpulppi.zs[t], pp.paramLC),
 				// sigma_c_t
-				PolyNTTMul(sigma_chs[t], c_hats[i], R_QC),
-				R_QC)
+				pp.PolyCNTTMul(sigma_chs[t], c_hats[i]),
+				)
 
-			tmp := PolyNTTMul(alphas[i], f_t_i, R_QC)
+			tmp := pp.PolyCNTTMul(alphas[i], f_t_i)
 
-			tmp1 = PolyNTTAdd(
+			tmp1 = pp.PolyCNTTAdd(
 				tmp1,
-				PolyNTTMul(tmp, f_t_i, R_QC),
-				R_QC)
+				pp.PolyCNTTMul(tmp, f_t_i),
+				)
 
-			tmp2 = PolyNTTAdd(
+			tmp2 = pp.PolyCNTTAdd(
 				tmp2,
 				tmp,
-				R_QC)
+				)
 		}
-		tmp2 = PolyNTTMul(tmp2, mu, R_QC)
-		tmp2 = PolyNTTMul(tmp2, sigma_chs[t], R_QC)
+		tmp2 = pp.PolyCNTTMul(tmp2, mu)
+		tmp2 = pp.PolyCNTTMul(tmp2, sigma_chs[t])
 
-		tmp1 = PolyNTTAdd(tmp1, tmp2, R_QC)
-		tmp1 = pp.sigmaInvPolyNTT(tmp1, R_QC, t)
-		tmp1 = PolyNTTMul(betas[t], tmp1, R_QC)
+		tmp1 = pp.PolyCNTTAdd(tmp1, tmp2)
+		tmp1 = pp.sigmaInvPolyCNTT(tmp1, t)
+		tmp1 = pp.PolyCNTTMul(betas[t], tmp1)
 
-		psip = PolyNTTAdd(psip, tmp1, R_QC)
+		psip = pp.PolyCNTTAdd(psip, tmp1)
 	}
 
-	psip = PolyNTTSub(psip, PolyNTTMul(ch, rpulppi.psi, R_QC), R_QC)
-	psip = PolyNTTAdd(psip,
-		PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], rpulppi.zs[0], R_QC, pp.paramLC), R_QC)
+	psip = pp.PolyCNTTSub(psip, pp.PolyCNTTMul(ch, rpulppi.psi))
+	psip = pp.PolyCNTTAdd(psip,
+		pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], rpulppi.zs[0], pp.paramLC))
 	//fmt.Printf("Verify\n")
 	//fmt.Printf("psip = %v\n", psip)
 	//	p^(t)_j:
-	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
+	p := pp.genUlpPolyCNTTs(rpulpType, binMatrixB, I, J, gammas)
 
 	//	phip
-	phip := NewPolyNTTv2(R_QC, pp.paramDC)
+	phip := pp.NewZeroPolyCNTT()
+	var inprd, dcInv big.Int
+	dcInv.SetInt64(pp.paramDCInv)
+
 	for t := 0; t < pp.paramK; t++ {
-		tmp1 := NewPolyNTTv2(R_QC, pp.paramDC)
+		tmp1 := pp.NewZeroPolyCNTT()
 		for tau := 0; tau < pp.paramK; tau++ {
 
-			tmp := NewPolyNTTv2(R_QC, pp.paramDC)
+			tmp := pp.NewZeroPolyCNTT()
 			for j := 0; j < n2; j++ {
-				tmp = PolyNTTAdd(tmp, PolyNTTMul(p[t][j], c_hats[j], R_QC), R_QC)
+				tmp = pp.PolyCNTTAdd(tmp, pp.PolyCNTTMul(p[t][j], c_hats[j]))
 			}
 
-			constPoly := NewPolyv2(R_QC, pp.paramDC)
-			constPoly.coeffs1[0] = reduceToQc(int64(pp.intMatrixInnerProduct(u_hats, gammas[t], m, pp.paramDC)) * int64(pp.paramDCInv))
+			constPoly := pp.NewZeroPolyC()
+			inprd.SetInt64(intMatrixInnerProductWithReduction(u_hats, gammas[t], m, pp.paramDC, pp.paramQC))
+			inprd.Mul(&inprd, &dcInv)
+			constPoly.coeffs[0] = reduceBigInt(&inprd, pp.paramQC)
 
-			tmp = PolyNTTSub(tmp, pp.NTTInRQc(constPoly), R_QC)
+			tmp = pp.PolyCNTTSub(tmp, pp.NTTPolyC(constPoly))
 
-			tmp1 = PolyNTTAdd(tmp1, pp.sigmaPowerPolyNTT(tmp, R_QC, tau), R_QC)
+			tmp1 = pp.PolyCNTTAdd(tmp1, pp.sigmaPowerPolyCNTT(tmp, tau))
 		}
 
-		xt := NewPolyv2(R_QC, pp.paramDC)
-		xt.coeffs1[t] = pp.paramKInv
+		xt := pp.NewZeroPolyC()
+		xt.coeffs[t] = pp.paramKInv
 
-		tmp1 = PolyNTTMul(pp.NTTInRQc(xt), tmp1, R_QC)
+		tmp1 = pp.PolyCNTTMul(pp.NTTPolyC(xt), tmp1)
 
-		phip = PolyNTTAdd(phip, tmp1, R_QC)
+		phip = pp.PolyCNTTAdd(phip, tmp1)
 	}
 
 	//	phi'^(\xi)
-	phips := make([]*PolyNTTv2, pp.paramK)
-	constterm := PolyNTTSub(PolyNTTAdd(phip, rpulppi.c_hat_g, R_QC), rpulppi.phi, R_QC)
+	phips := make([]*PolyCNTT, pp.paramK)
+	constterm := pp.PolyCNTTSub(pp.PolyCNTTAdd(phip, rpulppi.c_hat_g), rpulppi.phi)
 
 	for xi := 0; xi < pp.paramK; xi++ {
-		phips[xi] = NewPolyNTTv2(R_QC, pp.paramDC)
+		phips[xi] = pp.NewZeroPolyCNTT()
 
 		for t := 0; t < pp.paramK; t++ {
 
-			tmp1 := NewPolyNTTv2(R_QC, pp.paramDC)
+			tmp1 := pp.NewZeroPolyCNTT()
 			for tau := 0; tau < pp.paramK; tau++ {
 
-				tmp := NewPolyNTTVecv2(R_QC, pp.paramDC, pp.paramLC)
+				tmp := pp.NewZeroPolyCNTTVec(pp.paramLC)
 
 				for j := 0; j < n2; j++ {
-					tmp = PolyNTTVecAdd(
+					tmp = pp.PolyCNTTVecAdd(
 						tmp,
-						PolyNTTVecScaleMul(p[t][j], pp.paramMatrixH[j+1], R_QC, pp.paramLC), R_QC,
+						pp.PolyCNTTVecScaleMul(p[t][j], pp.paramMatrixH[j+1], pp.paramLC),
 						pp.paramLC)
 				}
 
-				tmp1 = PolyNTTAdd(
+				tmp1 = pp.PolyCNTTAdd(
 					tmp1,
-					pp.sigmaPowerPolyNTT(
-						PolyNTTVecInnerProduct(tmp, rpulppi.zs[(xi-tau+pp.paramK)%pp.paramK], R_QC, pp.paramLC),
-						R_QC,
-						tau,
-					),
-					R_QC)
+					pp.sigmaPowerPolyCNTT(
+						pp.PolyCNTTVecInnerProduct(tmp, rpulppi.zs[(xi-tau+pp.paramK)%pp.paramK], pp.paramLC),
+						tau),
+					)
 			}
 
-			xt := NewPolyv2(R_QC, pp.paramDC)
-			xt.coeffs1[t] = pp.paramKInv
+			xt := pp.NewZeroPolyC()
+			xt.coeffs[t] = pp.paramKInv
 
-			tmp1 = PolyNTTMul(pp.NTTInRQc(xt), tmp1, R_QC)
+			tmp1 = pp.PolyCNTTMul(pp.NTTPolyC(xt), tmp1)
 
-			phips[xi] = PolyNTTAdd(phips[xi], tmp1, R_QC)
+			phips[xi] = pp.PolyCNTTAdd(phips[xi], tmp1)
 		}
 
-		phips[xi] = PolyNTTAdd(
+		phips[xi] = pp.PolyCNTTAdd(
 			phips[xi],
-			PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], rpulppi.zs[xi], R_QC, pp.paramLC), R_QC)
+			pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], rpulppi.zs[xi], pp.paramLC))
 
-		phips[xi] = PolyNTTSub(
+		phips[xi] = pp.PolyCNTTSub(
 			phips[xi],
-			PolyNTTMul(sigma_chs[xi], constterm, R_QC), R_QC)
+			pp.PolyCNTTMul(sigma_chs[xi], constterm))
 	}
 	//fmt.Printf("Verify\n")
 	//
