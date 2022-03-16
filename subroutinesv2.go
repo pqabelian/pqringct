@@ -250,17 +250,18 @@ func generateMatrix(seed []byte, rtp reduceType, length int, rowLength int, colL
 	return res, nil
 }
 
-// 4294962689 = 1111_1111_1111_1111_1110_1110_0000_0001
-func rejectionUniformWithQc(seed []byte, length int) []int32 {
-	res := make([]int32, length)
+// 9007199254746113 = 0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
+// 4503599627373056 = 0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_000_1010_0000_0000
+func rejectionUniformWithQc(seed []byte, length int) []int64 {
+	res := make([]int64, length)
 	var curr int
 	var pos int
-	var t uint32
+	var t uint64
 
 	xof := sha3.NewShake128()
 	cnt := 1
 	for curr < length {
-		buf := make([]byte, (length-curr)*4)
+		buf := make([]byte, (length-curr)*28)
 		xof.Reset()
 		_, err := xof.Write(append(seed, byte(cnt)))
 		if err != nil {
@@ -272,31 +273,84 @@ func rejectionUniformWithQc(seed []byte, length int) []int32 {
 		}
 		pos = 0
 		//
-		for pos < len(buf) {
+		for pos+27 < len(buf) {
 			// read 4 byte from buf and view it as a uint32
-			t = uint32(buf[pos])
-			t |= uint32(buf[pos+1]) << 8
-			t |= uint32(buf[pos+2]) << 16
-			t |= uint32(buf[pos+3]) << 24
+			t = uint64(buf[pos])
+			t |= uint64(buf[pos+1]) << 8
+			t |= uint64(buf[pos+2]) << 16
+			t |= uint64(buf[pos+3]) << 24
+			t |= uint64(buf[pos+4]) << 32
+			t |= uint64(buf[pos+5]) << 40
+			t |= uint64(buf[pos+6]) << 48
+			t |= uint64(buf[pos+7]&0x3F) << 56
 			// if t is in [0,4294962689] then accept
 			// otherwise reject this one
-			if t < 4294962689 {
-				// 0111_1111_1111_1111_1111_0111_0000_0000
-				res[curr] = int32(t - 2147481344)
+			if t < 9007199254746113 {
+				res[curr] = int64(t - 4503599627373056)
 				curr += 1
 				if curr >= length {
 					break
 				}
 			}
-			pos += 4
+			t = uint64(buf[pos+7]&0xC0) >> 6
+			t |= uint64(buf[pos+8]) << 2
+			t |= uint64(buf[pos+9]) << 10
+			t |= uint64(buf[pos+10]) << 18
+			t |= uint64(buf[pos+11]) << 26
+			t |= uint64(buf[pos+12]) << 34
+			t |= uint64(buf[pos+13]) << 42
+			t |= uint64(buf[pos+14]&0x0F) << 50
+			// if t is in [0,4294962689] then accept
+			// otherwise reject this one
+			if t < 9007199254746113 {
+				res[curr] = int64(t - 4503599627373056)
+				curr += 1
+				if curr >= length {
+					break
+				}
+			}
+			t = uint64(buf[pos+14]&0xF0) >> 4
+			t |= uint64(buf[pos+15]) << 4
+			t |= uint64(buf[pos+16]) << 12
+			t |= uint64(buf[pos+17]) << 20
+			t |= uint64(buf[pos+18]) << 28
+			t |= uint64(buf[pos+19]) << 36
+			t |= uint64(buf[pos+20]) << 44
+			t |= uint64(buf[pos+21]&0x03) << 52
+			// if t is in [0,4294962689] then accept
+			// otherwise reject this one
+			if t < 9007199254746113 {
+				res[curr] = int64(t - 4503599627373056)
+				curr += 1
+				if curr >= length {
+					break
+				}
+			}
+			t = uint64(buf[pos+21]&0xFC) >> 2
+			t |= uint64(buf[pos+22]) << 6
+			t |= uint64(buf[pos+23]) << 14
+			t |= uint64(buf[pos+24]) << 22
+			t |= uint64(buf[pos+25]) << 30
+			t |= uint64(buf[pos+26]) << 38
+			t |= uint64(buf[pos+27]) << 46
+			// if t is in [0,4294962689] then accept
+			// otherwise reject this one
+			if t < 9007199254746113 {
+				res[curr] = int64(t - 4503599627373056)
+				curr += 1
+				if curr >= length {
+					break
+				}
+			}
+			pos += 28
 		}
 		cnt++
 	}
 	return res
 }
 
-// 34360786961 = 1000_0000_0000_0001_0000_0000_0000_0001_0001
-// 17180393480 = 0100_0000_0000_0000_1000_0000_0000_0000_1000
+// 137438953937= 0010_0000_0000_0000_0000_0000_0000_0001_1101_0001
+// 0001_0000_0000_0000_0000_0000_0000_0000_1110_1000
 func rejectionUniformWithQa(seed []byte, length int) []int64 {
 	res := make([]int64, length)
 	xof := sha3.NewShake128()
@@ -305,7 +359,7 @@ func rejectionUniformWithQa(seed []byte, length int) []int64 {
 	var pos int
 	var t int64
 	for cur < length {
-		buf := make([]byte, (length-cur)*9)
+		buf := make([]byte, (length-cur)*19)
 		xof.Reset()
 		_, err := xof.Write(append(seed, byte(cnt)))
 		if err != nil {
@@ -316,34 +370,63 @@ func rejectionUniformWithQa(seed []byte, length int) []int64 {
 			continue
 		}
 		pos = 0
-		for pos+8 < len(buf) {
+		for pos+19 < len(buf) {
 			t = int64(buf[pos+0])
 			t |= int64(buf[pos+1]) << 8
 			t |= int64(buf[pos+2]) << 16
 			t |= int64(buf[pos+3]) << 24
-			t |= (int64(buf[pos]+4) & 0x0F) << 32
-			t &= 0xFFFFFFFFF
-			if t < 34360786961 {
-				res[cur] = t - 17180393480
+			t |= (int64(buf[pos+4] & 0x3F)) << 32
+			t &= 0x3FFFFFFFFF
+			if t < 137438953937 {
+				res[cur] = t - 68719476968
 				cur++
 				if cur >= length {
 					break
 				}
 			}
-			t = int64(buf[pos+4]&0xF0) >> 4
-			t |= int64(buf[pos+5]) << 4
-			t |= int64(buf[pos+6]) << 12
-			t |= int64(buf[pos+7]) << 20
-			t |= int64(buf[pos+8]) << 28
-			t &= 0xFFFFFFFFF
-			if t < 34360786961 {
-				res[cur] = t - 17180393480
+			t = int64(buf[pos+4]&0xC0) >> 6
+			t |= int64(buf[pos+5]) << 2
+			t |= int64(buf[pos+6]) << 10
+			t |= int64(buf[pos+7]) << 18
+			t |= int64(buf[pos+8]) << 26
+			t |= int64(buf[pos+9]&0x0F) << 34
+			t &= 0x3FFFFFFFFF
+			if t < 137438953937 {
+				res[cur] = t - 68719476968
 				cur++
 				if cur >= length {
 					break
 				}
 			}
-			pos += 9
+			t = int64(buf[pos+9]&0xF0) >> 4
+			t |= int64(buf[pos+10]) << 4
+			t |= int64(buf[pos+11]) << 12
+			t |= int64(buf[pos+12]) << 20
+			t |= int64(buf[pos+13]) << 28
+			t |= int64(buf[pos+14]&0x03) << 36
+			t &= 0x3FFFFFFFFF
+			if t < 137438953937 {
+				res[cur] = t - 68719476968
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+14]&0xFC) >> 2
+			t |= int64(buf[pos+15]) << 6
+			t |= int64(buf[pos+16]) << 14
+			t |= int64(buf[pos+17]) << 22
+			t |= int64(buf[pos+18]) << 30
+			t &= 0x3FFFFFFFFF
+			if t < 137438953937 {
+				res[cur] = t - 68719476968
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+
+			pos += 19
 		}
 		cnt++
 	}

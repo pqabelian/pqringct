@@ -2,7 +2,7 @@ package pqringct
 
 import "golang.org/x/crypto/sha3"
 
-// 1000_1000_0111_0110_1101
+// 523987 = 0111_1111_1110_1101_0011
 func randomnessFromZetaAv2(seed []byte, length int) ([]int64, error) {
 	res := make([]int64, length)
 	buf := make([]byte, (length+7)/8)
@@ -33,7 +33,7 @@ func randomnessFromZetaAv2(seed []byte, length int) ([]int64, error) {
 	cnt := 1
 	cur := 0
 	for cur < length {
-		buf = make([]byte, (length+1)/2*7)
+		buf = make([]byte, (length+7)/8*19)
 		xof.Reset()
 		_, err := xof.Write(append(seed, byte(cnt)))
 		if err != nil {
@@ -45,13 +45,215 @@ func randomnessFromZetaAv2(seed []byte, length int) ([]int64, error) {
 		}
 		pos = 0
 		var t int64
-		for pos+3 < len(buf) {
+		for pos+19 < len(buf) {
 			t = int64(buf[pos+0])
 			t |= int64(buf[pos+1]) << 8
-			t |= int64(buf[pos+2]&0x0F) << 16
-			t &= 0x000FFFFF
-			if t < 559257 {
+			t |= int64(buf[pos+2]&0x07) << 16
+			t &= 0x0007FFFF
+			if t < 523987 {
 				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+2]&0xF1) >> 3
+			t |= int64(buf[pos+3]) << 5
+			t |= int64(buf[pos+4]&0x3F) << 13
+			t &= 0x0007FFFF
+			if t < 523987 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+4]&0xC0) >> 6
+			t |= int64(buf[pos+5]) << 2
+			t |= int64(buf[pos+6]) << 10
+			t |= int64(buf[pos+7]&0x01) << 18
+			t &= 0x0007FFFF
+			if t < 523987 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+7]&0xFE) >> 1
+			t |= int64(buf[pos+8]) << 7
+			t |= int64(buf[pos+9]&0x0F) << 15
+			t &= 0x0007FFFF
+			if t < 523987 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+9]&0xF0) >> 4
+			t |= int64(buf[pos+10]) << 4
+			t |= int64(buf[pos+11]&0x7F) << 12
+			t &= 0x0007FFFF
+			if t < 523987 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+11]&0x80) >> 7
+			t |= int64(buf[pos+12]) << 1
+			t |= int64(buf[pos+13]) << 9
+			t |= int64(buf[pos+14]&0x03) << 17
+			t &= 0x0007FFFF
+			if t < 523987 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+14]&0xFC) >> 2
+			t |= int64(buf[pos+15]) << 6
+			t |= int64(buf[pos+16]&0x1F) << 14
+			t &= 0x0007FFFF
+			if t < 523987 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+16]&0xE0) >> 5
+			t |= int64(buf[pos+17]) << 3
+			t |= int64(buf[pos+18]) << 11
+			t &= 0x0007FFFF
+			if t < 523987 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			pos += 20
+
+		}
+	}
+	return res[:length], nil
+}
+
+// 16777087 = 1111_1111_1111_1111_0111_1111
+func randomnessFromZetaC2v2(seed []byte, length int) ([]int64, error) {
+	res := make([]int64, 0, length)
+	buf := make([]byte, (length+7)/8)
+	if seed == nil {
+		seed = randomBytes(32)
+	}
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Write(append(seed, byte(0)))
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	pos := 0
+	for i := 0; i < length; i += 8 {
+		for j := 0; j < 8; j++ {
+			if (buf[pos]>>j)&1 == 0 {
+				res = append(res, -1)
+			} else {
+				res = append(res, 1)
+			}
+		}
+		pos++
+	}
+	cnt := 1
+	cur := 0
+	for cur < length {
+		buf = make([]byte, (length+2)/3)
+		xof.Reset()
+		_, err := xof.Write(append(seed, byte(cnt)))
+		if err != nil {
+			return nil, err
+		}
+		_, err = xof.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		pos = 0
+		var t uint64
+		for pos+3 < len(buf) {
+			t = uint64(buf[pos+0])
+			t |= uint64(buf[pos+1]) << 8
+			t |= uint64(buf[pos+2]) << 16
+			if t < 16777087 {
+				res[cur] *= int64(t)
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			pos += 3
+		}
+	}
+
+	return res[:length], nil
+}
+
+// 2^24-1= 1111_1111_1111_1111_1111_1111
+func randomnessFromEtaCv2(seed []byte, length int) ([]int64, error) {
+	// 1<<22-1
+	res := make([]int64, 0, length)
+	buf := make([]byte, (length+7)/8)
+	if seed == nil {
+		seed = randomBytes(32)
+	}
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Write(append(seed, byte(0)))
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	pos := 0
+	for i := 0; i < length; i += 8 {
+		for j := 0; j < 8; j++ {
+			if (buf[pos]>>j)&1 == 0 {
+				res = append(res, -1)
+			} else {
+				res = append(res, 1)
+			}
+		}
+		pos++
+	}
+	cnt := 1
+	cur := 0
+	for cur < length {
+		buf = make([]byte, (length+2)/3)
+		xof.Reset()
+		_, err := xof.Write(append(seed, byte(cnt)))
+		if err != nil {
+			return nil, err
+		}
+		_, err = xof.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		pos = 0
+		var t uint64
+		for pos+3 < len(buf) {
+			t = uint64(buf[pos+0])
+			t |= uint64(buf[pos+1]) << 8
+			t |= uint64(buf[pos+2]) << 16
+			if t < 16777215 {
+				res[cur] *= int64(t)
 				cur++
 				if cur >= length {
 					break
@@ -63,158 +265,7 @@ func randomnessFromZetaAv2(seed []byte, length int) ([]int64, error) {
 	return res[:length], nil
 }
 
-// 0011_1111_1111_1111_1000_0000
-func randomnessFromZetaC2v2(seed []byte, length int) ([]int32, error) {
-	res := make([]int32, 0, length)
-	buf := make([]byte, (length+7)/8)
-	if seed == nil {
-		seed = randomBytes(32)
-	}
-	xof := sha3.NewShake128()
-	xof.Reset()
-	_, err := xof.Write(append(seed, byte(0)))
-	if err != nil {
-		return nil, err
-	}
-	_, err = xof.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-	pos := 0
-	for i := 0; i < length; i += 8 {
-		for j := 0; j < 8; j++ {
-			if (buf[pos]>>j)&1 == 0 {
-				res = append(res, -1)
-			} else {
-				res = append(res, 1)
-			}
-		}
-		pos++
-	}
-	cnt := 1
-	cur := 0
-	for cur < length {
-		buf = make([]byte, (11*length+7)/8)
-		xof.Reset()
-		_, err := xof.Write(append(seed, byte(cnt)))
-		if err != nil {
-			return nil, err
-		}
-		_, err = xof.Read(buf)
-		if err != nil {
-			return nil, err
-		}
-		pos = 0
-		var value int32
-		for pos+11 < len(buf) {
-			value = int32(buf[pos+0]&0xFF)<<14 | int32(buf[pos+1])<<6 | int32(buf[pos+2]&0xFC)>>2
-			if value < 1<<22-18 {
-				res[cur] *= value
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			value = int32(buf[pos+2]&0x03)<<20 | int32(buf[pos+3])<<12 | int32(buf[pos+4])<<4 | int32(buf[pos+5]&0xF0)>>4
-			if value < 1<<22-18 {
-				res[cur] *= value
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			value = int32(buf[pos+5]&0x0F)<<18 | int32(buf[pos+6])<<10 | int32(buf[pos+7])<<2 | int32(buf[pos+8]&0xC0)>>6
-			if value < 1<<22-18 {
-				res[cur] *= value
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			value = int32(buf[pos+8]&0x3F)<<16 | int32(buf[pos+9])<<8 | int32(buf[pos+10]&0xFF)>>0
-			if value < 1<<22-18 {
-				res[cur] *= value
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			pos += 11
-		}
-	}
-
-	return res[:length], nil
-}
-
-func randomnessFromEtaCv2(seed []byte, length int) ([]int32, error) {
-	// 1<<22-1
-	res := make([]int32, 0, length)
-	buf := make([]byte, (length+7)/8)
-	if seed == nil {
-		seed = randomBytes(32)
-	}
-	xof := sha3.NewShake128()
-	xof.Reset()
-	_, err := xof.Write(append(seed, byte(0)))
-	if err != nil {
-		return nil, err
-	}
-	_, err = xof.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-	pos := 0
-	for i := 0; i < length; i += 8 {
-		for j := 0; j < 8; j++ {
-			if (buf[pos]>>j)&1 == 0 {
-				res = append(res, -1)
-			} else {
-				res = append(res, 1)
-			}
-		}
-		pos++
-	}
-	cnt := 1
-	cur := 0
-	for cur < length {
-		buf = make([]byte, (11*length+7)/8)
-		xof.Reset()
-		_, err := xof.Write(append(seed, byte(cnt)))
-		if err != nil {
-			return nil, err
-		}
-		_, err = xof.Read(buf)
-		if err != nil {
-			return nil, err
-		}
-		pos = 0
-		for pos+10 < len(buf) {
-			res[cur] *= int32(buf[pos+0]&0xFF)<<14 | int32(buf[pos+1])<<6 | int32(buf[pos+2]&0xFC)>>2
-			cur++
-			if cur >= length {
-				break
-			}
-			res[cur] *= int32(buf[pos+2]&0x03)<<20 | int32(buf[pos+3])<<12 | int32(buf[pos+4])<<4 | int32(buf[pos+5]&0xF0)>>4
-			cur++
-			if cur >= length {
-				break
-			}
-			res[cur] *= int32(buf[pos+5]&0x0F)<<18 | int32(buf[pos+6])<<10 | int32(buf[pos+7])<<2 | int32(buf[pos+8]&0xC0)>>6
-			cur++
-			if cur >= length {
-				break
-			}
-			res[cur] *= int32(buf[pos+8]&0x3F)<<16 | int32(buf[pos+9])<<8 | int32(buf[pos+10]&0xFF)>>0
-			cur++
-			if cur >= length {
-				break
-			}
-			pos += 11
-		}
-	}
-	return res[:length], nil
-}
-
+// 2^19-1 = 524287 = 0111_1111_1111_1111_1111
 func randomnessFromEtaAv2(seed []byte, length int) ([]int64, error) {
 	res := make([]int64, length)
 	buf := make([]byte, (length+7)/8)
@@ -244,9 +295,8 @@ func randomnessFromEtaAv2(seed []byte, length int) ([]int64, error) {
 	}
 	cnt := 1
 	cur := 0
-	// 559557 = 1000_1000_1001_1100_0101
 	for cur < length {
-		buf = make([]byte, (5*length+1)/2)
+		buf = make([]byte, (length+7)/8*19)
 		xof.Reset()
 		_, err := xof.Write(append(seed, byte(cnt)))
 		if err != nil {
@@ -258,30 +308,99 @@ func randomnessFromEtaAv2(seed []byte, length int) ([]int64, error) {
 		}
 		pos = 0
 		var t int64
-		for pos+3 < len(buf) {
+		for pos+19 < len(buf) {
 			t = int64(buf[pos+0])
 			t |= int64(buf[pos+1]) << 8
-			t |= int64(buf[pos+2]&0x0F) << 16
-			t &= 0x000FFFFF
-			if t < 559557 {
+			t |= int64(buf[pos+2]&0x07) << 16
+			t &= 0x0007FFFF
+			if t < 524287 {
 				res[cur] *= t
 				cur++
 				if cur >= length {
 					break
 				}
 			}
-			t = int64(buf[pos+2]&0xF0) >> 4
-			t |= int64(buf[pos+3]) << 12
-			t |= int64(buf[pos+4]) << 20
-			t &= 0x000FFFFF
-			if t < 559557 {
+			t = int64(buf[pos+2]&0xF1) >> 3
+			t |= int64(buf[pos+3]) << 5
+			t |= int64(buf[pos+4]&0x3F) << 13
+			t &= 0x0007FFFF
+			if t < 524287 {
 				res[cur] *= t
 				cur++
 				if cur >= length {
 					break
 				}
 			}
-			pos += 5
+			t = int64(buf[pos+4]&0xC0) >> 6
+			t |= int64(buf[pos+5]) << 2
+			t |= int64(buf[pos+6]) << 10
+			t |= int64(buf[pos+7]&0x01) << 18
+			t &= 0x0007FFFF
+			if t < 524287 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+7]&0xFE) >> 1
+			t |= int64(buf[pos+8]) << 7
+			t |= int64(buf[pos+9]&0x0F) << 15
+			t &= 0x0007FFFF
+			if t < 524287 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+9]&0xF0) >> 4
+			t |= int64(buf[pos+10]) << 4
+			t |= int64(buf[pos+11]&0x7F) << 12
+			t &= 0x0007FFFF
+			if t < 524287 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+11]&0x80) >> 7
+			t |= int64(buf[pos+12]) << 1
+			t |= int64(buf[pos+13]) << 9
+			t |= int64(buf[pos+14]&0x03) << 17
+			t &= 0x0007FFFF
+			if t < 524287 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+14]&0xFC) >> 2
+			t |= int64(buf[pos+15]) << 6
+			t |= int64(buf[pos+16]&0x1F) << 14
+			t &= 0x0007FFFF
+			if t < 524287 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			t = int64(buf[pos+16]&0xE0) >> 5
+			t |= int64(buf[pos+17]) << 3
+			t |= int64(buf[pos+18]) << 11
+			t &= 0x0007FFFF
+			if t < 524287 {
+				res[cur] *= t
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			pos += 20
+
 		}
 	}
 	return res[:length], nil
