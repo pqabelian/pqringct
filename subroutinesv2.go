@@ -3,6 +3,7 @@ package pqringct
 import (
 	"golang.org/x/crypto/sha3"
 	"log"
+	"math/big"
 )
 
 func (pp *PublicParameterv2) expandRandomnessAv2(seed []byte) (*PolyVecv2, error) {
@@ -546,19 +547,19 @@ func (pp *PublicParameterv2) sampleRandomnessRv2() (r *PolyVecv2, err error) {
 	return rst, nil
 }
 
-func (pp *PublicParameterv2) sampleMaskCv2() (r *PolyVecv2, err error) {
+func (pp *PublicParameterv2) sampleMaskCv2() (r *PolyCVec, err error) {
 	// etaC
-	polys := make([]*Polyv2, pp.paramLC)
+	polys := make([]*PolyC, pp.paramLC)
 
 	for i := 0; i < pp.paramLC; i++ {
 		tmp, err := randomnessFromEtaCv2(randomBytes(pp.paramSeedBytesLen), pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
-		polys[i] = &Polyv2{coeffs1: tmp}
+		polys[i] = &PolyC{coeffs: tmp}
 	}
-	rst := &PolyVecv2{
-		polys: polys,
+	rst := &PolyCVec{
+		polyCs: polys,
 	}
 	return rst, nil
 }
@@ -574,21 +575,22 @@ func (pp *PublicParameterv2) sampleUniformPloyWithLowZeros() (r *Polyv2) {
 
 func (pp *PublicParameterv2) collectBytesForRPULP1(
 	n int, n1 int, n2 int, binMatrixB [][]byte, m int,
-	cmts []*Commitmentv2, b_hat *PolyNTTVecv2, c_hats []*PolyNTTv2,
-	rpulpType RpUlpType, I int, J int, u_hats [][]int32, c_waves []*PolyNTTv2,
-	cmt_ws [][]*PolyNTTVecv2, ws []*PolyNTTVecv2, c_hat_g *PolyNTTv2) []byte {
+	cmts []*ValueCommitment, b_hat *PolyCNTTVec, c_hats []*PolyCNTT,
+	rpulpType RpUlpType, I int, J int, u_hats [][]int64, c_waves []*PolyCNTT,
+	cmt_ws [][]*PolyCNTTVec, ws []*PolyCNTTVec, c_hat_g *PolyCNTT) []byte {
 	tmp := make([]byte, 0,
 		(pp.paramKC*pp.paramDC*4+pp.paramDC*4)*n+pp.paramKC*pp.paramDC*4+pp.paramDC*4*n2+4+1+len(binMatrixB)*len(binMatrixB[0])+1+1+m*pp.paramDC*4+pp.paramDC*4*n+(pp.paramKC*pp.paramDC*4)*n*pp.paramK+(pp.paramKC*pp.paramDC*4)*pp.paramK+pp.paramDC*4+
 			pp.paramDC*4*(n*pp.paramK*2+3+pp.paramK))
-	appendPolyNTTToBytes := func(a *PolyNTTv2) {
+	appendPolyNTTToBytes := func(a *PolyCNTT) {
 		for k := 0; k < pp.paramDC; k++ {
-			tmp = append(tmp, byte(a.coeffs1[k]>>0))
-			tmp = append(tmp, byte(a.coeffs1[k]>>8))
-			tmp = append(tmp, byte(a.coeffs1[k]>>16))
-			tmp = append(tmp, byte(a.coeffs1[k]>>24))
+			tmp = append(tmp, byte(a.coeffs[k]>>0))
+			tmp = append(tmp, byte(a.coeffs[k]>>8))
+			tmp = append(tmp, byte(a.coeffs[k]>>16))
+			tmp = append(tmp, byte(a.coeffs[k]>>24))
 		}
 	}
-	appendInt32ToBytes := func(a int32) {
+	//appendInt32ToBytes := func(a int32) { // todo
+		appendInt32ToBytes := func(a int64) { // todo
 		tmp = append(tmp, byte(a>>0))
 		tmp = append(tmp, byte(a>>8))
 		tmp = append(tmp, byte(a>>16))
@@ -596,21 +598,22 @@ func (pp *PublicParameterv2) collectBytesForRPULP1(
 	}
 	// b_i_arrow , c_i
 	for i := 0; i < len(cmts); i++ {
-		for j := 0; j < len(cmts[i].b.polyNTTs); j++ {
-			appendPolyNTTToBytes(cmts[i].b.polyNTTs[j])
+		for j := 0; j < len(cmts[i].b.polyCNTTs); j++ {
+			appendPolyNTTToBytes(cmts[i].b.polyCNTTs[j])
 		}
 		appendPolyNTTToBytes(cmts[i].c)
 	}
 	// b_hat
 	for i := 0; i < pp.paramKC; i++ {
-		appendPolyNTTToBytes(b_hat.polyNTTs[i])
+		appendPolyNTTToBytes(b_hat.polyCNTTs[i])
 	}
 	// c_i_hat
 	for i := 0; i < n2; i++ {
 		appendPolyNTTToBytes(c_hats[i])
 	}
 	// n1
-	appendInt32ToBytes(int32(n1))
+	// appendInt32ToBytes(int32(n1)) todo: why 32?
+	appendInt32ToBytes(int64(n1)) //
 	//TODO_DONE:A = ulpType B I J
 	tmp = append(tmp, byte(rpulpType))
 	// B
@@ -637,15 +640,15 @@ func (pp *PublicParameterv2) collectBytesForRPULP1(
 	// omega_i^j
 	for i := 0; i < len(cmt_ws); i++ {
 		for j := 0; j < len(cmt_ws[i]); j++ {
-			for k := 0; k < len(cmt_ws[i][j].polyNTTs); k++ {
-				appendPolyNTTToBytes(cmt_ws[i][j].polyNTTs[k])
+			for k := 0; k < len(cmt_ws[i][j].polyCNTTs); k++ {
+				appendPolyNTTToBytes(cmt_ws[i][j].polyCNTTs[k])
 			}
 		}
 	}
 	// omega^i
 	for i := 0; i < len(ws); i++ {
-		for j := 0; j < len(ws[i].polyNTTs); j++ {
-			appendPolyNTTToBytes(ws[i].polyNTTs[j])
+		for j := 0; j < len(ws[i].polyCNTTs); j++ {
+			appendPolyNTTToBytes(ws[i].polyCNTTs[j])
 		}
 	}
 	//c_hat[n2+1]
@@ -693,9 +696,10 @@ func (pp *PublicParameterv2) collectBytesForRPULP2(
 	return tmp
 }
 
-func (pp *PublicParameterv2) expandUniformRandomnessInRqZqC(seed []byte, n1 int, m int) (alphas []*PolyNTTv2, betas []*PolyNTTv2, gammas [][][]int32, err error) {
-	alphas = make([]*PolyNTTv2, n1)
-	betas = make([]*PolyNTTv2, pp.paramK)
+//	todo: gammas int32 to int64
+func (pp *PublicParameterv2) expandUniformRandomnessInRqZqC(seed []byte, n1 int, m int) (alphas []*PolyCNTT, betas []*PolyCNTT, gammas [][][]int64, err error) {
+	alphas = make([]*PolyCNTT, n1)
+	betas = make([]*PolyCNTT, pp.paramK)
 	gammas = make([][][]int32, pp.paramK)
 	// check the length of seed
 
@@ -708,7 +712,7 @@ func (pp *PublicParameterv2) expandUniformRandomnessInRqZqC(seed []byte, n1 int,
 	}
 	buf := make([]byte, n1*pp.paramDC*4)
 	for i := 0; i < n1; i++ {
-		alphas[i] = NewPolyNTTv2(R_QC, pp.paramDC)
+		alphas[i] = pp.NewPolyCNTT()
 		_, err = XOF.Read(buf)
 		if err != nil {
 			return nil, nil, nil, err
@@ -723,7 +727,7 @@ func (pp *PublicParameterv2) expandUniformRandomnessInRqZqC(seed []byte, n1 int,
 			got = append(got, rejectionUniformWithQc(newBuf, pp.paramDC-len(got))...)
 		}
 		for k := 0; k < pp.paramDC; k++ {
-			alphas[i].coeffs1[k] = got[k]
+			alphas[i].coeffs[k] = got[k]
 		}
 	}
 	// betas
@@ -734,7 +738,7 @@ func (pp *PublicParameterv2) expandUniformRandomnessInRqZqC(seed []byte, n1 int,
 	}
 	buf = make([]byte, pp.paramK*pp.paramDC*4)
 	for i := 0; i < pp.paramK; i++ {
-		betas[i] = NewPolyNTTv2(R_QC, pp.paramDC)
+		betas[i] = pp.NewPolyCNTT()
 		_, err = XOF.Read(buf)
 		if err != nil {
 			return nil, nil, nil, err
@@ -749,7 +753,7 @@ func (pp *PublicParameterv2) expandUniformRandomnessInRqZqC(seed []byte, n1 int,
 			got = append(got, rejectionUniformWithQc(newBuf, pp.paramDC-len(got))...)
 		}
 		for k := 0; k < pp.paramDC; k++ {
-			betas[i].coeffs1[k] = got[k]
+			betas[i].coeffs[k] = got[k]
 		}
 	}
 	// gammas
@@ -780,6 +784,16 @@ func (pp *PublicParameterv2) expandUniformRandomnessInRqZqC(seed []byte, n1 int,
 	}
 	return alphas, betas, gammas, nil
 }
+
+// todo:
+func (pp *PublicParameterv2) sigmaInvPolyCNTT(polyCNTT *PolyCNTT, t int) (r *PolyCNTT) {
+	coeffs := make([]int32, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
+		coeffs[i] = polyCNTT.coeffs[pp.paramSigmaPermutations[(pp.paramK-t)%pp.paramK][i]]
+	}
+	return &PolyCNTT{coeffs: coeffs}
+}
+
 func (pp *PublicParameterv2) sigmaInvPolyNTT(polyNTT *PolyNTTv2, rtp reduceType, t int) (r *PolyNTTv2) {
 	if rtp != R_QC {
 		log.Fatalln("sigmaInvPolyNTT() just can be called by Qc")
@@ -791,8 +805,9 @@ func (pp *PublicParameterv2) sigmaInvPolyNTT(polyNTT *PolyNTTv2, rtp reduceType,
 	return &PolyNTTv2{coeffs1: coeffs}
 }
 
-func (pp *PublicParameterv2) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, gammas [][][]int32) (ps [][]*PolyNTTv2) {
-	p := make([][]*PolyNTTv2, pp.paramK)
+func (pp *PublicParameterv2) genUlpPolyCNTTs(rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, gammas [][][]int64) (ps [][]*PolyCNTT) {
+	p := make([][]*PolyCNTT, pp.paramK)
+//	var tmp1, tmp2 big.Int
 
 	switch rpulpType {
 	case RpUlpTypeCbTx1:
@@ -802,68 +817,124 @@ func (pp *PublicParameterv2) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]
 		n2 := n + 2
 		// m = 3
 		for t := 0; t < pp.paramK; t++ {
-			p[t] = make([]*PolyNTTv2, n2)
+			p[t] = make([]*PolyCNTT, n2)
 			for j := 0; j < n; j++ {
-				p[t][j] = &PolyNTTv2{coeffs1: gammas[t][0]}
+				p[t][j] = &PolyCNTT{coeffs: gammas[t][0]}
 			}
 			//	p[t][n] = NTT^{-1}(F^T gamma[t][0] + F_1^T gamma[t][1] + B^T gamma[t][2])
-			coeffs := make([]int32, pp.paramDC)
+			coeffs := make([]int64, pp.paramDC)
 			for i := 0; i < pp.paramDC; i++ {
 				// F^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
 				// B^T[i]: ith-col of B
-				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC)
+				coeffs[i] = intVecInnerProductWithReduction(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC, pp.paramQC)
 				if i == 0 {
-					//coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i]))
-					coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) + int64(gammas[t][0][i]))
+					//coeffs[i] = pp.reduceBigInt(int64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i]))
+//					coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) + int64(gammas[t][0][i]))
+					coeffs[i] = reduceInt64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs[i])
+					tmp2.SetInt64(gammas[t][1][i])
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i])
+					tmp1.Add(&tmp1, &tmp2)
+					coeffs[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				} else if i < (pp.paramN - 1) {
 					//coeffs[i] = reduceToQc()(int64(coeffs[i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
-					coeffs[i] = reduceToQc(int64(coeffs[i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
+					//coeffs[i] = reduceToQc(int64(coeffs[i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
+					coeffs[i] = reduceInt64(coeffs[i] - 2*gammas[t][0][i-1] + gammas[t][0][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+	/*				tmp1.SetInt64(coeffs[i])
+					tmp2.SetInt64(gammas[t][0][i-1])
+					tmp2.Add(&tmp2, &tmp2)
+					tmp1.Sub(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i])
+					tmp1.Add(&tmp1, &tmp2)
+					coeffs[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				} else { // i in [N-1, d-1]
 					//coeffs[i] = reduceToQc()(int64(coeffs[i] + gammas[t][1][i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
-					coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
+					//coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
+					coeffs[i] = reduceInt64(coeffs[i] + gammas[t][1][i] - 2*gammas[t][0][i-1] + gammas[t][0][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs[i])
+					tmp2.SetInt64(gammas[t][1][i])
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i-1])
+					tmp2.Add(&tmp2, &tmp2)
+					tmp1.Sub(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i])
+					tmp1.Add(&tmp1, &tmp2)
+					coeffs[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				}
 			}
-			p[t][n] = &PolyNTTv2{coeffs1: coeffs}
+			p[t][n] = &PolyCNTT{coeffs: coeffs}
 
-			p[t][n+1] = &PolyNTTv2{coeffs1: gammas[t][2]}
+			p[t][n+1] = &PolyCNTT{coeffs: gammas[t][2]}
 		}
 	case RpUlpTypeTrTx1:
 		n := I + J
 		n2 := n + 2
 		// m = 3
 		for t := 0; t < pp.paramK; t++ {
-			p[t] = make([]*PolyNTTv2, n2)
+			p[t] = make([]*PolyCNTT, n2)
 
-			p[t][0] = &PolyNTTv2{coeffs1: gammas[t][0]}
+			p[t][0] = &PolyCNTT{coeffs: gammas[t][0]}
 
-			minuscoeffs := make([]int32, pp.paramDC)
+			minuscoeffs := make([]int64, pp.paramDC)
 			for i := 0; i < pp.paramDC; i++ {
 				minuscoeffs[i] = -gammas[t][0][i]
 			}
 			for j := 1; j < n; j++ {
-				p[t][j] = &PolyNTTv2{coeffs1: minuscoeffs}
+				p[t][j] = &PolyCNTT{coeffs: minuscoeffs}
 			}
 
 			//	p[t][n] = NTT^{-1}((-F)^T gamma[t][0] + F_1^T gamma[t][1] + B^T gamma[t][2])
-			coeffs := make([]int32, pp.paramDC)
+			coeffs := make([]int64, pp.paramDC)
 			for i := 0; i < pp.paramDC; i++ {
 				//(-F)^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
 				// B^T[i]: ith-col of B
-				coeffs[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC)
+				coeffs[i] = intVecInnerProductWithReduction(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC, pp.paramQC)
 				if i == 0 {
-					//coeffs[i] = pp.reduce(int64(coeffs[i] + gammas[t][1][i] - gammas[t][0][i]))
-					coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) - int64(gammas[t][0][i]))
+					//coeffs[i] = pp.reduceBigInt(int64(coeffs[i] + gammas[t][1][i] - gammas[t][0][i]))
+					//coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) - int64(gammas[t][0][i]))
+					coeffs[i] = reduceInt64(coeffs[i] + gammas[t][1][i] - gammas[t][0][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs[i])
+					tmp2.SetInt64(gammas[t][1][i])
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i])
+					tmp1.Sub(&tmp1, &tmp2)
+					coeffs[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				} else if i < (pp.paramN - 1) {
 					//coeffs[i] = reduceToQc()(int64(coeffs[i] + 2*gammas[t][0][i-1] - gammas[t][0][i]))
-					coeffs[i] = reduceToQc(int64(coeffs[i]) + 2*int64(gammas[t][0][i-1]) - int64(gammas[t][0][i]))
+					//coeffs[i] = reduceToQc(int64(coeffs[i]) + 2*int64(gammas[t][0][i-1]) - int64(gammas[t][0][i]))
+					coeffs[i] = reduceInt64(coeffs[i] + 2*gammas[t][0][i-1] - gammas[t][0][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs[i])
+					tmp2.SetInt64(gammas[t][0][i-1])
+					tmp2.Add(&tmp2, &tmp2)
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i])
+					tmp1.Sub(&tmp1, &tmp2)
+					coeffs[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				} else { // i in [N-1, d-1]
 					//coeffs[i] = reduceToQc()(int64(coeffs[i] + gammas[t][1][i] + 2*gammas[t][0][i-1] - gammas[t][0][i]))
-					coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) + 2*int64(gammas[t][0][i-1]) - int64(gammas[t][0][i]))
+					//coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) + 2*int64(gammas[t][0][i-1]) - int64(gammas[t][0][i]))
+					coeffs[i] = reduceInt64(coeffs[i] + gammas[t][1][i] + 2*gammas[t][0][i-1] - gammas[t][0][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs[i])
+					tmp2.SetInt64(gammas[t][1][i])
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i-1])
+					tmp2.Add(&tmp2, &tmp2)
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i])
+					tmp1.Sub(&tmp1, &tmp2)
+					coeffs[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				}
 			}
-			p[t][n] = &PolyNTTv2{coeffs1: coeffs}
+			p[t][n] = &PolyCNTT{coeffs: coeffs}
 
-			p[t][n+1] = &PolyNTTv2{coeffs1: gammas[t][2]}
+			p[t][n+1] = &PolyCNTT{coeffs: gammas[t][2]}
 		}
 	case RpUlpTypeTrTx2:
 		n := I + J
@@ -871,84 +942,161 @@ func (pp *PublicParameterv2) genUlpPolyNTTs(rpulpType RpUlpType, binMatrixB [][]
 		//	B : d rows 2d columns
 		//	m = 5
 		for t := 0; t < pp.paramK; t++ {
-			p[t] = make([]*PolyNTTv2, n2)
+			p[t] = make([]*PolyCNTT, n2)
 
 			for j := 0; j < I; j++ {
-				p[t][j] = &PolyNTTv2{coeffs1: gammas[t][0]}
+				p[t][j] = &PolyCNTT{coeffs: gammas[t][0]}
 			}
 			for j := I; j < I+J; j++ {
-				p[t][j] = &PolyNTTv2{coeffs1: gammas[t][1]}
+				p[t][j] = &PolyCNTT{coeffs: gammas[t][1]}
 			}
 
-			coeffs_n := make([]int32, pp.paramDC)
+			coeffs_n := make([]int64, pp.paramDC)
 			for i := 0; i < pp.paramDC; i++ {
-				coeffs_n[i] = reduceToQc(int64(-gammas[t][0][i]) + int64(-gammas[t][1][i]))
+				//coeffs_n[i] = reduceToQc(int64(-gammas[t][0][i]) + int64(-gammas[t][1][i]))
+				coeffs_n[i] = reduceInt64(-gammas[t][0][i]-gammas[t][1][i], pp.paramQC)
+				// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*				tmp1.SetInt64(-gammas[t][0][i])
+				tmp2.SetInt64(-gammas[t][1][i])
+				tmp1.Add(&tmp1, &tmp2)
+				coeffs_n[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 			}
-			p[t][n] = &PolyNTTv2{coeffs1: coeffs_n}
+			p[t][n] = &PolyCNTT{coeffs: coeffs_n}
 
 			//	p[t][n+1] = NTT^{-1}(F^T gamma[t][0] + F_1^T gamma[t][2] + B_1^T gamma[t][4])
-			coeffs_np1 := make([]int32, pp.paramDC)
+			coeffs_np1 := make([]int64, pp.paramDC)
 			for i := 0; i < pp.paramDC; i++ {
 				//F^T[i] gamma[t][0] + F_1^T[i] gamma[t][2] + B^T[i] gamma[t][4]
-				coeffs_np1[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][4], pp.paramDC)
+				coeffs_np1[i] = intVecInnerProductWithReduction(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][4], pp.paramDC, pp.paramQC)
 				if i == 0 {
 					//coeffs_np1[i] = reduceToQc()(int64(coeffs_np1[i] + gammas[t][2][i] + gammas[t][0][i]))
-					coeffs_np1[i] = reduceToQc(int64(coeffs_np1[i]) + int64(gammas[t][2][i]) + int64(gammas[t][0][i]))
+					//coeffs_np1[i] = reduceToQc(int64(coeffs_np1[i]) + int64(gammas[t][2][i]) + int64(gammas[t][0][i]))
+					coeffs_np1[i] = reduceInt64(coeffs_np1[i] + gammas[t][2][i] + gammas[t][0][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+	/*				tmp1.SetInt64(coeffs_np1[i])
+					tmp2.SetInt64(gammas[t][2][i])
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i])
+					tmp1.Add(&tmp1, &tmp2)
+					coeffs_np1[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				} else if i < (pp.paramN - 1) {
 					//coeffs_np1[i] = reduceToQc()(int64(coeffs_np1[i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
-					coeffs_np1[i] = reduceToQc(int64(coeffs_np1[i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
+					//coeffs_np1[i] = reduceToQc(int64(coeffs_np1[i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
+					coeffs_np1[i] = reduceInt64(coeffs_np1[i] - 2*gammas[t][0][i-1] + gammas[t][0][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs_np1[i])
+					tmp2.SetInt64(gammas[t][0][i-1])
+					tmp2.Add(&tmp2, &tmp2)
+					tmp1.Sub(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i])
+					tmp1.Add(&tmp1, &tmp2)
+					coeffs_np1[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				} else { // i in [N-1, d-1]
 					//coeffs_np1[i] = reduceToQc()(int64(coeffs_np1[i] + gammas[t][2][i] - 2*gammas[t][0][i-1] + gammas[t][0][i]))
-					coeffs_np1[i] = reduceToQc(int64(coeffs_np1[i]) + int64(gammas[t][2][i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
+					//coeffs_np1[i] = reduceToQc(int64(coeffs_np1[i]) + int64(gammas[t][2][i]) - 2*int64(gammas[t][0][i-1]) + int64(gammas[t][0][i]))
+					coeffs_np1[i] = reduceInt64(coeffs_np1[i] + gammas[t][2][i] - 2*gammas[t][0][i-1] + gammas[t][0][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs_np1[i])
+					tmp2.SetInt64(gammas[t][2][i])
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i-1])
+					tmp2.Add(&tmp2, &tmp2)
+					tmp1.Sub(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][0][i])
+					tmp1.Add(&tmp1, &tmp2)
+					coeffs_np1[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				}
 			}
-			p[t][n+1] = &PolyNTTv2{coeffs1: coeffs_np1}
+			p[t][n+1] = &PolyCNTT{coeffs: coeffs_np1}
 
 			//	p[t][n+2] = NTT^{-1}(F^T gamma[t][1] + F_1^T gamma[t][3] + B_2^T gamma[t][4])
-			coeffs_np2 := make([]int32, pp.paramDC)
+			coeffs_np2 := make([]int64, pp.paramDC)
 			for i := 0; i < pp.paramDC; i++ {
 				//F^T[i] gamma[t][1] + F_1^T[i] gamma[t][3] + B_2^T[i] gamma[t][4]
-				coeffs_np2[i] = pp.intVecInnerProduct(getMatrixColumn(binMatrixB, pp.paramDC, pp.paramDC+i), gammas[t][4], pp.paramDC)
+				coeffs_np2[i] = intVecInnerProductWithReduction(getMatrixColumn(binMatrixB, pp.paramDC, pp.paramDC+i), gammas[t][4], pp.paramDC, pp.paramQC)
 				if i == 0 {
 					//coeffs_np2[i] = reduceToQc()(int64(coeffs_np2[i] + gammas[t][3][i] + gammas[t][1][i]))
-					coeffs_np2[i] = reduceToQc(int64(coeffs_np2[i]) + int64(gammas[t][3][i]) + int64(gammas[t][1][i]))
+					//coeffs_np2[i] = reduceToQc(int64(coeffs_np2[i]) + int64(gammas[t][3][i]) + int64(gammas[t][1][i]))
+					coeffs_np2[i] = reduceInt64(coeffs_np2[i] + gammas[t][3][i] + gammas[t][1][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs_np2[i])
+					tmp2.SetInt64(gammas[t][3][i])
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][1][i])
+					tmp1.Add(&tmp1, &tmp2)
+					coeffs_np2[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				} else if i < (pp.paramN - 1) {
 					//coeffs_np2[i] = reduceToQc()(int64(coeffs_np2[i] - 2*gammas[t][1][i-1] + gammas[t][1][i]))
-					coeffs_np2[i] = reduceToQc(int64(coeffs_np2[i]) - 2*int64(gammas[t][1][i-1]) + int64(gammas[t][1][i]))
+					//coeffs_np2[i] = reduceToQc(int64(coeffs_np2[i]) - 2*int64(gammas[t][1][i-1]) + int64(gammas[t][1][i]))
+					coeffs_np2[i] = reduceInt64(coeffs_np2[i] - 2*gammas[t][1][i-1] + gammas[t][1][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs_np2[i])
+					tmp2.SetInt64(gammas[t][1][i-1])
+					tmp2.Add(&tmp2, &tmp2)
+					tmp1.Sub(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][1][i])
+					tmp1.Add(&tmp1, &tmp2)
+					coeffs_np2[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				} else { // i in [N-1, d-1]
 					//coeffs_np2[i] = reduceToQc()(int64(coeffs_np2[i] + gammas[t][3][i] - 2*gammas[t][1][i-1] + gammas[t][1][i]))
-					coeffs_np2[i] = reduceToQc(int64(coeffs_np2[i]) + int64(gammas[t][3][i]) - 2*int64(gammas[t][1][i-1]) + int64(gammas[t][1][i]))
+					//coeffs_np2[i] = reduceToQc(int64(coeffs_np2[i]) + int64(gammas[t][3][i]) - 2*int64(gammas[t][1][i-1]) + int64(gammas[t][1][i]))
+					coeffs_np2[i] = reduceInt64(coeffs_np2[i] + gammas[t][3][i] - 2*gammas[t][1][i-1] + gammas[t][1][i], pp.paramQC)
+					// the addition of three numbers in [-(q_c-1)/2, (q_c-1)/] will not overflow
+/*					tmp1.SetInt64(coeffs_np2[i])
+					tmp2.SetInt64(gammas[t][3][i])
+					tmp1.Add(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][1][i-1])
+					tmp2.Add(&tmp2, &tmp2)
+					tmp1.Sub(&tmp1, &tmp2)
+					tmp2.SetInt64(gammas[t][1][i])
+					tmp1.Add(&tmp1, &tmp2)
+					coeffs_np2[i] = reduceBigInt(&tmp1, pp.paramQC)*/
 				}
 			}
-			p[t][n+2] = &PolyNTTv2{coeffs1: coeffs_np2}
+			p[t][n+2] = &PolyCNTT{coeffs: coeffs_np2}
 
-			p[t][n+3] = &PolyNTTv2{coeffs1: gammas[t][4]}
+			p[t][n+3] = &PolyCNTT{coeffs: gammas[t][4]}
 		}
 	}
 
 	return p
 }
-func (pp *PublicParameterv2) intVecInnerProduct(a []int32, b []int32, vecLen int) (r int32) {
-	rst := int64(0)
-	for i := 0; i < vecLen; i++ {
-		rst = pp.reduceInt64(rst + pp.reduceInt64(int64(a[i])*int64(b[i])))
-	}
 
-	return int32(rst)
+func intVecInnerProductWithReduction(a []int64, b []int64, vecLen int, q int64) (r int64) {
+	var rst big.Int
+	var tmp1, tmp2 big.Int
+	rst.SetInt64(0)
+	for i := 0; i < vecLen; i++ {
+		tmp1.SetInt64(a[i])
+		tmp2.SetInt64(b[i])
+		tmp1.Mul(&tmp1, &tmp2)
+		tmp1.SetInt64( reduceBigInt(&tmp1, q))
+		rst.Add(&rst, &tmp1)
+		rst.SetInt64(reduceBigInt(&rst, q))
+	}
+	return rst.Int64()
 }
-func (pp *PublicParameterv2) intMatrixInnerProduct(a [][]int32, b [][]int32, rowNum int, colNum int) (r int32) {
+
+func intMatrixInnerProductWithReduction(a [][]int64, b [][]int64, rowNum int, colNum int, q int64) (r int64) {
 	rst := int64(0)
+
+	var tmp1, tmp2 big.Int
 	for i := 0; i < rowNum; i++ {
 		for j := 0; j < colNum; j++ {
-			rst = pp.reduceInt64(rst + pp.reduceInt64(int64(a[i][j])*int64(b[i][j])))
+			tmp1.SetInt64(a[i][j])
+			tmp2.SetInt64(b[i][j])
+			tmp1.Mul(&tmp1, &tmp2)
+			rst = rst + reduceBigInt(&tmp1, q)
+			rst = reduceInt64(rst, q)
 		}
 	}
 
-	return int32(rst)
+	return rst
 }
-func (pp *PublicParameterv2) expandChallenge(seed []byte) (r *Polyv2, err error) {
+
+func (pp *PublicParameterv2) expandChallenge(seed []byte) (r *PolyC, err error) {
 	// extend seed via sha3.Shake128
-	ret := NewPolyv2(R_QC, pp.paramDC)
+	ret := pp.NewPolyC()
 	buf := make([]byte, pp.paramDC/4)
 	XOF := sha3.NewShake128()
 	XOF.Reset()
@@ -962,7 +1110,45 @@ func (pp *PublicParameterv2) expandChallenge(seed []byte) (r *Polyv2, err error)
 	}
 	got, err := randomnessFromChallengeSpace(seed, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
-		ret.coeffs1[i] = got[i]
+		ret.coeffs[i] = got[i]
 	}
 	return ret, nil
+}
+
+
+/*
+q is assumed to be an odd number
+*/
+func reduceBigInt(a *big.Int, q int64) int64  {
+	var b, rst big.Int
+
+	b.SetInt64(q)
+
+	rst.Mod(a, &b)
+
+	r := rst.Int64()
+
+	//	make sure the result in the scope [-(q-1)/2, (q-1)/2]
+	if r > ((q-1) >> 1) {
+		r = r - q
+	}
+	return r
+}
+
+/*
+q is assumed to be an odd number
+*/
+func reduceInt64(a int64, q int64) int64  {
+	r := a % q
+
+	m := (q-1) >> 1
+
+	//	make sure the result in the scope [-(q-1)/2, (q-1)/2]
+	if r < (-m) {
+		r = r + q
+	} else if r > m {
+		r = r - q
+	}
+
+	return r
 }

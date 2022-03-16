@@ -11,6 +11,6 @@ func TestReduce(t *testing.T) {
 	var q int64
 	q = 17
 	a.SetInt64(-9)
-	fmt.Println(reduce(&a, q))
+	fmt.Println(reduceBigInt(&a, q))
 
 }

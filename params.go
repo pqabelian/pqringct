@@ -193,7 +193,7 @@ func NewPublicParameter(paramN int, paramI int, paramJ int, paramD int, paramDIn
 /*
 func (p *PublicParameter) MasterKeyGen(seed []byte) (*MasterPublicKey, *MasterSecretViewKey, *MasterSecretSignKey) {
 	panic("implement me")
-	//b=reduce(a,q)
+	//b=reduceBigInt(a,q)
 	//return masterKeyGen(pp Param,seed)
 }
 
@@ -240,7 +240,7 @@ var DefaultPP *PublicParameter
 //	C []PolyNTTVec //	C[0] = h, C[1]=h_1, ..., C[PP_I+PP_J+6]=h_{PP_I+PP_J+6}
 //}
 
-// reduce is private function for helping the overall operation is in Zq which is described by paramQC
+// reduceBigInt is private function for helping the overall operation is in Zq which is described by paramQC
 func (pp *PublicParameter) reduce(a int64) int32 {
 	rst := a % int64(pp.paramQC)
 	rst = (rst + int64(pp.paramQC)) % int64(pp.paramQC)

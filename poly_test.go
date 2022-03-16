@@ -52,7 +52,7 @@ func PolyMul(a *Poly, b *Poly) *Poly {
 	//}
 	//ret:=pp.NewPoly()
 	//for i := 0; i < pp.paramDC; i++ {
-	//	ret.coeffs[i]=pp.reduce(res[i])
+	//	ret.coeffs[i]=pp.reduceBigInt(res[i])
 	//}
 	//return ret
 
@@ -105,7 +105,7 @@ func TestPublicParameter_PolyNTTPower(t *testing.T) {
 	}
 }
 
-//var nttcoeffs = make([]int32, DefaultPP.paramDC)
+//var coeffs = make([]int32, DefaultPP.paramDC)
 func TestNTT1(t *testing.T) {
 	pp := DefaultPP
 	originalCoeffs := []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
@@ -201,8 +201,8 @@ func TestNTT(t *testing.T) {
 		/*		for k := 0; k < segNum; k++ {
 				for i := 0; i < segLenHalf; i++ {
 					tmp := int64(coeffs[k*segLen+i+segLenHalf]) * zetas[factors[k]]
-					coeffs[k*segLen+i] = pp.reduce( int64(coeffs[k*segLen+i]) - tmp )
-					coeffs[k*segLen+i+segLenHalf] = pp.reduce( int64(coeffs[k*segLen+i]) + tmp )
+					coeffs[k*segLen+i] = pp.reduceBigInt( int64(coeffs[k*segLen+i]) - tmp )
+					coeffs[k*segLen+i+segLenHalf] = pp.reduceBigInt( int64(coeffs[k*segLen+i]) + tmp )
 					//				fmt.Println(k*segLen+i, k*segLen+i+segLenHalf, k*segLen+i, factors[k])
 				}
 			}*/

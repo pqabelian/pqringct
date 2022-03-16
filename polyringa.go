@@ -82,11 +82,11 @@ func (pp *PublicParameterv2) NTTPolyA(polyA *PolyA) *PolyANTT {
 				//				tmp1 := reduceToQc(int64(coeffs[k*segLen+i]) - tmp)
 				tmp1.Sub(&coeffs[k*segLen+i], &tmp)
 				//				coeffs[k*segLen+i] = tmp1
-				coeffs[k*segLen+i].SetInt64(reduce(&tmp1, pp.paramQA))
+				coeffs[k*segLen+i].SetInt64(reduceBigInt(&tmp1, pp.paramQA))
 				//				tmp2 := reduceToQc(int64(coeffs[k*segLen+i]) + tmp)
 				tmp2.Add(&coeffs[k*segLen+i], &tmp)
 				//				coeffs[k*segLen+i+segLenHalf] = tmp2
-				coeffs[k*segLen+i+segLenHalf].SetInt64(reduce(&tmp2, pp.paramQA))
+				coeffs[k*segLen+i+segLenHalf].SetInt64(reduceBigInt(&tmp2, pp.paramQA))
 			}
 		}
 		segNum = segNum << 1
@@ -149,13 +149,13 @@ func (pp *PublicParameterv2) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
 				//				nttCoeffs[k*segLenDouble+i] = tmp1
 				tmp1.Add(&nttCoeffs[k*segLenDouble+i+segLen],&nttCoeffs[k*segLenDouble+i])
 				tmp1.Mul(&tmp1, &twoInv)
-				nttCoeffs[k*segLenDouble+i].SetInt64(reduce(&tmp1, pp.paramQA))
+				nttCoeffs[k*segLenDouble+i].SetInt64(reduceBigInt(&tmp1, pp.paramQA))
 				//				tmp2 := reduceToQc(pp.reduceInt64(pp.reduceInt64(int64(nttCoeffs[k*segLenDouble+i+segLen])-int64(nttCoeffs[k*segLenDouble+i]))*twoInv) * zetas[2*pp.paramDC-factors[k]])
 				//				nttCoeffs[k*segLenDouble+i+segLen] = tmp2
 				tmp2.Sub(&nttCoeffs[k*segLenDouble+i+segLen], &nttCoeffs[k*segLenDouble+i])
 				tmp2.Mul(&tmp2, &twoInv)
 				tmp2.Mul(&tmp2, &tmpZetaInv)
-				nttCoeffs[k*segLenDouble+i+segLen].SetInt64(reduce(&tmp2, pp.paramQA))
+				nttCoeffs[k*segLenDouble+i+segLen].SetInt64(reduceBigInt(&tmp2, pp.paramQA))
 			}
 		}
 		segNum = segNum >> 1
@@ -294,7 +294,7 @@ func (pp *PublicParameterv2) PolyANTTAdd(a *PolyANTT, b *PolyANTT) (r *PolyANTT)
 		tmp1.SetInt64(a.nttcoeffs[i])
 		tmp2.SetInt64(b.nttcoeffs[i])
 		tmp.Add(&tmp1, &tmp2)
-		rst.nttcoeffs[i] = reduce(&tmp, pp.paramQA)
+		rst.nttcoeffs[i] = reduceBigInt(&tmp, pp.paramQA)
 	}
 	return rst
 }
@@ -311,7 +311,7 @@ func (pp *PublicParameterv2) PolyANTTSub(a *PolyANTT, b *PolyANTT) (r *PolyANTT)
 		tmp1.SetInt64(a.nttcoeffs[i])
 		tmp2.SetInt64(b.nttcoeffs[i])
 		tmp.Sub(&tmp1, &tmp2)
-		rst.nttcoeffs[i] = reduce(&tmp, pp.paramQA)
+		rst.nttcoeffs[i] = reduceBigInt(&tmp, pp.paramQA)
 	}
 	return rst
 }
@@ -327,10 +327,10 @@ func (pp *PublicParameterv2) PolyANTTMul(a *PolyANTT, b *PolyANTT) (r *PolyANTT)
 	rst := pp.NewPolyANTT()
 /*	var tmp, tmp1, tmp2 big.Int
 	for i := 0; i < pp.paramDC; i++ {
-		tmp1.SetInt64(a.nttcoeffs[i])
-		tmp2.SetInt64(b.nttcoeffs[i])
+		tmp1.SetInt64(a.coeffs[i])
+		tmp2.SetInt64(b.coeffs[i])
 		tmp.Mul(&tmp1, &tmp2)
-		rst.nttcoeffs[i] = reduce(&tmp, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmp, pp.paramQC)
 	}*/
 	return rst
 }
@@ -364,7 +364,7 @@ func (pp *PublicParameterv2) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
 		tmp1.SetInt64(a.coeffs[i])
 		tmp2.SetInt64(b.coeffs[i])
 		tmpx.Add(&tmp1, &tmp2)
-		rst.coeffs[i] = reduce(&tmpx, pp.paramQA)
+		rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQA)
 	}
 
 	return rst
@@ -381,7 +381,7 @@ func (pp *PublicParameterv2) PolyASub(a *PolyA, b *PolyA) (r *PolyA) {
 		tmp1.SetInt64(a.coeffs[i])
 		tmp2.SetInt64(b.coeffs[i])
 		tmpx.Sub(&tmp1, &tmp2)
-		rst.coeffs[i] = reduce(&tmpx, pp.paramQA)
+		rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQA)
 	}
 
 	return rst

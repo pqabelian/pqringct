@@ -8,7 +8,7 @@ type PolyC struct {
 	coeffs []int64
 }
 type PolyCNTT struct {
-	nttcoeffs []int64
+	coeffs []int64
 }
 type PolyCVec struct {
 	polyCs []*PolyC
@@ -20,15 +20,30 @@ type PolyCNTTVec struct {
 func (pp *PublicParameterv2) NewPolyC() (*PolyC)  {
 	return &PolyC{coeffs: make([]int64, pp.paramDC)}
 }
-func (pp *PublicParameterv2) NewPolyCNTT() (*PolyCNTT)  {
-	return &PolyCNTT{nttcoeffs: make([]int64, pp.paramDC)}
-}
-func (pp *PublicParameterv2) NewZeroPolyCNTT() (*PolyCNTT)  {
-	rst := &PolyCNTT{nttcoeffs: make([]int64, pp.paramDC)}
+func (pp *PublicParameterv2) NewZeroPolyC() (*PolyC)  {
+	rst := &PolyC{coeffs: make([]int64, pp.paramDC)}
 	for i := 0; i < pp.paramDC; i++ {
-		rst.nttcoeffs[i] = 0
+		rst.coeffs[i] = 0
 	}
 	return rst
+}
+func (pp *PublicParameterv2) NewPolyCNTT() (*PolyCNTT)  {
+	return &PolyCNTT{coeffs: make([]int64, pp.paramDC)}
+}
+func (pp *PublicParameterv2) NewZeroPolyCNTT() (*PolyCNTT)  {
+	rst := &PolyCNTT{coeffs: make([]int64, pp.paramDC)}
+	for i := 0; i < pp.paramDC; i++ {
+		rst.coeffs[i] = 0
+	}
+	return rst
+}
+
+func (pp *PublicParameterv2) NewZeroPolyCNTTVec(vecLen int) (*PolyCNTTVec)  {
+	polyCNTTs := make([]*PolyCNTT, vecLen)
+	for i := 0; i < vecLen; i++ {
+		polyCNTTs[i] = pp.NewZeroPolyCNTT()
+	}
+	return &PolyCNTTVec{polyCNTTs}
 }
 
 func (polyC *PolyC) infNorm() (infNorm int64) {
@@ -78,11 +93,11 @@ func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
 				//				tmp1 := reduceToQc(int64(coeffs[k*segLen+i]) - tmp)
 				tmp1.Sub(&coeffs[k*segLen+i], &tmp)
 				//				coeffs[k*segLen+i] = tmp1
-				coeffs[k*segLen+i].SetInt64(reduce(&tmp1, pp.paramQC))
+				coeffs[k*segLen+i].SetInt64(reduceBigInt(&tmp1, pp.paramQC))
 				//				tmp2 := reduceToQc(int64(coeffs[k*segLen+i]) + tmp)
 				tmp2.Add(&coeffs[k*segLen+i], &tmp)
 				//				coeffs[k*segLen+i+segLenHalf] = tmp2
-				coeffs[k*segLen+i+segLenHalf].SetInt64(reduce(&tmp2, pp.paramQC))
+				coeffs[k*segLen+i+segLenHalf].SetInt64(reduceBigInt(&tmp2, pp.paramQC))
 			}
 		}
 		segNum = segNum << 1
@@ -108,11 +123,11 @@ func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
 	for i := 0; i < pp.paramDC; i++ {
 		nttCoeffs[(finalFactors[i]-1)/2] = coeffs[i].Int64()
 	}
-	return &PolyCNTT{nttcoeffs: nttCoeffs}*/
+	return &PolyCNTT{coeffs: nttCoeffs}*/
 
 	rst := pp.NewPolyCNTT()
 	for i := 0; i < pp.paramDC; i++ {
-		rst.nttcoeffs[i] = coeffs[i].Int64()
+		rst.coeffs[i] = coeffs[i].Int64()
 	}
 	return rst
 }
@@ -140,12 +155,12 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 		finalFactors[2*i+1] = factors[i]
 	}
 	for i := 0; i < pp.paramDC; i++ {
-		nttCoeffs[i].SetInt64( polyCNTT.nttcoeffs[(finalFactors[i]-1)/2] )
+		nttCoeffs[i].SetInt64( polyCNTT.coeffs[(finalFactors[i]-1)/2] )
 	}*/
 
 	nttCoeffs := make([]big.Int, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
-		nttCoeffs[i].SetInt64( polyCNTT.nttcoeffs[i] )
+		nttCoeffs[i].SetInt64( polyCNTT.coeffs[i] )
 	}
 	// twoInv := int64((pp.paramQC+1)/2) - int64(pp.paramQC)
 	var twoInv, tmp1, tmp2, tmpZetaInv big.Int
@@ -162,13 +177,13 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 				//				nttCoeffs[k*segLenDouble+i] = tmp1
 				tmp1.Add(&nttCoeffs[k*segLenDouble+i+segLen],&nttCoeffs[k*segLenDouble+i])
 				tmp1.Mul(&tmp1, &twoInv)
-				nttCoeffs[k*segLenDouble+i].SetInt64(reduce(&tmp1, pp.paramQC))
+				nttCoeffs[k*segLenDouble+i].SetInt64(reduceBigInt(&tmp1, pp.paramQC))
 				//				tmp2 := reduceToQc(pp.reduceInt64(pp.reduceInt64(int64(nttCoeffs[k*segLenDouble+i+segLen])-int64(nttCoeffs[k*segLenDouble+i]))*twoInv) * zetas[2*pp.paramDC-factors[k]])
 				//				nttCoeffs[k*segLenDouble+i+segLen] = tmp2
 				tmp2.Sub(&nttCoeffs[k*segLenDouble+i+segLen], &nttCoeffs[k*segLenDouble+i])
 				tmp2.Mul(&tmp2, &twoInv)
 				tmp2.Mul(&tmp2, &tmpZetaInv)
-				nttCoeffs[k*segLenDouble+i+segLen].SetInt64(reduce(&tmp2, pp.paramQC))
+				nttCoeffs[k*segLenDouble+i+segLen].SetInt64(reduceBigInt(&tmp2, pp.paramQC))
 			}
 		}
 		segNum = segNum >> 1
@@ -211,11 +226,11 @@ func PolyCNTTEqualCheck(a *PolyCNTT, b *PolyCNTT) (eq bool) {
 	if a == nil || b == nil {
 		return false
 	}
-	if len(a.nttcoeffs) != len( b.nttcoeffs ) {
+	if len(a.coeffs) != len( b.coeffs) {
 		return false
 	}
-	for i := 0; i < len(a.nttcoeffs); i++ {
-		if a.nttcoeffs[i] != b.nttcoeffs[i] {
+	for i := 0; i < len(a.coeffs); i++ {
+		if a.coeffs[i] != b.coeffs[i] {
 			return false
 		}
 	}
@@ -294,46 +309,62 @@ func (pp *PublicParameterv2) NTTInvPolyCVec(polyCNTTVec *PolyCNTTVec) (polyCVec 
 
 
 func (pp *PublicParameterv2) PolyCNTTAdd(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
-	if len(a.nttcoeffs) != pp.paramDC || len(b.nttcoeffs) != pp.paramDC {
+	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
 		panic("the length of the input polyCNTT is not paramDC")
 	}
 	rst := pp.NewPolyCNTT()
 	var tmp, tmp1, tmp2 big.Int
 	for i := 0; i < pp.paramDC; i++ {
-		tmp1.SetInt64(a.nttcoeffs[i])
-		tmp2.SetInt64(b.nttcoeffs[i])
+		tmp1.SetInt64(a.coeffs[i])
+		tmp2.SetInt64(b.coeffs[i])
 		tmp.Add(&tmp1, &tmp2)
-		rst.nttcoeffs[i] = reduce(&tmp, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmp, pp.paramQC)
 	}
 	return rst
 }
 
 func (pp *PublicParameterv2) PolyCNTTSub(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
-	if len(a.nttcoeffs) != pp.paramDC || len(b.nttcoeffs) != pp.paramDC {
+	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
 		panic("the length of the input polyCNTT is not paramDC")
 	}
 	rst := pp.NewPolyCNTT()
 	var tmp, tmp1, tmp2 big.Int
 	for i := 0; i < pp.paramDC; i++ {
-		tmp1.SetInt64(a.nttcoeffs[i])
-		tmp2.SetInt64(b.nttcoeffs[i])
+		tmp1.SetInt64(a.coeffs[i])
+		tmp2.SetInt64(b.coeffs[i])
 		tmp.Sub(&tmp1, &tmp2)
-		rst.nttcoeffs[i] = reduce(&tmp, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmp, pp.paramQC)
 	}
 	return rst
 }
 
 func (pp *PublicParameterv2) PolyCNTTMul(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
-	if len(a.nttcoeffs) != pp.paramDC || len(b.nttcoeffs) != pp.paramDC {
+	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
 		panic("the length of the input polyCNTT is not paramDC")
 	}
 	rst := pp.NewPolyCNTT()
 	var tmp, tmp1, tmp2 big.Int
 	for i := 0; i < pp.paramDC; i++ {
-		tmp1.SetInt64(a.nttcoeffs[i])
-		tmp2.SetInt64(b.nttcoeffs[i])
+		tmp1.SetInt64(a.coeffs[i])
+		tmp2.SetInt64(b.coeffs[i])
 		tmp.Mul(&tmp1, &tmp2)
-		rst.nttcoeffs[i] = reduce(&tmp, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmp, pp.paramQC)
+	}
+	return rst
+}
+
+func (pp *PublicParameterv2) PolyCNTTVecAdd(a *PolyCNTTVec, b *PolyCNTTVec, vecLen int) (r *PolyCNTTVec) {
+	var rst = pp.NewPolyCNTTVec(vecLen)
+	for i := 0; i < vecLen; i++ {
+		rst.polyCNTTs[i]= pp.PolyCNTTAdd(a.polyCNTTs[i], b.polyCNTTs[i])
+	}
+	return rst
+}
+
+func (pp *PublicParameterv2) PolyCNTTVecSub(a *PolyCNTTVec, b *PolyCNTTVec, vecLen int) (r *PolyCNTTVec) {
+	var rst = pp.NewPolyCNTTVec(vecLen)
+	for i := 0; i < vecLen; i++ {
+		rst.polyCNTTs[i]= pp.PolyCNTTSub(a.polyCNTTs[i], b.polyCNTTs[i])
 	}
 	return rst
 }
@@ -371,10 +402,11 @@ func (pp *PublicParameterv2) PolyCNTTVecScaleMul(polyCNTTScale *PolyCNTT, polyCN
 	return rst
 }
 
-func (pp *PublicParameterv2) sigmaPowerPolyNTT(polyCNTT *PolyCNTT, t int) (r *PolyCNTT) {
+// todo
+func (pp *PublicParameterv2) sigmaPowerPolyCNTT(polyCNTT *PolyCNTT, t int) (r *PolyCNTT) {
 	rst := pp.NewPolyCNTT()
 	for i := 0; i < pp.paramDC; i++ {
-		rst.nttcoeffs[i] = polyCNTT.nttcoeffs[pp.paramSigmaPermutations[t][i]]
+		rst.coeffs[i] = polyCNTT.coeffs[pp.paramSigmaPermutations[t][i]]
 	}
 	return rst
 }
@@ -391,7 +423,7 @@ func (pp *PublicParameterv2) PolyCAdd(a *PolyC, b *PolyC) (r *PolyC) {
 		tmp1.SetInt64(a.coeffs[i])
 		tmp2.SetInt64(b.coeffs[i])
 		tmpx.Add(&tmp1, &tmp2)
-		rst.coeffs[i] = reduce(&tmpx, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQC)
 	}
 
 	return rst
@@ -408,7 +440,7 @@ func (pp *PublicParameterv2) PolyCSub(a *PolyC, b *PolyC) (r *PolyC) {
 		tmp1.SetInt64(a.coeffs[i])
 		tmp2.SetInt64(b.coeffs[i])
 		tmpx.Sub(&tmp1, &tmp2)
-		rst.coeffs[i] = reduce(&tmpx, pp.paramQC)
+		rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQC)
 	}
 
 	return rst
@@ -436,22 +468,5 @@ func (pp *PublicParameterv2) PolyCVecSub(a *PolyCVec, b *PolyCVec, vecLen int) (
 	return rst
 }
 
-/*
-q is assumed to be an odd number
-*/
-func reduce(a *big.Int, q int64) int64  {
-	var b, rst big.Int
 
-	b.SetInt64(q)
-
-	rst.Mod(a, &b)
-
-	r := rst.Int64()
-
-	//	make sure the result in the scope [-(q-1)/2, (q-1)/2]
-	if r > ((q-1) >> 1) {
-		r = r - q
-	}
-	return r
-}
 

@@ -142,7 +142,7 @@ type PublicParameterv2 struct {
 	paramLC int
 
 	// As paramEtaC is used to specify the infNorm of polys in Ring, thus we define it with type 'int32' (as q)
-	paramEtaC int32
+	paramEtaC int64
 
 	// As paramBetaC is used to specify the infNorm of polys in Ring
 	paramBetaC int
@@ -193,7 +193,7 @@ type PublicParameterv2 struct {
 	paramMatrixH []*PolyCNTTVec
 
 	// paramMu defines the const mu, which is determined by the value of N and d
-	paramMu []int32
+	paramMu []int64
 
 	// paramKem defines the key encapsulate mechanism
 	paramKem *kyber.ParameterSet

@@ -39,7 +39,7 @@ func TestPublicParameter_reduce(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pp := DefaultPP
 			if got := pp.reduce(tt.args.a); got != tt.want {
-				t.Errorf("reduce() = %v, want %v", got, tt.want)
+				t.Errorf("reduceBigInt() = %v, want %v", got, tt.want)
 			}
 		})
 	}

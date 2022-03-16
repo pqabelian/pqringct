@@ -6,105 +6,93 @@ import (
 	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
 	"hash"
+	"math/big"
 )
 
-type PublicKey struct {
+
+type AddressPublicKey struct {
+	t     *PolyANTTVec // directly in NTT form
+	e     *PolyANTT
+}
+
+type AddressSecretKey struct {
+	s     *PolyANTTVec
+	ma    *PolyANTT
+}
+
+type ValuePublicKey struct {
 	pkkem *kyber.PublicKey
-	t     *PolyVecv2 // directly in NTT form
-	e     *Polyv2
 }
 
-func (pk *PublicKey) WellformCheck(pp *PublicParameterv2) bool {
-	// todo
-	return true
-}
-
-type SecretKey struct {
+type ValueSecretKey struct {
 	skkem *kyber.SecretKey
-	s     *PolyVecv2
-	ma    *Polyv2
 }
 
-func (pk *SecretKey) WellformCheck(pp *PublicParameterv2) bool {
+func (apk *AddressPublicKey) WellformCheck(pp *PublicParameterv2) bool {
 	// todo
 	return true
 }
 
-type TXOv2 struct {
-	*PublicKey
-	*Commitmentv2
+func (ask *AddressSecretKey) WellformCheck(pp *PublicParameterv2) bool {
+	// todo
+	return true
 }
-type LGRTXO struct {
-	TXOv2
-	id []byte
+
+type Txo struct {
+	*AddressPublicKey
+	*ValueCommitment
+	Vct []byte
+	CkemSerialzed []byte
 }
-type Commitmentv2 struct {
-	b *PolyNTTVecv2
-	c *PolyNTTv2
+type LgrTxo struct {
+	Txo
+	Id []byte
+}
+type ValueCommitment struct {
+	b *PolyCNTTVec
+	c *PolyCNTT
 }
 
 type rpulpProofv2 struct {
-	c_waves []*PolyNTTv2
-	c_hat_g *PolyNTTv2
-	psi     *PolyNTTv2
-	phi     *PolyNTTv2
+	c_waves []*PolyCNTT
+	c_hat_g *PolyCNTT
+	psi     *PolyCNTT
+	phi     *PolyCNTT
 	chseed  []byte
-	cmt_zs  [][]*PolyNTTVecv2
-	zs      []*PolyNTTVecv2
-}
-
-type SerialNumber *PolyNTTv2
-
-type elrsSignaturev2 struct {
-	seeds  [][]byte
-	z_as   []*PolyVecv2
-	z_cs   [][]*PolyNTTVecv2
-	z_cs_p [][]*PolyNTTVecv2
+	cmt_zs  [][]*PolyCNTTVec
+	zs      []*PolyCNTTVec
 }
 
 type CoinbaseTxv2 struct {
 	Vin        uint64
-	OutputTxos []*TXOv2
+	OutputTxos []*Txo
 	TxWitness  *CbTxWitnessv2
 }
 
+type CbTxWitnessv2 struct {
+	b_hat      *PolyCNTTVec
+	c_hats     []*PolyCNTT
+	u_p        []int32
+	rpulpproof *rpulpProofv2
+}
+
 type TxInputDescv2 struct {
-	txoList []*LGRTXO
-	sidx    int
-	sk      *SecretKey
-	value   uint64
-	r       *PolyNTTVecv2
+	txoList []*LgrTxo
+	sidx	int
+	ask		*AddressSecretKey
+	value	uint64
+	crand	*PolyCNTTVec
 }
 type TxOutputDescv2 struct {
-	pk    *PublicKey
+	apk	*AddressPublicKey
+	vpk	*ValuePublicKey
 	value uint64
 }
 
-type CbTxWitnessv2 struct {
-	b_hat      *PolyNTTVecv2
-	c_hats     []*PolyNTTv2
-	u_p        []int32
-	rpulpproof *rpulpProofv2
-	cmt_rs     []*PolyNTTVecv2
-}
-type TrTxInputv2 struct {
-	TxoList []*LGRTXO
-	//SerialNumber []byte
-	SerialNumber *Polyv2 // todo_DONE: change to a hash value
-}
-type TrTxWitnessv2 struct {
-	cmtps      []*Commitmentv2
-	m_a_inps   []*Polyv2
-	b_hat      *PolyNTTVecv2
-	c_hats     []*PolyNTTv2
-	u_p        []int32
-	rpulpproof *rpulpProofv2
-	elrsSigs   []*elrsSignaturev2
-}
 type TransferTxv2 struct {
 	//	Version uint32
 	Inputs     []*TrTxInputv2
-	OutputTxos []*TXOv2
+	OutputTxos []*Txo
 	Fee        uint64
 
 	TxMemo []byte
@@ -112,14 +100,42 @@ type TransferTxv2 struct {
 	TxWitness *TrTxWitnessv2
 }
 
-func (pp *PublicParameterv2) KeyGen(seed []byte) (retSeed []byte, pk *PublicKey, sk *SecretKey, err error) {
-	var s *PolyVecv2
-	var kemPK *kyber.PublicKey
-	var kemSK *kyber.SecretKey
+type TrTxInputv2 struct {
+	TxoList	[]*LgrTxo
+	//SerialNumber []byte
+	SerialNumber *SerialNumber //	todo_DONE: change to a hash value
+}
+
+type TrTxWitnessv2 struct {
+	ma_ps		[]*PolyANTT
+	cmt_ps      []*ValueCommitment
+	elrsSigs	[]*elrsSignaturev2
+	b_hat		*PolyCNTT
+	c_hats		[]*PolyCNTT
+	u_p			[]int64
+	rpulpproof	*rpulpProofv2
+}
+
+type SerialNumber *PolyANTT
+
+type elrsSignaturev2 struct {
+	seeds  [][]byte
+	z_as   []*PolyANTTVec
+	z_cs   [][]*PolyCNTTVec
+	z_cs_p [][]*PolyCNTTVec
+}
+
+
+/**
+This method does not return seed.
+Seed is genrated by the caller.
+ */
+func (pp *PublicParameterv2) AddressKeyGen(seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
+	var s *PolyANTTVec
 
 	// check the validity of the length of seed
 	if seed != nil && len(seed) != pp.paramSeedBytesLen {
-		return nil, nil, nil, errors.New("the length of seed is invalid")
+		return nil, nil, errors.New("the length of seed is invalid")
 	}
 	if seed == nil {
 		seed = randomBytes(pp.paramSeedBytesLen)
@@ -132,129 +148,158 @@ func (pp *PublicParameterv2) KeyGen(seed []byte) (retSeed []byte, pk *PublicKey,
 	}
 	s, err = pp.expandRandomnessAv2(tmp)
 	if err != nil {
-		return seed, nil, nil, err
+		return nil, nil, err
 	}
 
 	tmp = make([]byte, pp.paramSeedBytesLen+2)
 	for i := 0; i < pp.paramSeedBytesLen; i++ {
 		tmp[i] = seed[i]
 	}
-	mat := rejectionUniformWithQa(append(tmp, 'M', 'A'), pp.paramDA)
-	ma := &Polyv2{coeffs2: mat}
 
-	tmp = make([]byte, pp.paramSeedBytesLen)
-	for i := 0; i < pp.paramSeedBytesLen; i++ {
-		tmp[i] = seed[i]
-	}
-	kemPK, kemSK, err = pp.paramKem.CryptoKemKeyPair(tmp)
-	if err != nil {
-		return seed, nil, nil, err
-	}
+	//	todo: put the tag in ahead
+	mat := rejectionUniformWithQa(append(tmp, 'M', 'A'), pp.paramDA)
+	ma := &PolyANTT{nttcoeffs: mat}
 
 	// t = A * s, will be as a part of public key
-	t := pp.PolyMatrixMulVector(pp.paramMatrixA, s, R_QA, pp.paramKA, pp.paramLA)
+	t := pp.PolyANTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKA, pp.paramLA)
 
 	// e = <a,s>+ma
-	e := PolyAdd(pp.PolyVecInnerProduct(pp.paramVecA, s, R_QA, pp.paramLA), ma, R_QA)
+	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVecA, s, pp.paramLA), ma )
 
-	pk = &PublicKey{
-		pkkem: kemPK,
+	apk = &AddressPublicKey{
 		t:     t,
 		e:     e,
 	}
-	sk = &SecretKey{
-		skkem: kemSK,
+	ask = &AddressSecretKey{
 		s:     s,
 		ma:    ma,
 	}
-	return seed, pk, sk, nil
+	return apk, ask, nil
 }
 
-func (pp *PublicParameterv2) ComGen(vin uint64) (cmt *Commitmentv2, r *PolyNTTVecv2, err error) {
-	// sample a randomness polyNTTVec
-	originR, err := pp.sampleRandomnessRv2()
+
+func (pp *PublicParameterv2) ValueKeyGen(seed []byte) (vpk *ValuePublicKey, vsk *ValueSecretKey, err error) {
+
+	// check the validity of the length of seed
+	if seed != nil && len(seed) != pp.paramSeedBytesLen {
+		return nil, nil, errors.New("the length of seed is invalid")
+	}
+	if seed == nil {
+		seed = randomBytes(pp.paramSeedBytesLen)
+	}
+
+	// this temporary byte slice is for protect seed unmodified
+	tmp := make([]byte, pp.paramSeedBytesLen)
+	for i := 0; i < pp.paramSeedBytesLen; i++ {
+		tmp[i] = seed[i]
+	}
+
+
+	kemPK, kemSK, err := pp.paramKem.CryptoKemKeyPair(tmp)
 	if err != nil {
 		return nil, nil, err
 	}
-	r = pp.NTTVecInRQc(originR)
+
+	//	todo: shall we add kemVersion in type ValuePublicKey and ValueSecretKey
+	vpk = &ValuePublicKey{
+		pkkem: kemPK,
+	}
+	vsk = &ValueSecretKey{
+		skkem: kemSK,
+	}
+
+	return vpk, vsk, nil
+}
+
+// txoGen returns an transaction output and a random polynomial related to the corresponding transaction output with the master public key and value
+func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk *ValuePublicKey, vin uint64) (txo *Txo, cmtr *PolyCNTTVec, err error) {
+	//	got (C, kappa) from key encapsulate mechanism
+	CkemSerialzed, kappa, err := vpk.pkkem.CryptoKemEnc() // todo: rename to Encaps, interface to kem
+
+	//	expand the kappa to PolyCVec with length Lc
+/*	rctmp, err := pp.expandRandomnessC(kappa)
+	if err != nil {
+		return nil, nil, err
+	}*/
+	var rctmp *PolyCVec //	todo
+	cmtr = pp.NTTPolyCVec(rctmp)
 
 	mtmp := intToBinary(vin, pp.paramDC)
-	//m := pp.NTTInRQc(&Polyv2{coeffs1: mtmp})
-	m := &PolyNTTv2{coeffs1: mtmp}
-	cmt = &Commitmentv2{}
-	cmt.b = PolyNTTMatrixMulVector(pp.paramMatrixB, r, R_QC, pp.paramKC, pp.paramLC)
-	cmt.c = PolyNTTAdd(
-		PolyNTTVecInnerProduct(pp.paramMatrixH[0], r, R_QC, pp.paramLC),
+	m := &PolyCNTT{coeffs: mtmp}
+	// [b c]^T = C*r + [0 m]^T
+	cmt := &ValueCommitment{}
+	cmt.b = pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cmtr, pp.paramKC, pp.paramLC)
+	cmt.c = pp.PolyCNTTAdd(
+		pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], cmtr, pp.paramLC),
 		m,
-		R_QC,
 	)
-	return
-}
 
-func (pp *PublicParameterv2) ComVerify(cmt *Commitmentv2, r *PolyNTTVecv2, vin uint64) bool {
-	mtmp := intToBinary(vin, pp.paramDC)
-	//m := pp.NTTInRQc(&Polyv2{coeffs1: mtmp})
-	m := &PolyNTTv2{coeffs1: mtmp}
-
-	got := &Commitmentv2{
-		b: PolyNTTMatrixMulVector(pp.paramMatrixB, r, R_QC, pp.paramKC, pp.paramLC),
-		c: PolyNTTAdd(
-			PolyNTTVecInnerProduct(pp.paramMatrixH[0], r, R_QC, pp.paramLC),
-			m,
-			R_QC,
-		),
-	}
-	flag1 := pp.PolyNTTEqualCheck(got.c, cmt.c, R_QC)
-	flag2 := pp.PolyNTTVecEqualCheck(got.b, cmt.b, R_QC)
-	if flag1 && flag2 {
-		return true
+	//	vc = m ^ sk
+	//	todo: the vc should have length only N, to prevent the unused D-N bits of leaking information
+/*	sk, err := pp.expandRandomBitsV(kappa) // todo:
+	if err != nil {
+		return nil, nil, err
+	}*/
+	var sk []byte
+	kappa = kappa
+	vct := make([]byte, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
+		vct[i] = sk[i] ^ byte(mtmp[i])
 	}
 
-	return false
+	rettxo := &Txo{
+		apk,
+		cmt,
+		vct,
+		CkemSerialzed,
+	}
+
+	return rettxo, cmtr, nil
 }
 
-func (pp PublicParameterv2) rpulpProve(cmts []*Commitmentv2, cmt_rs []*PolyNTTVecv2, n int,
-	b_hat *PolyNTTVecv2, r_hat *PolyNTTVecv2, c_hats []*PolyNTTv2, msg_hats [][]int32, n2 int,
+
+func (pp *PublicParameterv2) rpulpProve(cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec, n int,
+	b_hat *PolyCNTTVec, r_hat *PolyCNTTVec, c_hats []*PolyCNTT, msg_hats [][]int64, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte,
-	I int, J int, m int, u_hats [][]int32) (rpulppi *rpulpProofv2, err error) {
+	I int, J int, m int, u_hats [][]int64) (rpulppi *rpulpProofv2, err error) {
 	// c_waves[i] = <h_i, r_i> + m_i
-	c_waves := make([]*PolyNTTv2, n)
+	c_waves := make([]*PolyCNTT, n)
 	for i := 0; i < n; i++ {
-		t := PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], cmt_rs[i], R_QC, pp.paramLC)
-		c_waves[i] = PolyNTTAdd(t, &PolyNTTv2{coeffs1: msg_hats[i]}, R_QC)
+		t := pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], cmt_rs[i], pp.paramLC)
+		c_waves[i] = pp.PolyCNTTAdd(t, &PolyCNTT{coeffs: msg_hats[i]})
 	}
 
 rpUlpProveRestart:
 
-	cmt_ys := make([][]*PolyNTTVecv2, pp.paramK)
-	ys := make([]*PolyNTTVecv2, pp.paramK)
-	cmt_ws := make([][]*PolyNTTVecv2, pp.paramK)
-	ws := make([]*PolyNTTVecv2, pp.paramK)
+	cmt_ys := make([][]*PolyCNTTVec, pp.paramK)
+	ys := make([]*PolyCNTTVec, pp.paramK)
+	cmt_ws := make([][]*PolyCNTTVec, pp.paramK)
+	ws := make([]*PolyCNTTVec, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
-		cmt_ys[t] = make([]*PolyNTTVecv2, n)
-		cmt_ws[t] = make([]*PolyNTTVecv2, n)
+		cmt_ys[t] = make([]*PolyCNTTVec, n)
+		cmt_ws[t] = make([]*PolyCNTTVec, n)
 		for i := 0; i < n; i++ {
 			// random some element in the {s_etaC}^Lc space
-			maskC, err := pp.sampleMaskCv2()
+			maskCi, err := pp.sampleMaskCv2() // todo
 			if err != nil {
 				return nil, err
 			}
-			cmt_ys[t][i] = pp.NTTVecInRQc(maskC)
-			cmt_ws[t][i] = PolyNTTMatrixMulVector(pp.paramMatrixB, cmt_ys[t][i], R_QC, pp.paramKC, pp.paramLC)
+			cmt_ys[t][i] = pp.NTTPolyCVec(maskCi)
+			cmt_ws[t][i] = pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cmt_ys[t][i], pp.paramKC, pp.paramLC)
 		}
 
 		maskC, err := pp.sampleMaskCv2()
 		if err != nil {
 			return nil, err
 		}
-		ys[t] = pp.NTTVecInRQc(maskC)
-		ws[t] = PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], R_QC, pp.paramKC, pp.paramLC)
+		ys[t] = pp.NTTPolyCVec(maskC)
+		ws[t] = pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKC, pp.paramLC)
 	}
 
 	tmpg := pp.sampleUniformPloyWithLowZeros()
-	g := pp.NTTInRQc(tmpg)
+	g := pp.NTTPolyC(tmpg)
 	// c_hat(n2+1)
-	c_hat_g := PolyNTTAdd(PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], r_hat, R_QC, pp.paramLC), g, R_QC)
+	c_hat_g := pp.PolyCNTTAdd(pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], r_hat, pp.paramLC), g)
 
 	// splicing the data to be processed
 	tmp := pp.collectBytesForRPULP1(n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws, c_hat_g)
@@ -268,141 +313,141 @@ rpUlpProveRestart:
 		return nil, err
 	}
 	//	\tilde{\delta}^(t)_i, \hat{\delta}^(t)_i,
-	delta_waves := make([][]*PolyNTTv2, pp.paramK)
-	delta_hats := make([][]*PolyNTTv2, pp.paramK)
+	delta_waves := make([][]*PolyCNTT, pp.paramK)
+	delta_hats := make([][]*PolyCNTT, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
-		delta_waves[t] = make([]*PolyNTTv2, n)
-		delta_hats[t] = make([]*PolyNTTv2, n)
+		delta_waves[t] = make([]*PolyCNTT, n)
+		delta_hats[t] = make([]*PolyCNTT, n)
 		for i := 0; i < n; i++ {
-			delta_waves[t][i] = PolyNTTVecInnerProduct(PolyNTTVecSub(pp.paramMatrixH[i+1], pp.paramMatrixH[0], R_QC, pp.paramLC), cmt_ys[t][i], R_QC, pp.paramLC)
-			delta_hats[t][i] = PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], PolyNTTVecSub(ys[t], cmt_ys[t][i], R_QC, pp.paramLC), R_QC, pp.paramLC)
+			delta_waves[t][i] = pp.PolyCNTTVecInnerProduct(pp.PolyCNTTVecSub(pp.paramMatrixH[i+1], pp.paramMatrixH[0], pp.paramLC), cmt_ys[t][i], pp.paramLC)
+			delta_hats[t][i] = pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], pp.PolyCNTTVecSub(ys[t], cmt_ys[t][i], pp.paramLC), pp.paramLC)
 		}
 	}
 	//	psi, psi'
-	psi := PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], r_hat, R_QC, pp.paramLC)
-	psip := PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], ys[0], R_QC, pp.paramLC)
+	psi := pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], r_hat, pp.paramLC)
+	psip := pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], ys[0],pp.paramLC)
 
 	for t := 0; t < pp.paramK; t++ {
-		tmp1 := NewPolyNTTv2(R_QC, pp.paramDC)
-		tmp2 := NewPolyNTTv2(R_QC, pp.paramDC)
+		tmp1 := pp.NewPolyCNTT()
+		tmp2 := pp.NewPolyCNTT()
 		// sum(0->n1-1)
 		for i := 0; i < n1; i++ {
 			// <h_i , y_t>
-			tmp := PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], ys[t], R_QC, pp.paramLC)
+			tmp := pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], ys[t], pp.paramLC)
 
-			tmp1 = PolyNTTAdd(
+			tmp1 = pp.PolyCNTTAdd(
 				tmp1,
 				// alpha[i] * (2 * m_i - mu) <h_i , y_t>
-				PolyNTTMul(
+				pp.PolyCNTTMul(
 					alphas[i],
 					// (2 * m_i - mu) <h_i , y_t>
-					PolyNTTMul(
+					pp.PolyCNTTMul(
 						// 2 * m_i - mu
-						PolyNTTSub(
+						pp.PolyCNTTSub(
 							//  m_i+m_i
-							PolyNTTAdd(
-								&PolyNTTv2{coeffs1: msg_hats[i]},
-								&PolyNTTv2{coeffs1: msg_hats[i]},
-								R_QC,
+							pp.PolyCNTTAdd(
+								&PolyCNTT{coeffs: msg_hats[i]},
+								&PolyCNTT{coeffs: msg_hats[i]},
 							),
-							&PolyNTTv2{coeffs1: pp.paramMu},
-							R_QC,
+							&PolyCNTT{coeffs: pp.paramMu},
 						),
 						tmp,
-						R_QC,
 					),
-					R_QC,
 				),
-				R_QC,
 			)
-			tmp2 = PolyNTTAdd(
+			tmp2 = pp.PolyCNTTAdd(
 				tmp2,
 				// alpha[i] * <h_i , y_t> * <h_i , y_t>
-				PolyNTTMul(alphas[i],
-					PolyNTTMul(tmp, tmp, R_QC),
-					R_QC),
-				R_QC)
+				pp.PolyCNTTMul(alphas[i],
+					pp.PolyCNTTMul(tmp, tmp),
+					),
+				)
 		}
 
-		psi = PolyNTTSub(psi, PolyNTTMul(betas[t], pp.sigmaInvPolyNTT(tmp1, R_QC, t), R_QC), R_QC)
-		psip = PolyNTTAdd(psip, PolyNTTMul(betas[t], pp.sigmaInvPolyNTT(tmp2, R_QC, t), R_QC), R_QC)
+		psi = pp.PolyCNTTSub(psi, pp.PolyCNTTMul(betas[t], pp.sigmaInvPolyCNTT(tmp1, t)))
+		psip = pp.PolyCNTTAdd(psip, pp.PolyCNTTMul(betas[t], pp.sigmaInvPolyCNTT(tmp2, t)))
 	}
 	//fmt.Printf("Prove\n")
 	//fmt.Printf("psip = %v\n", psip)
 	//	p^(t)_j:
-	p := pp.genUlpPolyNTTs(rpulpType, binMatrixB, I, J, gammas)
+	p := pp.genUlpPolyCNTTs(rpulpType, binMatrixB, I, J, gammas)
 
 	//	phi
-	phi := NewPolyNTTv2(R_QC, pp.paramDC)
+	phi := pp.NewZeroPolyCNTT()
+
+	var inprd, dcInv big.Int
+	dcInv.SetInt64(pp.paramDCInv)
+
 	for t := 0; t < pp.paramK; t++ {
-		tmp1 := NewPolyNTTv2(R_QC, pp.paramDC)
+		tmp1 := pp.NewZeroPolyCNTT()
 		for tau := 0; tau < pp.paramK; tau++ {
 
-			tmp := NewPolyNTTv2(R_QC, pp.paramDC)
+			tmp := pp.NewZeroPolyCNTT()
 			for j := 0; j < n2; j++ {
-				tmp = PolyNTTAdd(tmp, PolyNTTMul(p[t][j], &PolyNTTv2{coeffs1: msg_hats[j]}, R_QC), R_QC)
+				tmp = pp.PolyCNTTAdd(tmp, pp.PolyCNTTMul(p[t][j], &PolyCNTT{coeffs: msg_hats[j]}))
 			}
 
-			constPoly := NewPolyv2(R_QC, pp.paramDC)
-			constPoly.coeffs1[0] = reduceToQc(int64(pp.intMatrixInnerProduct(u_hats, gammas[t], m, pp.paramDC)) * int64(pp.paramDCInv))
+			constPoly := pp.NewZeroPolyC()
+			//constPoly.coeffs[0] = reduceToQc(intMatrixInnerProductWithReduction(u_hats, gammas[t], m, pp.paramDC, pp.paramQC) * int64(pp.paramDCInv))
+			inprd.SetInt64(intMatrixInnerProductWithReduction(u_hats, gammas[t], m, pp.paramDC, pp.paramQC))
+			inprd.Mul(&inprd, &dcInv)
+			constPoly.coeffs[0] = reduceBigInt(&inprd, pp.paramQC)
 
-			tmp = PolyNTTSub(tmp, pp.NTTInRQc(constPoly), R_QC)
-			tmp1 = PolyNTTAdd(tmp1, pp.sigmaPowerPolyNTT(tmp, R_QC, tau), R_QC)
+			tmp = pp.PolyCNTTSub(tmp, pp.NTTPolyC(constPoly))
+			tmp1 = pp.PolyCNTTAdd(tmp1, pp.sigmaPowerPolyCNTT(tmp, tau))
 		}
 
-		xt := NewPolyv2(R_QC, pp.paramDC)
-		xt.coeffs1[t] = pp.paramKInv
+		xt := pp.NewZeroPolyC()
+		xt.coeffs[t] = pp.paramKInv
 
-		tmp1 = PolyNTTMul(pp.NTTInRQc(xt), tmp1, R_QC)
+		tmp1 = pp.PolyCNTTMul(pp.NTTPolyC(xt), tmp1)
 
-		phi = PolyNTTAdd(phi, tmp1, R_QC)
+		phi = pp.PolyCNTTAdd(phi, tmp1)
 	}
 
-	phi = PolyNTTAdd(phi, g, R_QC)
+	phi = pp.PolyCNTTAdd(phi, g)
 	//phiinv := pp.NTTInv(phi)
 	//fmt.Println(phiinv)
 	//fmt.Printf("Prove\n")
 	//fmt.Printf("phi = %v\n", phi)
 	//	phi'^(\xi)
-	phips := make([]*PolyNTTv2, pp.paramK)
+	phips := make([]*PolyCNTT, pp.paramK)
 	for xi := 0; xi < pp.paramK; xi++ {
-		phips[xi] = NewPolyNTTv2(R_QC, pp.paramDC)
+		phips[xi] = pp.NewZeroPolyCNTT()
 
 		for t := 0; t < pp.paramK; t++ {
 
-			tmp1 := NewPolyNTTv2(R_QC, pp.paramDC)
+			tmp1 := pp.NewZeroPolyCNTT()
 			for tau := 0; tau < pp.paramK; tau++ {
 
-				tmp := NewPolyNTTVecv2(R_QC, pp.paramDC, pp.paramLC)
+				tmp := pp.NewZeroPolyCNTTVec(pp.paramLC)
 
 				for j := 0; j < n2; j++ {
-					tmp = PolyNTTVecAdd(
+					tmp = pp.PolyCNTTVecAdd(
 						tmp,
-						PolyNTTVecScaleMul(p[t][j], pp.paramMatrixH[j+1], R_QC, pp.paramLC),
-						R_QC,
+						pp.PolyCNTTVecScaleMul(p[t][j], pp.paramMatrixH[j+1], pp.paramLC),
 						pp.paramLC)
 				}
 
-				tmp1 = PolyNTTAdd(
+				tmp1 = pp.PolyCNTTAdd(
 					tmp1,
-					pp.sigmaPowerPolyNTT(
-						PolyNTTVecInnerProduct(tmp, ys[(xi-tau+pp.paramK)%pp.paramK], R_QC, pp.paramLC),
-						R_QC,
+					pp.sigmaPowerPolyCNTT(
+						pp.PolyCNTTVecInnerProduct(tmp, ys[(xi-tau+pp.paramK)%pp.paramK], pp.paramLC),
 						tau),
-					R_QC)
+					)
 			}
 
-			xt := NewPolyv2(R_QC, pp.paramDC)
-			xt.coeffs1[t] = pp.paramKInv
+			xt := pp.NewZeroPolyC()
+			xt.coeffs[t] = pp.paramKInv
 
-			tmp1 = PolyNTTMul(pp.NTTInRQc(xt), tmp1, R_QC)
+			tmp1 = pp.PolyCNTTMul(pp.NTTPolyC(xt), tmp1)
 
-			phips[xi] = PolyNTTAdd(phips[xi], tmp1, R_QC)
+			phips[xi] = pp.PolyCNTTAdd(phips[xi], tmp1)
 		}
 
-		phips[xi] = PolyNTTAdd(
+		phips[xi] = pp.PolyCNTTAdd(
 			phips[xi],
-			PolyNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], ys[xi], R_QC, pp.paramLC), R_QC)
+			pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], ys[xi], pp.paramLC))
 	}
 	//fmt.Println("phips = ")
 	//for i := 0; i < pp.paramK; i++ {
@@ -423,27 +468,26 @@ rpUlpProveRestart:
 	if err != nil {
 		return nil, err
 	}
-	ch := pp.NTTInRQc(ctmp)
+	ch := pp.NTTPolyC(ctmp)
 	// z = y + sigma^t(c) * r
-	cmt_zs := make([][]*PolyNTTVecv2, pp.paramK)
-	zs := make([]*PolyNTTVecv2, pp.paramK)
+	cmt_zs := make([][]*PolyCNTTVec, pp.paramK)
+	zs := make([]*PolyCNTTVec, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
-		cmt_zs[t] = make([]*PolyNTTVecv2, n)
-		sigma_t_ch := pp.sigmaPowerPolyNTT(ch, R_QC, t)
+		cmt_zs[t] = make([]*PolyCNTTVec, n)
+		sigma_t_ch := pp.sigmaPowerPolyCNTT(ch, t)
 		for i := 0; i < n; i++ {
-			cmt_zs[t][i] = PolyNTTVecAdd(
+			cmt_zs[t][i] = pp.PolyCNTTVecAdd(
 				cmt_ys[t][i],
-				PolyNTTVecScaleMul(sigma_t_ch, cmt_rs[i], R_QC, pp.paramLC),
-				R_QC,
+				pp.PolyCNTTVecScaleMul(sigma_t_ch, cmt_rs[i], pp.paramLC),
 				pp.paramLC)
-			if pp.NTTInvVecInRQc(cmt_zs[t][i]).infNormQc() > pp.paramEtaC-pp.paramBetaC {
+			if pp.NTTInvPolyCVec(cmt_zs[t][i]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 				goto rpUlpProveRestart
 			}
 		}
 
-		zs[t] = PolyNTTVecAdd(ys[t], PolyNTTVecScaleMul(sigma_t_ch, r_hat, R_QC, pp.paramLC), R_QC, pp.paramLC)
+		zs[t] = pp.PolyCNTTVecAdd(ys[t], pp.PolyCNTTVecScaleMul(sigma_t_ch, r_hat, pp.paramLC), pp.paramLC)
 
-		if pp.NTTInvVecInRQc(zs[t]).infNormQc() > pp.paramEtaC-pp.paramBetaC {
+		if pp.NTTInvPolyCVec(zs[t]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 			goto rpUlpProveRestart
 		}
 	}
