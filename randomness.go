@@ -46,8 +46,8 @@ func randomBytes(length int) []byte {
 // randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=6/16 and P(1)=P(-1)=5/16
 // and return an array with given length. If the length of seed is not 0 or length/2, will return ErrLength, and if the
 // seed is nil, then there will get a seed from the machine.
-func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte, []int32, error) {
-	res := make([]int32, length)
+func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte, []int64, error) {
+	res := make([]int64, length)
 	// if the seed is nil, acquire the seed from crypto/rand.Reader
 	if seed == nil {
 		seed = randomBytes(length / 2)
@@ -56,17 +56,17 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte, []
 	if len(seed) < length/2 {
 		return seed, nil, ErrLength
 	}
-	var a1, a2, b1, b2 int32
+	var a1, a2, b1, b2 int64
 	for i := 0; i < length/2; i++ {
-		a1 = int32((seed[i] & (1 << 3)) >> 3)
-		a2 = int32((seed[i] & (1 << 2)) >> 2)
-		b1 = int32((seed[i] & (1 << 1)) >> 1)
-		b2 = int32((seed[i] & (1 << 0)) >> 0)
+		a1 = int64((seed[i] & (1 << 3)) >> 3)
+		a2 = int64((seed[i] & (1 << 2)) >> 2)
+		b1 = int64((seed[i] & (1 << 1)) >> 1)
+		b2 = int64((seed[i] & (1 << 0)) >> 0)
 		res[2*i] = a1 + a2 - b1 - b2
-		a1 = int32((seed[i] & (1 << 7)) >> 7)
-		a2 = int32((seed[i] & (1 << 6)) >> 6)
-		b1 = int32((seed[i] & (1 << 5)) >> 5)
-		b2 = int32((seed[i] & (1 << 4)) >> 4)
+		a1 = int64((seed[i] & (1 << 7)) >> 7)
+		a2 = int64((seed[i] & (1 << 6)) >> 6)
+		b1 = int64((seed[i] & (1 << 5)) >> 5)
+		b2 = int64((seed[i] & (1 << 4)) >> 4)
 		res[2*i+1] = a1 + a2 - b1 - b2
 	}
 	for i := 0; i < length; i++ {
@@ -342,8 +342,8 @@ func randomnessFromZetaC2(seed []byte, length int) ([]int32, error) {
 
 // randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=1/2 and P(1)=P(-1)=1/4
 // and return an array with given length
-func randomnessFromChallengeSpace(seed []byte, length int) ([]int32, error) {
-	res := make([]int32, length)
+func randomnessFromChallengeSpace(seed []byte, length int) ([]int64, error) {
+	res := make([]int64, length)
 	// if the seed is nil, acquire the seed from crypto/rand.Reader
 	if seed == nil {
 		seed = randomBytes(length / 4)
@@ -352,16 +352,16 @@ func randomnessFromChallengeSpace(seed []byte, length int) ([]int32, error) {
 	if len(seed) < length/4 {
 		return nil, ErrLength
 	}
-	var a1, a2, a3, a4, b1, b2, b3, b4 int32
+	var a1, a2, a3, a4, b1, b2, b3, b4 int64
 	for i := 0; i < length/4; i++ {
-		a1 = int32((seed[i] & (1 << 0)) >> 0)
-		b1 = int32((seed[i] & (1 << 1)) >> 1)
-		a2 = int32((seed[i] & (1 << 2)) >> 2)
-		b2 = int32((seed[i] & (1 << 3)) >> 3)
-		a3 = int32((seed[i] & (1 << 4)) >> 4)
-		b3 = int32((seed[i] & (1 << 5)) >> 5)
-		a4 = int32((seed[i] & (1 << 6)) >> 6)
-		b4 = int32((seed[i] & (1 << 7)) >> 7)
+		a1 = int64((seed[i] & (1 << 0)) >> 0)
+		b1 = int64((seed[i] & (1 << 1)) >> 1)
+		a2 = int64((seed[i] & (1 << 2)) >> 2)
+		b2 = int64((seed[i] & (1 << 3)) >> 3)
+		a3 = int64((seed[i] & (1 << 4)) >> 4)
+		b3 = int64((seed[i] & (1 << 5)) >> 5)
+		a4 = int64((seed[i] & (1 << 6)) >> 6)
+		b4 = int64((seed[i] & (1 << 7)) >> 7)
 		res[2*i+0] = a1 - b1
 		res[2*i+1] = a2 - b2
 		res[2*i+2] = a3 - b3

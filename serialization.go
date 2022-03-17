@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 )
 
 const (
@@ -94,65 +93,33 @@ func WritePolyNTT(w io.Writer, polyNTT *PolyNTT) error {
 	}
 	return nil
 }
-func WritePolyNTTv2(w io.Writer, polyNTT *PolyNTTv2, rtp reduceType) error {
-	switch rtp {
-	case R_QC:
-		count := len(polyNTT.coeffs1)
-		err := WriteVarInt(w, uint64(count))
+
+func WritePolyANTT(w io.Writer, poly *PolyANTT) error {
+	count := len(poly.coeffs)
+	err := WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		err := writeElement(w, poly.coeffs[i])
 		if err != nil {
 			return err
 		}
-		for i := 0; i < count; i++ {
-			err := writeElement(w, polyNTT.coeffs1[i])
-			if err != nil {
-				return err
-			}
-		}
-	case R_QA:
-		count := len(polyNTT.coeffs2)
-		err := WriteVarInt(w, uint64(count))
-		if err != nil {
-			return err
-		}
-		for i := 0; i < count; i++ {
-			err := writeElement(w, polyNTT.coeffs2[i])
-			if err != nil {
-				return err
-			}
-		}
-	default:
-		log.Fatalln("Unsupported type")
 	}
 	return nil
 }
-func WritePolyv2(w io.Writer, poly *Polyv2, rtp reduceType) error {
-	switch rtp {
-	case R_QC:
-		count := len(poly.coeffs1)
-		err := WriteVarInt(w, uint64(count))
+
+func WritePolyCNTT(w io.Writer, poly *PolyCNTT) error {
+	count := len(poly.coeffs)
+	err := WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		err := writeElement(w, poly.coeffs[i])
 		if err != nil {
 			return err
 		}
-		for i := 0; i < count; i++ {
-			err := writeElement(w, poly.coeffs1[i])
-			if err != nil {
-				return err
-			}
-		}
-	case R_QA:
-		count := len(poly.coeffs2)
-		err := WriteVarInt(w, uint64(count))
-		if err != nil {
-			return err
-		}
-		for i := 0; i < count; i++ {
-			err := writeElement(w, poly.coeffs2[i])
-			if err != nil {
-				return err
-			}
-		}
-	default:
-		log.Fatalln("Unsupported type")
 	}
 	return nil
 }
@@ -203,14 +170,28 @@ func WritePolyNTTVec(w io.Writer, polyNTTVec *PolyNTTVec) error {
 	}
 	return nil
 }
-func WritePolyNTTVecv2(w io.Writer, polyNTTVec *PolyNTTVecv2, rtp reduceType) error {
-	count := len(polyNTTVec.polyNTTs)
+func WritePolyANTTVec(w io.Writer, polyNTTVec *PolyANTTVec) error {
+	count := len(polyNTTVec.polyANTTs)
 	err := WriteVarInt(w, uint64(count))
 	if err != nil {
 		return err
 	}
 	for i := 0; i < count; i++ {
-		err := WritePolyNTTv2(w, polyNTTVec.polyNTTs[i], rtp)
+		err := WritePolyANTT(w, polyNTTVec.polyANTTs[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func WritePolyCNTTVec(w io.Writer, polyNTTVec *PolyCNTTVec) error {
+	count := len(polyNTTVec.polyCNTTs)
+	err := WriteVarInt(w, uint64(count))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < count; i++ {
+		err := WritePolyCNTT(w, polyNTTVec.polyCNTTs[i])
 		if err != nil {
 			return err
 		}
@@ -218,20 +199,20 @@ func WritePolyNTTVecv2(w io.Writer, polyNTTVec *PolyNTTVecv2, rtp reduceType) er
 	return nil
 }
 
-func WritePolyVecv2(w io.Writer, polyNTTVec *PolyVecv2, rtp reduceType) error {
-	count := len(polyNTTVec.polys)
-	err := WriteVarInt(w, uint64(count))
-	if err != nil {
-		return err
-	}
-	for i := 0; i < count; i++ {
-		err := WritePolyv2(w, polyNTTVec.polys[i], rtp)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
+//func WritePolyAVec(w io.Writer, polyNTTVec *PolyAVec) error {
+//	count := len(polyNTTVec.polyAs)
+//	err := WriteVarInt(w, uint64(count))
+//	if err != nil {
+//		return err
+//	}
+//	for i := 0; i < count; i++ {
+//		err := WritePolyAv2(w, polyNTTVec.polyAs[i])
+//		if err != nil {
+//			return err
+//		}
+//	}
+//	return nil
+//}
 
 func ReadPolyNTTVec(r io.Reader) (*PolyNTTVec, error) {
 	count, err := ReadVarInt(r)
@@ -379,7 +360,7 @@ func WriteRpulpProofv2(w io.Writer, proof *rpulpProofv2) error {
 			return err
 		}
 		for i := 0; i < count; i++ {
-			err := WritePolyNTTv2(w, proof.c_waves[i], R_QC)
+			err := WritePolyCNTT(w, proof.c_waves[i])
 			if err != nil {
 				return err
 			}
@@ -391,7 +372,7 @@ func WriteRpulpProofv2(w io.Writer, proof *rpulpProofv2) error {
 	// write c_hat_g
 	if proof.c_hat_g != nil {
 		WriteNotNULL(w)
-		err := WritePolyNTTv2(w, proof.c_hat_g, R_QC)
+		err := WritePolyCNTT(w, proof.c_hat_g)
 		if err != nil {
 			return err
 		}
@@ -402,7 +383,7 @@ func WriteRpulpProofv2(w io.Writer, proof *rpulpProofv2) error {
 	// write psi
 	if proof.psi != nil {
 		WriteNotNULL(w)
-		err := WritePolyNTTv2(w, proof.psi, R_QC)
+		err := WritePolyCNTT(w, proof.psi)
 		if err != nil {
 			return err
 		}
@@ -413,7 +394,7 @@ func WriteRpulpProofv2(w io.Writer, proof *rpulpProofv2) error {
 	// write phi
 	if proof.phi != nil {
 		WriteNotNULL(w)
-		err := WritePolyNTTv2(w, proof.phi, R_QC)
+		err := WritePolyCNTT(w, proof.phi)
 		if err != nil {
 			return err
 		}
@@ -446,7 +427,7 @@ func WriteRpulpProofv2(w io.Writer, proof *rpulpProofv2) error {
 				return err
 			}
 			for j := 0; j < count2; j++ {
-				err = WritePolyNTTVecv2(w, proof.cmt_zs[i][j], R_QC)
+				err = WritePolyCNTTVec(w, proof.cmt_zs[i][j])
 				if err != nil {
 					return err
 				}
@@ -464,7 +445,7 @@ func WriteRpulpProofv2(w io.Writer, proof *rpulpProofv2) error {
 			return err
 		}
 		for i := 0; i < count; i++ {
-			err := WritePolyNTTVecv2(w, proof.zs[i], R_QC)
+			err := WritePolyCNTTVec(w, proof.zs[i])
 			if err != nil {
 				return err
 			}
@@ -672,11 +653,11 @@ func WriteCommitment(w io.Writer, cmt *Commitment) error {
 
 	return nil
 }
-func WriteCommitmentv2(w io.Writer, cmt *Commitmentv2) error {
+func WriteCommitmentv2(w io.Writer, cmt *ValueCommitment) error {
 	// write b
 	if cmt.b != nil {
 		WriteNotNULL(w)
-		err := WritePolyNTTVecv2(w, cmt.b, R_QC)
+		err := WritePolyCNTTVec(w, cmt.b)
 		if err != nil {
 			return err
 		}
@@ -687,7 +668,7 @@ func WriteCommitmentv2(w io.Writer, cmt *Commitmentv2) error {
 	// write c
 	if cmt.c != nil {
 		WriteNotNULL(w)
-		err := WritePolyNTTv2(w, cmt.c, R_QC)
+		err := WritePolyCNTT(w, cmt.c)
 		if err != nil {
 			return err
 		}
@@ -750,23 +731,12 @@ func GetCommitmentSerializeSize(cmt *Commitment) uint32 {
 	return res
 }
 
-func WritePublicKey(w io.Writer, pk *PublicKey) error {
+func WritePublicKey(w io.Writer, pk *AddressPublicKey) error {
 	// write ckem
-	if pk.pkkem != nil {
-		WriteNotNULL(w)
-		pk.pkkem.Bytes()
-		err := WriteBytes(w, pk.pkkem.Bytes())
-		if err != nil {
-			return err
-		}
-	} else {
-		WriteNULL(w)
-	}
-
 	// write t
 	if pk.t != nil {
 		WriteNotNULL(w)
-		err := WritePolyVecv2(w, pk.t, R_QA)
+		err := WritePolyANTTVec(w, pk.t)
 		if err != nil {
 			return err
 		}
@@ -778,7 +748,7 @@ func WritePublicKey(w io.Writer, pk *PublicKey) error {
 
 	if pk.e != nil {
 		WriteNotNULL(w)
-		err := WritePolyv2(w, pk.e, R_QA)
+		err := WritePolyANTT(w, pk.e)
 		if err != nil {
 			return err
 		}
@@ -970,7 +940,7 @@ func WriteElrsSignaturev2(w io.Writer, elrsSig *elrsSignaturev2) error {
 			return err
 		}
 		for i := 0; i < count; i++ {
-			err = WritePolyVecv2(w, elrsSig.z_as[i], R_QA)
+			err = WritePolyANTTVec(w, elrsSig.z_as[i])
 			if err != nil {
 				return err
 			}
@@ -993,7 +963,7 @@ func WriteElrsSignaturev2(w io.Writer, elrsSig *elrsSignaturev2) error {
 				return err
 			}
 			for j := 0; j < count2; j++ {
-				err = WritePolyNTTVecv2(w, elrsSig.z_cs[i][j], R_QC)
+				err = WritePolyCNTTVec(w, elrsSig.z_cs[i][j])
 				if err != nil {
 					return err
 				}
@@ -1016,7 +986,7 @@ func WriteElrsSignaturev2(w io.Writer, elrsSig *elrsSignaturev2) error {
 				return err
 			}
 			for j := 0; j < count2; j++ {
-				err = WritePolyNTTVecv2(w, elrsSig.z_cs_p[i][j], R_QC)
+				err = WritePolyCNTTVec(w, elrsSig.z_cs_p[i][j])
 				if err != nil {
 					return err
 				}
@@ -1342,7 +1312,7 @@ func (cbTxWitness *CbTxWitnessv2) Serialize0(w io.Writer) error {
 	// write b_hat
 	if cbTxWitness.b_hat != nil {
 		WriteNotNULL(w)
-		err := WritePolyNTTVecv2(w, cbTxWitness.b_hat, R_QC)
+		err := WritePolyCNTTVec(w, cbTxWitness.b_hat)
 		if err != nil {
 			return err
 		}
@@ -1358,7 +1328,7 @@ func (cbTxWitness *CbTxWitnessv2) Serialize0(w io.Writer) error {
 			return err
 		}
 		for i := 0; i < count; i++ {
-			err := WritePolyNTTv2(w, cbTxWitness.c_hats[i], R_QC)
+			err := WritePolyCNTT(w, cbTxWitness.c_hats[i])
 			if err != nil {
 				return err
 			}
@@ -1680,11 +1650,11 @@ func (txo *TXO) Serialize0(w io.Writer) error {
 
 	return nil
 }
-func (txo *TXOv2) Serialize0(w io.Writer) error {
+func (txo *Txo) Serialize0(w io.Writer) error {
 	// write DerivedPubKey
-	if txo.PublicKey != nil {
+	if txo.AddressPublicKey != nil {
 		WriteNotNULL(w)
-		err := WritePublicKey(w, txo.PublicKey)
+		err := WritePublicKey(w, txo.AddressPublicKey)
 		if err != nil {
 			return err
 		}
@@ -1693,9 +1663,9 @@ func (txo *TXOv2) Serialize0(w io.Writer) error {
 	}
 
 	// write commitment
-	if txo.Commitmentv2 != nil {
+	if txo.ValueCommitment != nil {
 		WriteNotNULL(w)
-		err := WriteCommitmentv2(w, txo.Commitmentv2)
+		err := WriteCommitmentv2(w, txo.ValueCommitment)
 		if err != nil {
 			return err
 		}
@@ -2000,7 +1970,7 @@ func (trTxWitness *TrTxWitnessv2) Serialize0(w io.Writer) error {
 	// write b_hat
 	if trTxWitness.b_hat != nil {
 		WriteNotNULL(w)
-		err := WritePolyNTTVecv2(w, trTxWitness.b_hat, R_QC)
+		err := WritePolyCNTT(w, trTxWitness.b_hat)
 		if err != nil {
 			return err
 		}
@@ -2016,7 +1986,7 @@ func (trTxWitness *TrTxWitnessv2) Serialize0(w io.Writer) error {
 			return err
 		}
 		for i := 0; i < count; i++ {
-			err = WritePolyNTTv2(w, trTxWitness.c_hats[i], R_QC)
+			err = WritePolyCNTT(w, trTxWitness.c_hats[i])
 			if err != nil {
 				return err
 			}
@@ -2054,14 +2024,14 @@ func (trTxWitness *TrTxWitnessv2) Serialize0(w io.Writer) error {
 	}
 
 	// write cmtps
-	if trTxWitness.cmtps != nil {
-		count := len(trTxWitness.cmtps)
+	if trTxWitness.cmt_ps != nil {
+		count := len(trTxWitness.cmt_ps)
 		err := WriteVarInt(w, uint64(count))
 		if err != nil {
 			return err
 		}
 		for i := 0; i < count; i++ {
-			err = WriteCommitmentv2(w, trTxWitness.cmtps[i])
+			err = WriteCommitmentv2(w, trTxWitness.cmt_ps[i])
 			if err != nil {
 				return err
 			}
@@ -2189,11 +2159,11 @@ func (trTxWitness *TrTxWitness) Deserialize(r io.Reader) error {
 
 	return nil
 }
-func (txo *LGRTXO) Serialize0(w io.Writer) error {
+func (txo *LgrTxo) Serialize0(w io.Writer) error {
 	// write PubKey
-	if txo.PublicKey != nil {
+	if txo.AddressPublicKey != nil {
 		WriteNotNULL(w)
-		err := WritePublicKey(w, txo.PublicKey)
+		err := WritePublicKey(w, txo.AddressPublicKey)
 		if err != nil {
 			return err
 		}
@@ -2202,9 +2172,9 @@ func (txo *LGRTXO) Serialize0(w io.Writer) error {
 	}
 
 	// write commitment
-	if txo.Commitmentv2 != nil {
+	if txo.ValueCommitment != nil {
 		WriteNotNULL(w)
-		err := WriteCommitmentv2(w, txo.Commitmentv2)
+		err := WriteCommitmentv2(w, txo.ValueCommitment)
 		if err != nil {
 			return err
 		}
@@ -2213,7 +2183,7 @@ func (txo *LGRTXO) Serialize0(w io.Writer) error {
 	}
 
 	// write vc
-	err := writeElement(w, txo.id)
+	err := writeElement(w, txo.Id)
 	if err != nil {
 		return err
 	}
@@ -2249,7 +2219,7 @@ func (trTxInput *TrTxInputv2) Serialize0(w io.Writer) error {
 
 	// write serialNumber
 	if trTxInput.SerialNumber != nil {
-		err := WritePolyv2(w, trTxInput.SerialNumber, R_QA)
+		err := WritePolyANTT(w, trTxInput.SerialNumber.PolyANTT)
 		if err != nil {
 			return err
 		}

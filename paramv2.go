@@ -238,14 +238,14 @@ func (pp *PublicParameterv2) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, erro
 		}
 	}
 	// generate the remained sub-matrix
-	matrix, err := generateMatrix(seed, R_QA, pp.paramDA, pp.paramKA, 1+pp.paramLambdaA)
+	matrix, err := pp.generateNTTMatrixA(seed, pp.paramDA, pp.paramKA, 1+pp.paramLambdaA)
 	if err != nil {
 		return nil, err
 	}
 	for i := 0; i < len(matrix); i++ {
-		for j := 0; j < len(matrix[i].polys); j++ {
+		for j := 0; j < len(matrix[i].polyANTTs); j++ {
 			for k := 0; k < pp.paramDC; k++ {
-				res[i].polys[j+pp.paramKA].coeffs2[k] = matrix[i].polys[j].coeffs2[k]
+				res[i].polyANTTs[j+pp.paramKA].coeffs[k] = matrix[i].polyANTTs[j].coeffs[k]
 			}
 		}
 	}
