@@ -851,7 +851,7 @@ func (pp *PublicParameterv2) ExpandKIDR(lgtxo *LgrTxo) *PolyANTT {
 
 //	todo_DONE: (ringHash, index) shall be ok?
 func (pp *PublicParameterv2) LedgerTxoSerialNumberGen(ringHash hash.Hash, index int) []byte {
-	buf := make([]byte, 1000)
+	buf := make([]byte, 0, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
 	// ringHash
@@ -1102,27 +1102,27 @@ func (pp *PublicParameterv2) collectBytesForELRv2(
 	var err error
 	appendPolyANTTToBytes := func(a *PolyANTT) {
 		for k := 0; k < pp.paramDA; k++ {
-			w.Write([]byte{byte(a.coeffs[k] >> 0)})
-			w.Write([]byte{byte(a.coeffs[k] >> 8)})
-			w.Write([]byte{byte(a.coeffs[k] >> 16)})
-			w.Write([]byte{byte(a.coeffs[k] >> 24)})
-			w.Write([]byte{byte(a.coeffs[k] >> 32)})
-			w.Write([]byte{byte(a.coeffs[k] >> 40)})
-			w.Write([]byte{byte(a.coeffs[k] >> 48)})
-			w.Write([]byte{byte(a.coeffs[k] >> 56)})
+			w.WriteByte(byte(a.coeffs[k] >> 0))
+			w.WriteByte(byte(a.coeffs[k] >> 8))
+			w.WriteByte(byte(a.coeffs[k] >> 16))
+			w.WriteByte(byte(a.coeffs[k] >> 24))
+			w.WriteByte(byte(a.coeffs[k] >> 32))
+			w.WriteByte(byte(a.coeffs[k] >> 40))
+			w.WriteByte(byte(a.coeffs[k] >> 48))
+			w.WriteByte(byte(a.coeffs[k] >> 56))
 
 		}
 	}
 	appendPolyCNTTToBytes := func(a *PolyCNTT) {
 		for k := 0; k < pp.paramDC; k++ {
-			w.Write([]byte{byte(a.coeffs[k] >> 0)})
-			w.Write([]byte{byte(a.coeffs[k] >> 8)})
-			w.Write([]byte{byte(a.coeffs[k] >> 16)})
-			w.Write([]byte{byte(a.coeffs[k] >> 24)})
-			w.Write([]byte{byte(a.coeffs[k] >> 32)})
-			w.Write([]byte{byte(a.coeffs[k] >> 40)})
-			w.Write([]byte{byte(a.coeffs[k] >> 48)})
-			w.Write([]byte{byte(a.coeffs[k] >> 56)})
+			w.WriteByte(byte(a.coeffs[k] >> 0))
+			w.WriteByte(byte(a.coeffs[k] >> 8))
+			w.WriteByte(byte(a.coeffs[k] >> 16))
+			w.WriteByte(byte(a.coeffs[k] >> 24))
+			w.WriteByte(byte(a.coeffs[k] >> 32))
+			w.WriteByte(byte(a.coeffs[k] >> 40))
+			w.WriteByte(byte(a.coeffs[k] >> 48))
+			w.WriteByte(byte(a.coeffs[k] >> 56))
 		}
 	}
 	// msg
@@ -1337,8 +1337,22 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 		return nil, errors.New("the output value exceeds the input value") // todo: more accurate info
 	}
 
-	var cbTxCon []byte // todo: collect from cbTxCon
-
+	cbTxCon := make([]byte, 0, 8)
+	tw := bytes.NewBuffer(cbTxCon)
+	tw.WriteByte(byte(vin >> 0))
+	tw.WriteByte(byte(vin >> 8))
+	tw.WriteByte(byte(vin >> 16))
+	tw.WriteByte(byte(vin >> 24))
+	tw.WriteByte(byte(vin >> 32))
+	tw.WriteByte(byte(vin >> 40))
+	tw.WriteByte(byte(vin >> 48))
+	tw.WriteByte(byte(vin >> 56))
+	for i := 0; i < J; i++ {
+		err = retcbTx.OutputTxos[i].Serialize0(tw)
+		if err != nil {
+			return nil, errors.New("error in serializing txo")
+		}
+	}
 	if J == 1 {
 		// random from S_etaC^lc
 		ys := make([]*PolyCNTTVec, pp.paramK)
@@ -1367,7 +1381,7 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 			return nil, err
 		}
 
-		chtmp, err := pp.expandChallenge(chseed)	// todo: rename and use the same with that in Sig
+		chtmp, err := pp.expandSigCChv2(chseed)
 		if err != nil {
 			return nil, err
 		}
@@ -1380,9 +1394,9 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 					pp.sigmaPowerPolyCNTT(ch, t),
 					cmt_rs[0],
 					pp.paramLC,
-					),
+				),
 				pp.paramLC,
-				)
+			)
 			// check the norm
 			if pp.NTTInvPolyCVec(zs[t]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 				goto cbTxGenJ1Restart
@@ -1450,7 +1464,7 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 			c_hats[i] = pp.PolyCNTTAdd(
 				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], r_hat, pp.paramLC),
 				&PolyCNTT{coeffs: msg_hats[i]},
-				)
+			)
 		}
 
 		//	todo: check the scope of u_p in theory
@@ -1535,18 +1549,34 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		return false
 	}
 
-/*	// todo_DONE: check no repeated dpk in cbTx.OutputTxos
-	dpkMap := make(map[*PublicKey]struct{})
-	for i := 0; i < len(cbTx.OutputTxos); i++ {
-		if _, ok := dpkMap[cbTx.OutputTxos[i].PublicKey]; !ok {
-			dpkMap[cbTx.OutputTxos[i].PublicKey] = struct{}{}
-		} else {
-			return false
-		}
-	}*/
+	/*	// todo_DONE: check no repeated dpk in cbTx.OutputTxos
+		dpkMap := make(map[*PublicKey]struct{})
+		for i := 0; i < len(cbTx.OutputTxos); i++ {
+			if _, ok := dpkMap[cbTx.OutputTxos[i].PublicKey]; !ok {
+				dpkMap[cbTx.OutputTxos[i].PublicKey] = struct{}{}
+			} else {
+				return false
+			}
+		}*/
 	// todo: check cbTx.OutputTxos[j].cmt is well-formed
 
-	var cbTxCon []byte // todo
+	cbTxCon := make([]byte, 0, 8)
+	tw := bytes.NewBuffer(cbTxCon)
+	tw.WriteByte(byte(cbTx.Vin >> 0))
+	tw.WriteByte(byte(cbTx.Vin >> 8))
+	tw.WriteByte(byte(cbTx.Vin >> 16))
+	tw.WriteByte(byte(cbTx.Vin >> 24))
+	tw.WriteByte(byte(cbTx.Vin >> 32))
+	tw.WriteByte(byte(cbTx.Vin >> 40))
+	tw.WriteByte(byte(cbTx.Vin >> 48))
+	tw.WriteByte(byte(cbTx.Vin >> 56))
+	for i := 0; i < J; i++ {
+		err := cbTx.OutputTxos[i].Serialize0(tw)
+		if err != nil {
+			log.Fatalf("error in serializing txo")
+			return false
+		}
+	}
 	if J == 1 {
 		if cbTx.TxWitness.b_hat != nil || cbTx.TxWitness.c_hats != nil || cbTx.TxWitness.u_p != nil {
 			return false
@@ -1569,7 +1599,7 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 			return false
 		}
 		// infNorm of z^t
-		bound := pp.paramEtaC-int64(pp.paramBetaC)
+		bound := pp.paramEtaC - int64(pp.paramBetaC)
 		for t := 0; t < pp.paramK; t++ {
 			if pp.NTTInvPolyCVec(cbTx.TxWitness.rpulpproof.zs[t]).infNorm() > bound {
 				return false
@@ -1579,7 +1609,7 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		ws := make([]*PolyCNTTVec, pp.paramK)
 		deltas := make([]*PolyCNTT, pp.paramK)
 
-		chtmp, err := pp.expandChallenge(cbTx.TxWitness.rpulpproof.chseed) // todo
+		chtmp, err := pp.expandSigCChv2(cbTx.TxWitness.rpulpproof.chseed)
 		if err != nil {
 			return false
 		}
@@ -1594,14 +1624,14 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], pp.paramKC, pp.paramLC),
 				pp.PolyCNTTVecScaleMul(sigma_t_ch, cbTx.OutputTxos[0].ValueCommitment.b, pp.paramKC),
 				pp.paramKC,
-				)
+			)
 			deltas[t] = pp.PolyCNTTSub(
 				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], cbTx.TxWitness.rpulpproof.zs[t], pp.paramLC),
 				pp.PolyCNTTMul(
 					sigma_t_ch,
 					pp.PolyCNTTSub(cbTx.OutputTxos[0].c, msg),
-					), // Modified?
-				)
+				), // Modified?
+			)
 		}
 
 		seed_ch, err := Hash(pp.collectBytesForCoinbase1(cbTxCon, ws, deltas))
@@ -1667,32 +1697,32 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 	return true
 }
 
-// todo : use the revised parameter
 func (pp *PublicParameterv2) collectBytesForCoinbase1(premsg []byte, ws []*PolyCNTTVec, deltas []*PolyCNTT) []byte {
-	tmp := make([]byte, pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4)
-	appendPolyNTTToBytes := func(a *PolyNTTv2) {
+	tmp := make([]byte, 0, pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4)
+	w := bytes.NewBuffer(tmp)
+	appendPolyCNTTToBytes := func(a *PolyCNTT) {
 		for k := 0; k < pp.paramDC; k++ {
-			tmp = append(tmp, byte(a.coeffs1[k]>>0))
-			tmp = append(tmp, byte(a.coeffs1[k]>>8))
-			tmp = append(tmp, byte(a.coeffs1[k]>>16))
-			tmp = append(tmp, byte(a.coeffs1[k]>>24))
+			w.WriteByte(byte(a.coeffs[k] >> 0))
+			w.WriteByte(byte(a.coeffs[k] >> 8))
+			w.WriteByte(byte(a.coeffs[k] >> 16))
+			w.WriteByte(byte(a.coeffs[k] >> 24))
+			w.WriteByte(byte(a.coeffs[k] >> 32))
+			w.WriteByte(byte(a.coeffs[k] >> 40))
+			w.WriteByte(byte(a.coeffs[k] >> 48))
+			w.WriteByte(byte(a.coeffs[k] >> 56))
+		}
+	}
+	// premsg
+	w.Write(premsg)
+
+	for i := 0; i < len(ws); i++ {
+		for j := 0; j < len(ws[i].polyCNTTs); j++ {
+			appendPolyCNTTToBytes(ws[i].polyCNTTs[i])
 		}
 	}
 
-	mtmp := intToBinary(vin, pp.paramDC)
-	m := &PolyNTTv2{coeffs1: mtmp}
-	appendPolyNTTToBytes(m)
-
-	for i := 0; i < len(cmts[0].b.polyNTTs); i++ {
-		appendPolyNTTToBytes(cmts[0].b.polyNTTs[i])
-	}
-	appendPolyNTTToBytes(cmts[0].c)
-
-	for i := 0; i < pp.paramK; i++ {
-		for j := 0; j < pp.paramKC; j++ {
-			appendPolyNTTToBytes(ws[i].polyNTTs[j])
-		}
-		appendPolyNTTToBytes(deltas[i])
+	for i := 0; i < len(deltas); i++ {
+		appendPolyCNTTToBytes(deltas[i])
 	}
 	return tmp
 }
@@ -1717,7 +1747,6 @@ func (pp *PublicParameterv2) collectBytesForCoinbase2(premsg []byte, b_hat *Poly
 	}
 	return res
 }
-
 
 func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDescs []*TxOutputDescv2, fee uint64, txMemo []byte) (trTx *TransferTxv2, err error) {
 	//	check the well-formness of the inputs and outputs
