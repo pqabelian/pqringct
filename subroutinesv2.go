@@ -41,7 +41,9 @@ func (pp PublicParameterv2) sampleMaskAv2() (r *PolyVecv2, err error) {
 	rst := &PolyVecv2{polys: polys}
 	return rst, nil
 }
-func (pp *PublicParameterv2) sampleZetaAv2() (*PolyVecv2, error) {
+
+//	todo: output PolyA in (S_{\eta_a - \theta \gamma_a})^{\ell_a}
+func (pp *PublicParameterv2) sampleZetaAv2() (*PolyAVec, error) {
 	// 1000_1000_1000_1001_1001
 	polys := make([]*Polyv2, pp.paramLA)
 
@@ -55,7 +57,9 @@ func (pp *PublicParameterv2) sampleZetaAv2() (*PolyVecv2, error) {
 	rst := &PolyVecv2{polys}
 	return rst, nil
 }
-func (pp PublicParameterv2) sampleZetaC2v2() (r *PolyVecv2, err error) {
+
+// todo: output PolyC in (S_{\eta_c - \beta_c})^{\ell_c}
+func (pp PublicParameterv2) sampleZetaC2v2() (r *PolyCVec, err error) {
 	polys := make([]*Polyv2, pp.paramLC)
 
 	for i := 0; i < pp.paramLC; i++ {
@@ -378,6 +382,7 @@ func rejectionUniformWithQa(seed []byte, length int) []int64 {
 			t |= int64(buf[pos+3]) << 24
 			t |= (int64(buf[pos+4] & 0x3F)) << 32
 			t &= 0x3FFFFFFFFF
+			//	todo: shall not hard code
 			if t < 137438953937 {
 				res[cur] = t - 68719476968
 				cur++
@@ -437,7 +442,8 @@ func rejectionUniformWithQa(seed []byte, length int) []int64 {
 // expandSigACh should output a {-1,0,1}^DC vector with the number of not-0 is theta_a from a byte array
 // Firstly, set the 1 or -1 with total number is theta
 // Secondly, shuffle the array using the Knuth-Durstenfeld Shuffle
-func (pp PublicParameterv2) expandSigAChv2(seeds []byte) (*Polyv2, error) {
+//	todo: output PolyA in B_{\theta_a}
+func (pp PublicParameterv2) expandSigAChv2(seeds []byte) (*PolyA, error) {
 	seed := make([]byte, len(seeds)+2)
 	for i := 0; i < len(seeds); i++ {
 		seed[i] = seeds[i]
@@ -497,10 +503,11 @@ func (pp PublicParameterv2) expandSigAChv2(seeds []byte) (*Polyv2, error) {
 		cur++
 		res[p], res[k-1] = res[k-1], res[p]
 	}
-	return &Polyv2{coeffs2: res}, nil
+	return &PolyA{coeffs: res}, nil
 }
 
-func (pp PublicParameterv2) expandSigCChv2(seeds []byte) (*Polyv2, error) {
+//	todo: output PolyC in C-challengespace
+func (pp PublicParameterv2) expandSigCChv2(seeds []byte) (*PolyC, error) {
 	seed := make([]byte, len(seeds))
 	for i := 0; i < len(seeds); i++ {
 		seed[i] = seeds[i]

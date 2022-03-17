@@ -352,6 +352,22 @@ func (pp *PublicParameterv2) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
 	return rst
 }
 
+func (pp *PublicParameterv2) PolyANTTVecAdd(a *PolyANTTVec, b *PolyANTTVec, vecLen int) (r *PolyANTTVec) {
+	var rst = pp.NewPolyANTTVec(vecLen)
+	for i := 0; i < vecLen; i++ {
+		rst.polyANTTs[i] = pp.PolyANTTAdd(a.polyANTTs[i], b.polyANTTs[i])
+	}
+	return rst
+}
+
+func (pp *PublicParameterv2) PolyANTTVecSub(a *PolyANTTVec, b *PolyANTTVec, vecLen int) (r *PolyANTTVec) {
+	var rst = pp.NewPolyANTTVec(vecLen)
+	for i := 0; i < vecLen; i++ {
+		rst.polyANTTs[i] = pp.PolyANTTSub(a.polyANTTs[i], b.polyANTTs[i])
+	}
+	return rst
+}
+
 func (pp *PublicParameterv2) PolyANTTVecInnerProduct(a *PolyANTTVec, b *PolyANTTVec, vecLen int) (r *PolyANTT) {
 	var rst = pp.NewZeroPolyANTT()
 	for i := 0; i < vecLen; i++ {
@@ -369,6 +385,22 @@ func (pp *PublicParameterv2) PolyANTTMatrixMulVector(M []*PolyANTTVec, vec *Poly
 	}
 	return rst
 }
+
+func (pp *PublicParameterv2) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyANTTVec *PolyANTTVec, vecLen int) (r *PolyANTTVec) {
+	if polyANTTScale == nil || polyANTTVec == nil {
+		return nil
+	}
+	if vecLen > len(polyANTTVec.polyANTTs) {
+		panic("vecLen is bigger than the length of polyANTTVec")
+	}
+
+	rst := pp.NewPolyANTTVec(vecLen)
+	for i := 0; i < vecLen; i++ {
+		rst.polyANTTs[i] = pp.PolyANTTMul(polyANTTScale, polyANTTVec.polyANTTs[i])
+	}
+	return rst
+}
+
 
 func (pp *PublicParameterv2) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {

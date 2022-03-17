@@ -811,19 +811,21 @@ func (pp PublicParameterv2) rpulpVerify(message []byte,
 	return true
 }
 
-func (pp *PublicParameterv2) ExpandKIDR(lgtxo *LGRTXO) *Polyv2 {
+//	todo: this method directly samples and returns a PloyANTT
+func (pp *PublicParameterv2) ExpandKIDR(lgtxo *LgrTxo) *PolyANTT {
+	//	todo: directly the serialize of Txo and Id
 	buf := make([]byte, 0, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
-	err = WritePublicKey(w, lgtxo.PublicKey)
+	err = WritePublicKey(w, lgtxo.AddressPublicKey)
 	if err != nil {
 		return nil
 	}
-	err = WriteCommitmentv2(w, lgtxo.Commitmentv2)
+	err = WriteCommitmentv2(w, lgtxo.ValueCommitment)
 	if err != nil {
 		return nil
 	}
-	err = writeElement(w, lgtxo.id)
+	err = writeElement(w, lgtxo.Id)
 	if err != nil {
 		return nil
 	}
@@ -832,10 +834,11 @@ func (pp *PublicParameterv2) ExpandKIDR(lgtxo *LGRTXO) *Polyv2 {
 		return nil
 	}
 	got := rejectionUniformWithQa(seed, pp.paramDA)
-	return &Polyv2{coeffs2: got}
+	return &PolyANTT{coeffs: got}
 }
 
-func (pp *PublicParameterv2) LedgerTxoSerialNumberGen(blockHases []hash.Hash, txo *TXOv2, index int) []byte {
+//	todo: (ringHash, index) shall be ok?
+func (pp *PublicParameterv2) LedgerTxoSerialNumberGen(blockHases []hash.Hash, txo *Txo, index int) []byte {
 	buf := make([]byte, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
@@ -847,7 +850,7 @@ func (pp *PublicParameterv2) LedgerTxoSerialNumberGen(blockHases []hash.Hash, tx
 		}
 	}
 	// txo serialize
-	err = txo.Serialize0(w)
+	err = txo.Serialize0(w) // todo:
 	if err != nil {
 		return nil
 	}
@@ -861,63 +864,142 @@ func (pp *PublicParameterv2) LedgerTxoSerialNumberGen(blockHases []hash.Hash, tx
 		return nil
 	}
 	return ret[:]
-
 }
 
 func (pp *PublicParameterv2) ELRSSign(
-	lTXOList []*LGRTXO, ma *Polyv2, cmt *Commitmentv2,
-	msg []byte, index int, sa *PolyVecv2, rc *PolyNTTVecv2,
-	rcp *PolyNTTVecv2, m *PolyNTTv2) (*elrsSignaturev2, error) {
+	lTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment,
+	msg []byte, sindex int, sa *PolyANTTVec, rc *PolyCNTTVec,
+	rc_p *PolyCNTTVec, m *PolyCNTT) (*elrsSignaturev2, error) {
 	var err error
-	seed_js := make([][]byte, len(lTXOList))
-	d_a_js := make([]*Polyv2, len(lTXOList))
-	d_c_js := make([]*PolyNTTv2, len(lTXOList))
+	ringLen := len(lTxoList)
+	if ringLen == 0 {
+		return nil, errors.New("ELRSSign is called on input empty ring")
+	}
+	if sindex >= ringLen {
+		return nil, errors.New("The signer index is not in the scope")
+	}
 
-	z_a_js := make([]*PolyVecv2, len(lTXOList))
-	w_a_js := make([]*PolyVecv2, len(lTXOList))
-	theta_a_js := make([]*Polyv2, len(lTXOList))
+
+	d_a_js := make([]*PolyANTT, ringLen)
+	d_c_js := make([]*PolyCNTT, ringLen)
+
+	z_a_js := make([]*PolyANTTVec, ringLen)
+	w_a_js := make([]*PolyANTTVec, ringLen)
+	delta_a_js := make([]*PolyANTT, ringLen)
 	// j -> t
-	z_c_j_ts := make([][]*PolyNTTVecv2, len(lTXOList))
-	z_c_j_tps := make([][]*PolyNTTVecv2, len(lTXOList))
-	w_c_j_ts := make([][]*PolyNTTVecv2, len(lTXOList))
-	w_c_j_tps := make([][]*PolyNTTVecv2, len(lTXOList))
-	theta_c_j_ts := make([][]*PolyNTTv2, len(lTXOList))
+	z_c_j_ts := make([][]*PolyANTTVec, ringLen)
+	z_cp_j_ts := make([][]*PolyNTTVecv2, ringLen)
+	w_c_j_ts := make([][]*PolyNTTVecv2, ringLen)
+	w_cp_j_ts := make([][]*PolyNTTVecv2, ringLen)
+	theta_c_j_ts := make([][]*PolyNTTv2, ringLen)
 
-	for i := 0; i < len(lTXOList); i++ {
-		if i == index {
+	seeds := make([][]byte, ringLen)
+	z_as := make([]*PolyANTTVec, ringLen)
+
+	w_as := make([]*PolyANTTVec, ringLen)
+	delta_as := make([]*PolyANTT, ringLen)
+
+	z_cs := make([][]*PolyCNTTVec, ringLen)
+	z_cps := make([][]*PolyCNTTVec, ringLen)
+
+	w_cs := make([][]*PolyCNTTVec, ringLen)
+	w_cps := make([][]*PolyCNTTVec, ringLen)
+	delta_cs := make([][]*PolyCNTT, ringLen)
+
+	for j := 0; j < ringLen; j++ {
+		if j == sindex {
 			continue
 		}
-		seed_js[i] = randomBytes(pp.paramSeedBytesLen)
-		var tmp *Polyv2
-		d_a_js[i], err = pp.expandSigAChv2(seed_js[i])
+		seeds[j] = randomBytes(pp.paramSeedBytesLen)
+
+		tmpA, err := pp.expandSigAChv2(seeds[j])
 		if err != nil {
 			return nil, err
 		}
-		tmp, err = pp.expandSigCChv2(seed_js[i])
+		da := pp.NTTPolyA(tmpA)
+
+		tmpC, err := pp.expandSigCChv2(seeds[j])
 		if err != nil {
 			return nil, err
 		}
-		d_c_js[i] = pp.NTTInRQc(tmp)
+		dc := pp.NTTPolyC(tmpC)
+
 
 		// sample randomness for z_a_j
-		z_a_js[i], err = pp.sampleZetaAv2()
+		tmpZa, err := pp.sampleZetaAv2()
 		if err != nil {
 			return nil, err
 		}
-		// w_a_j = A*z_a_j - d_a_j*t_j
-		w_a_js[i] = pp.PolyMatrixMulVector(pp.paramMatrixA, z_a_js[i], R_QA, pp.paramKA, pp.paramLA)
-		w_a_js[i] = PolyVecSub(w_a_js[i], pp.PolyVecScaleMul(d_a_js[i], lTXOList[i].t, R_QA, pp.paramKA), R_QA, pp.paramKA)
-		// theta_a_j = <a,z_a_j> - d_a_j * (e_j + ExpandKIDR(txo[j]) - m_a_p)
-		theta_a_js[i] = pp.PolyVecInnerProduct(pp.paramVecA, z_a_js[i], R_QA, pp.paramLA)
-		tmp_theta_j := pp.Mul(d_a_js[i], PolySub(PolyAdd(lTXOList[i].e, pp.ExpandKIDR(lTXOList[i]), R_QA), ma, R_QA))
-		theta_a_js[i] = PolySub(theta_a_js[i], tmp_theta_j, R_QA)
+		z_as[j] = pp.NTTPolyAVec(tmpZa)
 
+		// w_a_j = A*z_a_j - d_a_j*t_j
+		w_as[j] = pp.PolyANTTVecSub(
+			pp.PolyANTTMatrixMulVector(pp.paramMatrixA, z_as[j], pp.paramKA, pp.paramLA),
+			pp.PolyANTTVecScaleMul(da, lTxoList[j].Txo.AddressPublicKey.t, pp.paramKA),
+			pp.paramKA,
+			)
+		// theta_a_j = <a,z_a_j> - d_a_j * (e_j + ExpandKIDR(txo[j]) - m_a_p)
+		delta_as[j] = pp.PolyANTTSub(
+			pp.PolyANTTVecInnerProduct(pp.paramVecA, z_as[j], pp.paramLA),
+			pp.PolyANTTMul(
+				da,
+				pp.PolyANTTSub(
+					pp.PolyANTTAdd(
+						lTxoList[j].Txo.AddressPublicKey.e,
+						pp.ExpandKIDR(lTxoList[j]),
+						),
+						ma_p,
+					),
+				),
+			)
+
+		z_cs[j] = make([]*PolyCNTTVec, pp.paramK)
+		z_cps[j] = make([]*PolyCNTTVec, pp.paramK)
+		for tao := 0; tao < pp.paramK; tao++ {
+			tmpZc, err := pp.sampleZetaC2v2()
+			if err != nil {
+				return nil, err
+			}
+			tmpZcp, err := pp.sampleZetaC2v2()
+			if err != nil {
+				return nil, err
+			}
+			z_cs[j][tao] = pp.NTTPolyCVec(tmpZc)
+			z_cps[j][tao] = pp.NTTPolyCVec(tmpZcp)
+			sigmatao := pp.sigmaPowerPolyCNTT(dc, tao)
+			w_cs[j][tao] = pp.PolyCNTTVecSub(
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, z_cs[j][tao], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTVecScaleMul(
+					sigmatao,
+					lTxoList[j].Txo.ValueCommitment.b,
+					pp.paramKC,
+					),
+				pp.paramKC,
+				)
+			w_cps[j][tao] = pp.PolyCNTTVecSub(
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, z_cps[j][tao], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTVecScaleMul(
+					sigmatao,
+					cmt_p.b,
+					pp.paramKC,
+				),
+				pp.paramKC,
+			)
+			delta_cs[j][tao] = pp.PolyCNTTSub(
+				pp.PolyCNTTVecInnerProduct(
+					pp.paramMatrixH[0],
+					pp.PolyCNTTVecSub(z_cs[j][tao],z_cps[j][tao], pp.paramLC),
+					pp.paramLC,
+					),
+
+				)
+		}
 		z_c_j_ts[i] = make([]*PolyNTTVecv2, pp.paramK)
-		z_c_j_tps[i] = make([]*PolyNTTVecv2, pp.paramK)
+		z_cp_j_ts[i] = make([]*PolyNTTVecv2, pp.paramK)
 		theta_c_j_ts[i] = make([]*PolyNTTv2, pp.paramK)
 
 		w_c_j_ts[i] = make([]*PolyNTTVecv2, pp.paramK)
-		w_c_j_tps[i] = make([]*PolyNTTVecv2, pp.paramK)
+		w_cp_j_ts[i] = make([]*PolyNTTVecv2, pp.paramK)
 		var tz_c_j_ts *PolyVecv2
 		for j := 0; j < pp.paramK; j++ {
 			// randomness z_c_j_t and z_c_j_tp
@@ -930,23 +1012,23 @@ func (pp *PublicParameterv2) ELRSSign(
 			if err != nil {
 				return nil, err
 			}
-			z_c_j_tps[i][j] = pp.NTTVecInRQc(tz_c_j_ts)
+			z_cp_j_ts[i][j] = pp.NTTVecInRQc(tz_c_j_ts)
 			// w_c_j_t = B*z_c_j_t - simga_t(d_c_j) * b_j
 			w_c_j_ts[i][j] = PolyNTTMatrixMulVector(pp.paramMatrixB, z_c_j_ts[i][j], R_QC, pp.paramKC, pp.paramLC)
 			tmp_w_j_t := PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(d_c_js[i], R_QC, j), lTXOList[i].b, R_QC, pp.paramKC)
 			w_c_j_ts[i][j] = PolyNTTVecSub(w_c_j_ts[i][j], tmp_w_j_t, R_QC, pp.paramKC)
 			// w_c_j_tp = B*z_c_j_tp - simg_t(d_c_j) * b_p
-			w_c_j_tps[i][j] = PolyNTTMatrixMulVector(pp.paramMatrixB, z_c_j_tps[i][j], R_QC, pp.paramKC, pp.paramLC)
+			w_cp_j_ts[i][j] = PolyNTTMatrixMulVector(pp.paramMatrixB, z_cp_j_ts[i][j], R_QC, pp.paramKC, pp.paramLC)
 			tmp_w_j_tp := PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(d_c_js[i], R_QC, j), cmt.b, R_QC, pp.paramKC)
-			w_c_j_tps[i][j] = PolyNTTVecSub(w_c_j_tps[i][j], tmp_w_j_tp, R_QC, pp.paramKC)
+			w_cp_j_ts[i][j] = PolyNTTVecSub(w_cp_j_ts[i][j], tmp_w_j_tp, R_QC, pp.paramKC)
 			// theta_a_j_t
-			theta_c_j_ts[i][j] = PolyNTTVecInnerProduct(pp.paramMatrixH[0], PolyNTTVecSub(z_c_j_ts[i][j], z_c_j_tps[i][j], R_QC, pp.paramLC), R_QC, pp.paramLC)
+			theta_c_j_ts[i][j] = PolyNTTVecInnerProduct(pp.paramMatrixH[0], PolyNTTVecSub(z_c_j_ts[i][j], z_cp_j_ts[i][j], R_QC, pp.paramLC), R_QC, pp.paramLC)
 			tmp_theta_c_t := PolyNTTMul(pp.sigmaPowerPolyNTT(d_c_js[i], R_QC, j), PolyNTTSub(lTXOList[i].c, cmt.c, R_QC), R_QC)
 			theta_c_j_ts[i][j] = PolyNTTSub(theta_c_j_ts[i][j], tmp_theta_c_t, R_QC)
 		}
 	}
 	w_c_j_ts[index] = make([]*PolyNTTVecv2, pp.paramK)
-	w_c_j_tps[index] = make([]*PolyNTTVecv2, pp.paramK)
+	w_cp_j_ts[index] = make([]*PolyNTTVecv2, pp.paramK)
 	theta_c_j_ts[index] = make([]*PolyNTTv2, pp.paramK)
 ELRSSignRestartv2:
 	// randomness y_a_j_bar
@@ -957,7 +1039,7 @@ ELRSSignRestartv2:
 	// w_a_j_bar = A * y_a_j_bar
 	w_a_js[index] = pp.PolyMatrixMulVector(pp.paramMatrixA, y_a_j_bar, R_QA, pp.paramKA, pp.paramLA)
 	// theta_a_j_bar = <a,y_a>
-	theta_a_js[index] = pp.PolyVecInnerProduct(pp.paramVecA, y_a_j_bar, R_QA, pp.paramLA)
+	delta_a_js[index] = pp.PolyVecInnerProduct(pp.paramVecA, y_a_j_bar, R_QA, pp.paramLA)
 
 	y_c_j_bar_ts := make([]*PolyNTTVecv2, pp.paramK)
 	y_c_j_bar_tps := make([]*PolyNTTVecv2, pp.paramK)
@@ -977,7 +1059,7 @@ ELRSSignRestartv2:
 		// w_c_j_bar_t = B*y_c_j_bar_t
 		w_c_j_ts[index][i] = PolyNTTMatrixMulVector(pp.paramMatrixB, y_c_j_bar_ts[i], R_QC, pp.paramKC, pp.paramLC)
 		// w_c_j_tp = B*y_c_j_bar_tp
-		w_c_j_tps[index][i] = PolyNTTMatrixMulVector(pp.paramMatrixB, y_c_j_bar_tps[i], R_QC, pp.paramKC, pp.paramLC)
+		w_cp_j_ts[index][i] = PolyNTTMatrixMulVector(pp.paramMatrixB, y_c_j_bar_tps[i], R_QC, pp.paramKC, pp.paramLC)
 		// theta_a_j_t
 		theta_c_j_ts[index][i] = PolyNTTVecInnerProduct(pp.paramMatrixH[0], PolyNTTVecSub(y_c_j_bar_ts[i], y_c_j_bar_tps[i], R_QC, pp.paramLC), R_QC, pp.paramLC)
 	}
@@ -985,25 +1067,25 @@ ELRSSignRestartv2:
 	for i := 0; i < len(lTXOList); i++ {
 		txoList[i] = &lTXOList[i].TXOv2
 	}
-	seed_ch := pp.collectBytesForELRv2(txoList, ma, cmt, msg, w_a_js, theta_a_js, w_c_j_ts, w_c_j_tps)
-	seed_js[index] = make([]byte, len(seed_ch))
+	seed_ch := pp.collectBytesForELRv2(txoList, ma, cmt, msg, w_a_js, delta_a_js, w_c_j_ts, w_cp_j_ts)
+	seeds[index] = make([]byte, len(seed_ch))
 	for i := 0; i < len(seed_ch); i++ {
-		seed_js[index][i] = seed_ch[i]
+		seeds[index][i] = seed_ch[i]
 	}
 	for i := 0; i < len(lTXOList); i++ {
 		if i == index {
 			continue
 		}
-		for j := 0; j < len(seed_js[i]); j++ {
-			seed_js[index][j] ^= seed_js[i][j]
+		for j := 0; j < len(seeds[i]); j++ {
+			seeds[index][j] ^= seeds[i][j]
 		}
 	}
 	var tmp *Polyv2
-	d_a_js[index], err = pp.expandSigAChv2(seed_js[index])
+	d_a_js[index], err = pp.expandSigAChv2(seeds[index])
 	if err != nil {
 		return nil, err
 	}
-	tmp, err = pp.expandSigCChv2(seed_js[index])
+	tmp, err = pp.expandSigCChv2(seeds[index])
 	if err != nil {
 		return nil, err
 	}
@@ -1013,13 +1095,13 @@ ELRSSignRestartv2:
 	// z_c_j_bar_t = y_c_j_bar_t + simga_t(d_c_j_bar)*rc
 	z_c_j_ts[index] = make([]*PolyNTTVecv2, pp.paramK)
 	// z_c_j_bar_tp = y_c_j_bar_tp + simga_t(d_c_j_bar)*rcp
-	z_c_j_tps[index] = make([]*PolyNTTVecv2, pp.paramK)
+	z_cp_j_ts[index] = make([]*PolyNTTVecv2, pp.paramK)
 	for i := 0; i < pp.paramK; i++ {
 		z_c_j_ts[index][i] = PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(d_c_js[index], R_QC, i), rc, R_QC, pp.paramLC)
 		z_c_j_ts[index][i] = PolyNTTVecAdd(z_c_j_ts[index][i], y_c_j_bar_ts[index], R_QC, pp.paramLC)
 
-		z_c_j_tps[index][i] = PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(d_c_js[index], R_QC, i), rcp, R_QC, pp.paramLC)
-		z_c_j_tps[index][i] = PolyNTTVecAdd(z_c_j_tps[index][i], y_c_j_bar_tps[index], R_QC, pp.paramLC)
+		z_cp_j_ts[index][i] = PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(d_c_js[index], R_QC, i), rcp, R_QC, pp.paramLC)
+		z_cp_j_ts[index][i] = PolyNTTVecAdd(z_cp_j_ts[index][i], y_c_j_bar_tps[index], R_QC, pp.paramLC)
 	}
 
 	if z_a_js[index].infNormQa() > int64(pp.paramEtaA-pp.paramThetaA*pp.paramGammaA) {
@@ -1027,17 +1109,17 @@ ELRSSignRestartv2:
 	}
 	for i := 0; i < pp.paramK; i++ {
 		t1 := pp.NTTInvVecInRQc(z_c_j_ts[index][i]).infNormQc()
-		t2 := pp.NTTInvVecInRQc(z_c_j_tps[index][i]).infNormQc()
+		t2 := pp.NTTInvVecInRQc(z_cp_j_ts[index][i]).infNormQc()
 		bound := pp.paramEtaC - pp.paramBetaC
 		if t1 > bound && t2 > bound {
 			goto ELRSSignRestartv2
 		}
 	}
 	return &elrsSignaturev2{
-		seeds:  seed_js,
+		seeds:  seeds,
 		z_as:   z_a_js,
 		z_cs:   z_c_j_ts,
-		z_cs_p: z_c_j_tps,
+		z_cs_p: z_cp_j_ts,
 	}, nil
 }
 
