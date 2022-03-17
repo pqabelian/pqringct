@@ -117,7 +117,7 @@ type PublicParameterv2 struct {
 	// For randomness
 	paramGammaA int
 	// For masking
-	paramEtaA int32
+	paramEtaA int64
 	// For bounding
 	paramBetaA int
 
