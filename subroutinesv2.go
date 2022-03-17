@@ -628,6 +628,7 @@ func (pp PublicParameterv2) expandSigCChv2(seeds []byte) (*PolyC, error) {
 	return ret, nil
 }
 
+// todo: rename with C
 func (pp *PublicParameterv2) sampleRandomnessRv2() (*PolyCVec, error) {
 	polys := make([]*PolyC, pp.paramLC)
 	var err error
