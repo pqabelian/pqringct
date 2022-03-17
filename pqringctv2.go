@@ -1729,7 +1729,7 @@ func (pp *PublicParameterv2) collectBytesForCoinbase1(premsg []byte, ws []*PolyC
 
 // collectBytesForCoinbase2 is an auxiliary function for CoinbaseTxGen and CoinbaseTxVerify to collect some information into a byte slice
 // 	todo: need take as input the premsg
-func (pp *PublicParameterv2) collectBytesForCoinbase2(premsg []byte, b_hat *PolyNTTVecv2, c_hats []*PolyNTTv2) []byte {
+func (pp *PublicParameterv2) collectBytesForCoinbase2(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
 	res := make([]byte, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
 	appendPolyNTTToBytes := func(a *PolyNTTv2) {
 		for k := 0; k < pp.paramDC; k++ {
