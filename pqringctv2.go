@@ -103,8 +103,9 @@ type TxInputDescv2 struct {
 	txoList []*LgrTxo // todo: refactor lgrTxoList
 	sidx    int
 	ask     *AddressSecretKey
+	vpk		*ValuePublicKey
+	vsk		*ValueSecretKey
 	value   uint64
-	crand   *PolyCNTTVec
 }
 type TxOutputDescv2 struct {
 	apk   *AddressPublicKey
@@ -125,8 +126,7 @@ type TransferTxv2 struct {
 
 type TrTxInputv2 struct {
 	TxoList []*LgrTxo
-	//SerialNumber []byte
-	SerialNumber *SerialNumber //	todo_DONE: change to a hash value
+	SerialNumber []byte
 }
 
 type TrTxWitnessv2 struct {
@@ -139,9 +139,6 @@ type TrTxWitnessv2 struct {
 	rpulpproof *rpulpProofv2
 }
 
-type SerialNumber struct {
-	*PolyANTT
-}
 
 type elrsSignaturev2 struct {
 	seeds [][]byte
@@ -832,13 +829,13 @@ func (pp PublicParameterv2) rpulpVerify(message []byte,
 }
 
 //	todo_DONE: this method directly samples and returns a PloyANTT
-func (pp *PublicParameterv2) ExpandKIDR(lgtxo *LgrTxo) *PolyANTT {
+func (pp *PublicParameterv2) ExpandKIDR(lgrtxo *LgrTxo) *PolyANTT {
 	buf := make([]byte, 0, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
-	err = lgtxo.Serialize0(w)
+	err = lgrtxo.Serialize(w)
 	if err != nil {
-		log.Fatalln("error for lgtxo.Serialize0(w)")
+		log.Fatalln("error for lgrtxo.Serialize(w)")
 		return nil
 	}
 	seed, err := Hash(w.Bytes())
@@ -850,7 +847,7 @@ func (pp *PublicParameterv2) ExpandKIDR(lgtxo *LgrTxo) *PolyANTT {
 }
 
 //	todo_DONE: (ringHash, index) shall be ok?
-func (pp *PublicParameterv2) LedgerTxoSerialNumberGen(ringHash hash.Hash, index int) []byte {
+func (pp *PublicParameterv2) LedgerTxoIdGen(ringHash hash.Hash, index int) []byte {
 	buf := make([]byte, 0, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
@@ -1129,9 +1126,9 @@ func (pp *PublicParameterv2) collectBytesForELRv2(
 	w.Write(msg)
 	// txoList=[(pk,cmt)]
 	for i := 0; i < len(lgxTxoList); i++ {
-		err = lgxTxoList[i].Serialize0(w)
+		err = lgxTxoList[i].Serialize(w)
 		if err != nil {
-			log.Fatalln("error for lgtxo.Serialize0(w)")
+			log.Fatalln("error for lgtxo.Serialize(w)")
 			return nil
 		}
 	}
@@ -1484,7 +1481,7 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 		for i := 0; i < pp.paramDC; i++ {
 			u_p_tmp[i] = e[i]
 			for j := 0; j < pp.paramDC; j++ {
-				if (binM[i][j/8]>>(j%8))&1 == 1 { // todo: make sure int64 still works
+				if (binM[i][j/8]>>(j%8))&1 == 1 {
 					u_p_tmp[i] = u_p_tmp[i] + f[j]
 				}
 			}
@@ -1497,7 +1494,7 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 				goto cbTxGenJ2Restart
 			}
 
-			u_p[i] = reduceInt64(u_p_tmp[i], pp.paramQC) // todo: Do need reduce?
+			u_p[i] = reduceInt64(u_p_tmp[i], pp.paramQC) // todo: 202203 Do need reduce?
 		}
 
 		u_hats[1] = make([]int64, pp.paramDC)
@@ -1670,7 +1667,7 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 			}
 		}
 
-		seed_binM, err := Hash(pp.collectBytesForCoinbase2(cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM, err := Hash(pp.collectBytesForCoinbase2(cbTxCon, cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
 			return false
 		}
@@ -1827,8 +1824,14 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 		}
 
 		// todo: run kem.decaps to get kappa, then get msgs_in[i], cmtrs_in[i], and check the validity
+		//	kappa
+		//	cmtrs_in[i]
+		//	msgs_in[i] <-- inputDescItem.value
+		//	b ?= B r, c = <h ,r>+ &NTT{}
 
-		// todo: add the ComVerify method
+		//	ComVerify(inputDescItem.txoList[inputDescItem.sidx].ValueCommitment,cmtrs_in[i],inputDescItem.value )
+
+		// todo: delete
 		b := pp.ComVerify(inputDescItem.txoList[inputDescItem.sidx].ValueCommitment, inputDescItem.crand, inputDescItem.value)
 		if b == false {
 			return nil, errors.New("fail to receive some transaction output")
@@ -1863,7 +1866,7 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 		m_r := pp.ExpandKIDR(inputDescs[i].txoList[inputDescs[i].sidx])
 		ma_ps[i] = pp.PolyANTTAdd(inputDescs[i].ask.ma, m_r)
 		sn := SerialNumberCompute(ma_ps[i])	// todo:use a hash value to be the serial number
-		rettrTx.Inputs[i] = &TrTxInputv2{ // todo: SerialNumber use hash Type?
+		rettrTx.Inputs[i] = &TrTxInputv2{
 			TxoList:      inputDescs[i].txoList,
 			SerialNumber: sn,
 		}
@@ -2197,7 +2200,7 @@ func (pp *PublicParameterv2) TransferTxVerify(trTx *TransferTxv2) bool {
 	for i := 0; i < I; i++ {
 		//	check the validity of sigma_{lrs,i}
 		sn := ComputeSerialNumber(trTx.TxWitness.ma_ps[i])
-		if trTx.Inputs[i].SerialNumber != nil { // todo: compute sn with trTx.Inputs[i].SerialNumber
+		if trTx.Inputs[i].SerialNumber != sn { // todo: compute sn with trTx.Inputs[i].SerialNumber
 			return false
 		}
 

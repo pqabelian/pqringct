@@ -2159,7 +2159,7 @@ func (trTxWitness *TrTxWitness) Deserialize(r io.Reader) error {
 
 	return nil
 }
-func (txo *LgrTxo) Serialize0(w io.Writer) error {
+func (txo *LgrTxo) Serialize(w io.Writer) error {
 	// write PubKey
 	if txo.AddressPublicKey != nil {
 		WriteNotNULL(w)
@@ -2208,7 +2208,7 @@ func (trTxInput *TrTxInputv2) Serialize0(w io.Writer) error {
 			return err
 		}
 		for _, txo := range trTxInput.TxoList {
-			err := txo.Serialize0(w)
+			err := txo.Serialize(w)
 			if err != nil {
 				return err
 			}
