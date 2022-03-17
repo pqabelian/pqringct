@@ -9,15 +9,14 @@ import (
 	"math/big"
 )
 
-
 type AddressPublicKey struct {
-	t     *PolyANTTVec // directly in NTT form
-	e     *PolyANTT
+	t *PolyANTTVec // directly in NTT form
+	e *PolyANTT
 }
 
 type AddressSecretKey struct {
-	s     *PolyANTTVec
-	ma    *PolyANTT
+	s  *PolyANTTVec
+	ma *PolyANTT
 }
 
 type ValuePublicKey struct {
@@ -41,7 +40,7 @@ func (ask *AddressSecretKey) WellformCheck(pp *PublicParameterv2) bool {
 type Txo struct {
 	*AddressPublicKey
 	*ValueCommitment
-	Vct []byte
+	Vct           []byte
 	CkemSerialzed []byte
 }
 type LgrTxo struct {
@@ -78,14 +77,14 @@ type CbTxWitnessv2 struct {
 
 type TxInputDescv2 struct {
 	txoList []*LgrTxo
-	sidx	int
-	ask		*AddressSecretKey
-	value	uint64
-	crand	*PolyCNTTVec
+	sidx    int
+	ask     *AddressSecretKey
+	value   uint64
+	crand   *PolyCNTTVec
 }
 type TxOutputDescv2 struct {
-	apk	*AddressPublicKey
-	vpk	*ValuePublicKey
+	apk   *AddressPublicKey
+	vpk   *ValuePublicKey
 	value uint64
 }
 
@@ -101,22 +100,24 @@ type TransferTxv2 struct {
 }
 
 type TrTxInputv2 struct {
-	TxoList	[]*LgrTxo
+	TxoList []*LgrTxo
 	//SerialNumber []byte
 	SerialNumber *SerialNumber //	todo_DONE: change to a hash value
 }
 
 type TrTxWitnessv2 struct {
-	ma_ps		[]*PolyANTT
-	cmt_ps      []*ValueCommitment
-	elrsSigs	[]*elrsSignaturev2
-	b_hat		*PolyCNTT
-	c_hats		[]*PolyCNTT
-	u_p			[]int64
-	rpulpproof	*rpulpProofv2
+	ma_ps      []*PolyANTT
+	cmt_ps     []*ValueCommitment
+	elrsSigs   []*elrsSignaturev2
+	b_hat      *PolyCNTT
+	c_hats     []*PolyCNTT
+	u_p        []int64
+	rpulpproof *rpulpProofv2
 }
 
-type SerialNumber *PolyANTT
+type SerialNumber struct {
+	*PolyANTT
+}
 
 type elrsSignaturev2 struct {
 	seeds  [][]byte
@@ -125,11 +126,10 @@ type elrsSignaturev2 struct {
 	z_cs_p [][]*PolyCNTTVec
 }
 
-
 /**
 This method does not return seed.
 Seed is genrated by the caller.
- */
+*/
 func (pp *PublicParameterv2) AddressKeyGen(seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
 	var s *PolyANTTVec
 
@@ -146,37 +146,36 @@ func (pp *PublicParameterv2) AddressKeyGen(seed []byte) (apk *AddressPublicKey, 
 	for i := 0; i < pp.paramSeedBytesLen; i++ {
 		tmp[i] = seed[i]
 	}
-	s, err = pp.expandRandomnessAv2(tmp)
+	ts, err := pp.expandRandomnessAv2(tmp)
 	if err != nil {
 		return nil, nil, err
 	}
+	s = pp.NTTPolyAVec(ts)
 
 	tmp = make([]byte, pp.paramSeedBytesLen+2)
 	for i := 0; i < pp.paramSeedBytesLen; i++ {
 		tmp[i] = seed[i]
 	}
 
-	//	todo: put the tag in ahead
-	mat := rejectionUniformWithQa(append(tmp, 'M', 'A'), pp.paramDA)
+	mat := rejectionUniformWithQa(append([]byte{'M', 'A'}, seed...), pp.paramDA)
 	ma := &PolyANTT{coeffs: mat}
 
 	// t = A * s, will be as a part of public key
 	t := pp.PolyANTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKA, pp.paramLA)
 
 	// e = <a,s>+ma
-	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVecA, s, pp.paramLA), ma )
+	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVecA, s, pp.paramLA), ma)
 
 	apk = &AddressPublicKey{
-		t:     t,
-		e:     e,
+		t: t,
+		e: e,
 	}
 	ask = &AddressSecretKey{
-		s:     s,
-		ma:    ma,
+		s:  s,
+		ma: ma,
 	}
 	return apk, ask, nil
 }
-
 
 func (pp *PublicParameterv2) ValueKeyGen(seed []byte) (vpk *ValuePublicKey, vsk *ValueSecretKey, err error) {
 
@@ -193,7 +192,6 @@ func (pp *PublicParameterv2) ValueKeyGen(seed []byte) (vpk *ValuePublicKey, vsk 
 	for i := 0; i < pp.paramSeedBytesLen; i++ {
 		tmp[i] = seed[i]
 	}
-
 
 	kemPK, kemSK, err := pp.paramKem.CryptoKemKeyPair(tmp)
 	if err != nil {
@@ -217,10 +215,10 @@ func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk *ValuePublicKey, 
 	CkemSerialzed, kappa, err := vpk.pkkem.CryptoKemEnc() // todo: rename to Encaps, interface to kem
 
 	//	expand the kappa to PolyCVec with length Lc
-/*	rctmp, err := pp.expandRandomnessC(kappa)
-	if err != nil {
-		return nil, nil, err
-	}*/
+	/*	rctmp, err := pp.expandRandomnessC(kappa)
+		if err != nil {
+			return nil, nil, err
+		}*/
 	var rctmp *PolyCVec //	todo
 	cmtr = pp.NTTPolyCVec(rctmp)
 
@@ -236,10 +234,10 @@ func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk *ValuePublicKey, 
 
 	//	vc = m ^ sk
 	//	todo: the vc should have length only N, to prevent the unused D-N bits of leaking information
-/*	sk, err := pp.expandRandomBitsV(kappa) // todo:
-	if err != nil {
-		return nil, nil, err
-	}*/
+	/*	sk, err := pp.expandRandomBitsV(kappa) // todo:
+		if err != nil {
+			return nil, nil, err
+		}*/
 	var sk []byte
 	kappa = kappa
 	vct := make([]byte, pp.paramDC)
@@ -256,7 +254,6 @@ func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk *ValuePublicKey, 
 
 	return rettxo, cmtr, nil
 }
-
 
 func (pp *PublicParameterv2) rpulpProve(message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec, n int,
 	b_hat *PolyCNTTVec, r_hat *PolyCNTTVec, c_hats []*PolyCNTT, msg_hats [][]int64, n2 int,
@@ -326,7 +323,7 @@ rpUlpProveRestart:
 	}
 	//	psi, psi'
 	psi := pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], r_hat, pp.paramLC)
-	psip := pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], ys[0],pp.paramLC)
+	psip := pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], ys[0], pp.paramLC)
 
 	for t := 0; t < pp.paramK; t++ {
 		tmp1 := pp.NewPolyCNTT()
@@ -361,8 +358,8 @@ rpUlpProveRestart:
 				// alpha[i] * <h_i , y_t> * <h_i , y_t>
 				pp.PolyCNTTMul(alphas[i],
 					pp.PolyCNTTMul(tmp, tmp),
-					),
-				)
+				),
+			)
 		}
 
 		psi = pp.PolyCNTTSub(psi, pp.PolyCNTTMul(betas[t], pp.sigmaInvPolyCNTT(tmp1, t)))
@@ -435,7 +432,7 @@ rpUlpProveRestart:
 					pp.sigmaPowerPolyCNTT(
 						pp.PolyCNTTVecInnerProduct(tmp, ys[(xi-tau+pp.paramK)%pp.paramK], pp.paramLC),
 						tau),
-					)
+				)
 			}
 
 			xt := pp.NewZeroPolyC()
@@ -550,7 +547,7 @@ func (pp PublicParameterv2) rpulpVerify(message []byte,
 
 	}
 	// check the well-formness of the \pi
-	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramDC || len(rpulppi.psi.coeffs) != pp.paramDC || len(rpulppi.phi.coeffs1) != pp.paramDC || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyNTTs) != pp.paramLC {
+	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramDC || len(rpulppi.psi.coeffs) != pp.paramDC || len(rpulppi.phi.coeffs) != pp.paramDC || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyCNTTs) != pp.paramLC {
 		return false
 	}
 	if rpulppi == nil {
@@ -651,7 +648,7 @@ func (pp PublicParameterv2) rpulpVerify(message []byte,
 					rpulppi.cmt_zs[t][i],
 					pp.paramLC),
 				pp.PolyCNTTMul(sigma_chs[t], pp.PolyCNTTSub(rpulppi.c_waves[i], cmts[i].c)),
-				)
+			)
 
 			delta_hats[t][i] = pp.PolyCNTTSub(
 				pp.PolyCNTTVecInnerProduct(
@@ -659,7 +656,7 @@ func (pp PublicParameterv2) rpulpVerify(message []byte,
 					pp.PolyCNTTVecSub(rpulppi.zs[t], rpulppi.cmt_zs[t][i], pp.paramLC),
 					pp.paramLC),
 				pp.PolyCNTTMul(sigma_chs[t], pp.PolyCNTTSub(c_hats[i], rpulppi.c_waves[i])),
-				)
+			)
 		}
 	}
 	// psi'
@@ -676,19 +673,19 @@ func (pp PublicParameterv2) rpulpVerify(message []byte,
 				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], rpulppi.zs[t], pp.paramLC),
 				// sigma_c_t
 				pp.PolyCNTTMul(sigma_chs[t], c_hats[i]),
-				)
+			)
 
 			tmp := pp.PolyCNTTMul(alphas[i], f_t_i)
 
 			tmp1 = pp.PolyCNTTAdd(
 				tmp1,
 				pp.PolyCNTTMul(tmp, f_t_i),
-				)
+			)
 
 			tmp2 = pp.PolyCNTTAdd(
 				tmp2,
 				tmp,
-				)
+			)
 		}
 		tmp2 = pp.PolyCNTTMul(tmp2, mu)
 		tmp2 = pp.PolyCNTTMul(tmp2, sigma_chs[t])
@@ -766,7 +763,7 @@ func (pp PublicParameterv2) rpulpVerify(message []byte,
 					pp.sigmaPowerPolyCNTT(
 						pp.PolyCNTTVecInnerProduct(tmp, rpulppi.zs[(xi-tau+pp.paramK)%pp.paramK], pp.paramLC),
 						tau),
-					)
+				)
 			}
 
 			xt := pp.NewZeroPolyC()
@@ -878,7 +875,6 @@ func (pp *PublicParameterv2) ELRSSign(
 		return nil, errors.New("The signer index is not in the scope")
 	}
 
-
 	d_a_js := make([]*PolyANTT, ringLen)
 	d_c_js := make([]*PolyCNTT, ringLen)
 
@@ -887,10 +883,10 @@ func (pp *PublicParameterv2) ELRSSign(
 	delta_a_js := make([]*PolyANTT, ringLen)
 	// j -> t
 	z_c_j_ts := make([][]*PolyANTTVec, ringLen)
-	z_cp_j_ts := make([][]*PolyNTTVecv2, ringLen)
-	w_c_j_ts := make([][]*PolyNTTVecv2, ringLen)
-	w_cp_j_ts := make([][]*PolyNTTVecv2, ringLen)
-	theta_c_j_ts := make([][]*PolyNTTv2, ringLen)
+	z_cp_j_ts := make([][]*PolyCNTTVec, ringLen)
+	w_c_j_ts := make([][]*PolyCNTTVec, ringLen)
+	w_cp_j_ts := make([][]*PolyCNTTVec, ringLen)
+	theta_c_j_ts := make([][]*PolyCNTT, ringLen)
 
 	seeds := make([][]byte, ringLen)
 	z_as := make([]*PolyANTTVec, ringLen)
@@ -923,7 +919,6 @@ func (pp *PublicParameterv2) ELRSSign(
 		}
 		dc := pp.NTTPolyC(tmpC)
 
-
 		// sample randomness for z_a_j
 		tmpZa, err := pp.sampleZetaAv2()
 		if err != nil {
@@ -936,7 +931,7 @@ func (pp *PublicParameterv2) ELRSSign(
 			pp.PolyANTTMatrixMulVector(pp.paramMatrixA, z_as[j], pp.paramKA, pp.paramLA),
 			pp.PolyANTTVecScaleMul(da, lgrTxoList[j].Txo.AddressPublicKey.t, pp.paramKA),
 			pp.paramKA,
-			)
+		)
 		// theta_a_j = <a,z_a_j> - d_a_j * (e_j + ExpandKIDR(txo[j]) - m_a_p)
 		delta_as[j] = pp.PolyANTTSub(
 			pp.PolyANTTVecInnerProduct(pp.paramVecA, z_as[j], pp.paramLA),
@@ -973,9 +968,9 @@ func (pp *PublicParameterv2) ELRSSign(
 					sigmatao,
 					lgrTxoList[j].Txo.ValueCommitment.b,
 					pp.paramKC,
-					),
+				),
 				pp.paramKC,
-				)
+			)
 			w_cps[j][tao] = pp.PolyCNTTVecSub(
 				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, z_cps[j][tao], pp.paramKC, pp.paramLC),
 				pp.PolyCNTTVecScaleMul(
@@ -988,7 +983,7 @@ func (pp *PublicParameterv2) ELRSSign(
 			delta_cs[j][tao] = pp.PolyCNTTSub(
 				pp.PolyCNTTVecInnerProduct(
 					pp.paramMatrixH[0],
-					pp.PolyCNTTVecSub(z_cs[j][tao],z_cps[j][tao], pp.paramLC),
+					pp.PolyCNTTVecSub(z_cs[j][tao], z_cps[j][tao], pp.paramLC),
 					pp.paramLC,
 					),
 				pp.PolyCNTTMul(
@@ -1012,6 +1007,8 @@ ELRSSignRestartv2:
 	w_as[sindex] = pp.PolyANTTMatrixMulVector(pp.paramMatrixA, y_a, pp.paramKA, pp.paramLA)
 	delta_as[sindex] = pp.PolyANTTVecInnerProduct(pp.paramVecA, y_a, pp.paramLA)
 
+	y_cs := make([]*PolyCNTTVec, pp.paramK)
+	y_cps := make([]*PolyCNTTVec, pp.paramK)
 	for tao := 0; tao < pp.paramK; tao++ {
 		tmpYc, err := pp.sampleMaskCv2()
 		if err != nil {
@@ -1022,13 +1019,13 @@ ELRSSignRestartv2:
 			return nil, err
 		}
 
-		y_c := pp.NTTPolyCVec(tmpYc)
-		y_cp := pp.NTTPolyCVec(tmpYcp)
-		w_cs[sindex][tao] = pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, y_c, pp.paramKC, pp.paramLC)
-		w_cps[sindex][tao] = pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, y_cp, pp.paramKC, pp.paramLC)
+		y_cs[tao] = pp.NTTPolyCVec(tmpYc)
+		y_cps[tao] = pp.NTTPolyCVec(tmpYcp)
+		w_cs[sindex][tao] = pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, y_cs[tao], pp.paramKC, pp.paramLC)
+		w_cps[sindex][tao] = pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, y_cps[tao], pp.paramKC, pp.paramLC)
 		delta_cs[sindex][tao] = pp.PolyCNTTVecInnerProduct(
 			pp.paramMatrixH[0],
-			pp.PolyCNTTVecSub(y_c,y_cp, pp.paramLC),
+			pp.PolyCNTTVecSub(y_cs[tao],y_cps[tao], pp.paramLC),
 			pp.paramLC,
 		)
 	}
@@ -1059,23 +1056,24 @@ ELRSSignRestartv2:
 	dA := pp.NTTPolyA(tmpA)
 	dC := pp.NTTPolyC(tmpC)
 
-	z_as[sindex] = pp.PolyANTTAdd(y_a, pp.PolyANTTVecScaleMul(dA, rc))
-
-	// z_a_j_bar = y_a_j_bar + d_a_j_bar * s_a
-	z_a_js[index] = PolyVecAdd(y_a_j_bar, pp.PolyVecScaleMul(d_a_js[index], sa, R_QA, pp.paramLA), R_QA, pp.paramLA)
-	// z_c_j_bar_t = y_c_j_bar_t + simga_t(d_c_j_bar)*rc
-	z_c_j_ts[index] = make([]*PolyNTTVecv2, pp.paramK)
-	// z_c_j_bar_tp = y_c_j_bar_tp + simga_t(d_c_j_bar)*rcp
-	z_cp_j_ts[index] = make([]*PolyNTTVecv2, pp.paramK)
-	for i := 0; i < pp.paramK; i++ {
-		z_c_j_ts[index][i] = PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(d_c_js[index], R_QC, i), rc, R_QC, pp.paramLC)
-		z_c_j_ts[index][i] = PolyNTTVecAdd(z_c_j_ts[index][i], y_c_j_bar_ts[index], R_QC, pp.paramLC)
-
-		z_cp_j_ts[index][i] = PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(d_c_js[index], R_QC, i), rcp, R_QC, pp.paramLC)
-		z_cp_j_ts[index][i] = PolyNTTVecAdd(z_cp_j_ts[index][i], y_c_j_bar_tps[index], R_QC, pp.paramLC)
+	z_as[sindex] = pp.PolyANTTVecAdd(y_a, pp.PolyANTTVecScaleMul(dA, sa, pp.paramLA), pp.paramKA)
+	z_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
+	z_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
+	for tao := 0; tao < pp.paramK; tao++ {
+		sigmaTao := pp.sigmaPowerPolyCNTT(dC, tao)
+		z_cs[sindex][tao] = pp.PolyCNTTVecAdd(
+			y_cs[tao],
+			pp.PolyCNTTVecScaleMul(sigmaTao, rc, pp.paramLC),
+			pp.paramLC,
+			)
+		z_cps[sindex][tao] = pp.PolyCNTTVecAdd(
+			y_cps[tao],
+			pp.PolyCNTTVecScaleMul(sigmaTao, rc_p, pp.paramLC),
+			pp.paramLC,
+		)
 	}
 
-	if z_a_js[index].infNormQa() > int64(pp.paramEtaA-pp.paramThetaA*pp.paramGammaA) {
+	if z_as[sindex].infNormQa() > int64(pp.paramEtaA-pp.paramThetaA*pp.paramGammaA) {
 		goto ELRSSignRestartv2
 	}
 	for i := 0; i < pp.paramK; i++ {
@@ -1387,9 +1385,9 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 
 		c_hats := make([]*PolyNTTv2, n2)
 
-		msg_hats := make([][]int32, n2)
+		msg_hats := make([][]int64, n2)
 
-		u_hats := make([][]int32, 3)
+		u_hats := make([][]int64, 3)
 		u_hats[0] = intToBinary(vin, pp.paramDC)
 
 		for j := 0; j < J; j++ {
@@ -1415,7 +1413,7 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 		msg_hats[J] = f
 
 	cbTxGenJ2Restart:
-		e := make([]int32, pp.paramDC)
+		e := make([]int64, pp.paramDC)
 		e, err := pp.sampleUniformWithinEtaFv2()
 		if err != nil {
 			return nil, err
