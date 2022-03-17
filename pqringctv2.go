@@ -71,7 +71,7 @@ type CoinbaseTxv2 struct {
 type CbTxWitnessv2 struct {
 	b_hat      *PolyCNTTVec
 	c_hats     []*PolyCNTT
-	u_p        []int32
+	u_p        []int64
 	rpulpproof *rpulpProofv2
 }
 
@@ -1322,10 +1322,10 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 	retcbTx := &CoinbaseTxv2{}
 	//	retcbTx.Version = 0 // todo: how to set and how to use the version? The bpf just care the content of cbTx?
 	retcbTx.Vin = vin
-	retcbTx.OutputTxos = make([]*TXOv2, J)
+	retcbTx.OutputTxos = make([]*Txo, J)
 
-	cmts := make([]*Commitmentv2, J)
-	cmt_rs := make([]*PolyNTTVecv2, J)
+	cmts := make([]*ValueCommitment, J)
+	cmt_rs := make([]*PolyCNTTVec, J)
 
 	vout := uint64(0)
 	// generate the output using txoGen
@@ -1338,28 +1338,29 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 			return nil, errors.New("the output value is not in [0, V]") // todo: more accurate info, including the i
 		}
 
-		cmts[j], cmt_rs[j], err = pp.ComGen(txOutputDesc.value)
+		txo, cmtr, err := pp.txoGen(txOutputDesc.apk, txOutputDesc.vpk, txOutputDesc.value)
 		if err != nil {
 			return nil, err
 		}
-		retcbTx.OutputTxos[j] = &TXOv2{
-			PublicKey:    txOutputDesc.pk,
-			Commitmentv2: cmts[j],
-		}
+		cmt_rs[j] = cmtr
+		cmts[j] = txo.ValueCommitment
+		retcbTx.OutputTxos[j] = txo
 	}
 	if vout > vin {
 		return nil, errors.New("the output value exceeds the input value") // todo: more accurate info
 	}
 
+	var cbTxCon []byte // todo: collect from cbTxCon
+
 	if J == 1 {
 		// random from S_etaC^lc
-		ys := make([]*PolyNTTVecv2, pp.paramK)
+		ys := make([]*PolyCNTTVec, pp.paramK)
 		// w^t = B * y^t
-		ws := make([]*PolyNTTVecv2, pp.paramK)
+		ws := make([]*PolyCNTTVec, pp.paramK)
 		// delta = <h,y^t>
-		deltas := make([]*PolyNTTv2, pp.paramK)
+		deltas := make([]*PolyCNTT, pp.paramK)
 		// z^t = y^t + sigma^t(c) * r_(out,j), r_(out,j) is from txoGen, in there, r_(out,j) is cmt_rs_j
-		zs := make([]*PolyNTTVecv2, pp.paramK)
+		zs := make([]*PolyCNTTVec, pp.paramK)
 
 	cbTxGenJ1Restart:
 		for t := 0; t < pp.paramK; t++ {
@@ -1368,32 +1369,35 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 			if err != nil {
 				return nil, err
 			}
-			ys[t] = pp.NTTVecInRQc(maskC)
+			ys[t] = pp.NTTPolyCVec(maskC)
 
-			ws[t] = PolyNTTMatrixMulVector(pp.paramMatrixB, ys[t], R_QC, pp.paramKC, pp.paramLC)
-			deltas[t] = PolyNTTVecInnerProduct(pp.paramMatrixH[0], ys[t], R_QC, pp.paramLC)
+			ws[t] = pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, ys[t], pp.paramKC, pp.paramLC)
+			deltas[t] = pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], ys[t], pp.paramLC)
 		}
 
-		chseed, err := Hash(pp.collectBytesForCoinbase1(vin, cmts, ws, deltas))
+		chseed, err := Hash(pp.collectBytesForCoinbase1(cbTxCon, ws, deltas))
 		if err != nil {
 			return nil, err
 		}
-		chtmp, err := pp.expandChallenge(chseed)
+
+		chtmp, err := pp.expandChallenge(chseed)	// todo: rename and use the same with that in Sig
 		if err != nil {
 			return nil, err
 		}
-		ch := pp.NTTInRQc(chtmp)
+		ch := pp.NTTPolyC(chtmp)
 
 		for t := 0; t < pp.paramK; t++ {
-			zs[t] = PolyNTTVecAdd(
+			zs[t] = pp.PolyCNTTVecAdd(
 				ys[t],
-				PolyNTTVecScaleMul(pp.sigmaPowerPolyNTT(ch, R_QC, t), cmt_rs[0], R_QC, pp.paramLC),
-				R_QC,
-				pp.paramLC)
+				pp.PolyCNTTVecScaleMul(
+					pp.sigmaPowerPolyCNTT(ch, t),
+					cmt_rs[0],
+					pp.paramLC,
+					),
+				pp.paramLC,
+				)
 			// check the norm
-			tmp := pp.NTTInvVecInRQc(zs[t])
-			norm := tmp.infNormQc()
-			if norm > pp.paramEtaC-pp.paramBetaC {
+			if pp.NTTInvPolyCVec(zs[t]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 				goto cbTxGenJ1Restart
 			}
 		}
@@ -1403,14 +1407,13 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 				chseed: chseed,
 				zs:     zs,
 			},
-			cmt_rs: cmt_rs,
 		}
 	} else {
 		//	J >= 2
 		n := J
 		n2 := n + 2
 
-		c_hats := make([]*PolyNTTv2, n2)
+		c_hats := make([]*PolyCNTT, n2)
 
 		msg_hats := make([][]int64, n2)
 
@@ -1427,10 +1430,10 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 		//	f[0] = 0, and for i=1 to d-1,
 		//	m_0[i-1]+ ... + m_{J-1}[i-1] + f[i-1] = u[i-1] + 2 f[i],
 		//	m_0[i-1]+ ... + m_{J-1}[i-1] + f[i-1] = u[i-1]
-		f := make([]int32, pp.paramDC)
+		f := make([]int64, pp.paramDC)
 		f[0] = 0
 		for i := 1; i < pp.paramDC; i++ {
-			tmp := int32(0)
+			tmp := int64(0)
 			for j := 0; j < J; j++ {
 				tmp = tmp + msg_hats[j][i-1]
 			}
@@ -1451,23 +1454,24 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 		if err != nil {
 			return nil, err
 		}
-		r_hat := pp.NTTVecInRQc(randomnessC)
+		r_hat := pp.NTTPolyCVec(randomnessC)
 
 		// b_hat =B * r_hat
-		b_hat := PolyNTTMatrixMulVector(pp.paramMatrixB, r_hat, R_QC, pp.paramKC, pp.paramLC)
+		b_hat := pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, r_hat, pp.paramKC, pp.paramLC)
 
 		for i := 0; i < n2; i++ { // n2 = J+2
-			c_hats[i] = PolyNTTAdd(
-				PolyNTTVecInnerProduct(pp.paramMatrixH[i+1], r_hat, R_QC, pp.paramLC),
-				&PolyNTTv2{coeffs1: msg_hats[i]},
-				R_QC)
+			c_hats[i] = pp.PolyCNTTAdd(
+				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], r_hat, pp.paramLC),
+				&PolyCNTT{coeffs: msg_hats[i]},
+				)
 		}
 
 		//	todo: check the scope of u_p in theory
-		u_p := make([]int32, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		u_p := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
 		u_p_tmp := make([]int64, pp.paramDC)
 
-		seed_binM, err := Hash(pp.collectBytesForCoinbase2(b_hat, c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM, err := Hash(pp.collectBytesForCoinbase2(cbTxCon, b_hat, c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+
 		if err != nil {
 			return nil, err
 		}
@@ -1477,10 +1481,10 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 		}
 		// todo: check B f + e
 		for i := 0; i < pp.paramDC; i++ {
-			u_p_tmp[i] = int64(e[i])
+			u_p_tmp[i] = e[i]
 			for j := 0; j < pp.paramDC; j++ {
-				if (binM[i][j/8]>>(j%8))&1 == 1 {
-					u_p_tmp[i] = u_p_tmp[i] + int64(f[j])
+				if (binM[i][j/8]>>(j%8))&1 == 1 { // todo: make sure int64 still works
+					u_p_tmp[i] = u_p_tmp[i] + f[j]
 				}
 			}
 
@@ -1488,18 +1492,21 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 			if infNorm < 0 {
 				infNorm = -infNorm
 			}
-			if infNorm > int64(pp.paramEtaF-int32(J-1)) {
+			if infNorm > pp.paramEtaF-int64(J-1) {
 				goto cbTxGenJ2Restart
 			}
 
-			u_p[i] = reduceToQc(u_p_tmp[i])
+			u_p[i] = reduceInt64(u_p_tmp[i], pp.paramQC) // todo: Do need reduce?
 		}
 
-		u_hats[1] = make([]int32, pp.paramDC)
+		u_hats[1] = make([]int64, pp.paramDC)
+		for i := 0; i < pp.paramDC; i++ {
+			u_hats[1][i] = 0
+		}
 		u_hats[2] = u_p
 
 		n1 := n
-		rprlppi, pi_err := pp.rpulpProve(cmts, cmt_rs, n, b_hat, r_hat, c_hats, msg_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats)
+		rprlppi, pi_err := pp.rpulpProve(cbTxCon, cmts, cmt_rs, n, b_hat, r_hat, c_hats, msg_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats)
 
 		if pi_err != nil {
 			return nil, pi_err
@@ -1510,7 +1517,6 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 			c_hats:     c_hats,
 			u_p:        u_p,
 			rpulpproof: rprlppi,
-			cmt_rs:     cmt_rs,
 		}
 	}
 
@@ -1542,7 +1548,7 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		return false
 	}
 
-	// todo_DONE: check no repeated dpk in cbTx.OutputTxos
+/*	// todo_DONE: check no repeated dpk in cbTx.OutputTxos
 	dpkMap := make(map[*PublicKey]struct{})
 	for i := 0; i < len(cbTx.OutputTxos); i++ {
 		if _, ok := dpkMap[cbTx.OutputTxos[i].PublicKey]; !ok {
@@ -1550,9 +1556,10 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		} else {
 			return false
 		}
-	}
+	}*/
 	// todo: check cbTx.OutputTxos[j].cmt is well-formed
 
+	var cbTxCon []byte // todo
 	if J == 1 {
 		if cbTx.TxWitness.b_hat != nil || cbTx.TxWitness.c_hats != nil || cbTx.TxWitness.u_p != nil {
 			return false
@@ -1575,40 +1582,42 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 			return false
 		}
 		// infNorm of z^t
+		bound := pp.paramEtaC-int64(pp.paramBetaC)
 		for t := 0; t < pp.paramK; t++ {
-			if pp.NTTInvVecInRQc(cbTx.TxWitness.rpulpproof.zs[t]).infNormQc() > pp.paramEtaC-pp.paramBetaC {
+			if pp.NTTInvPolyCVec(cbTx.TxWitness.rpulpproof.zs[t]).infNorm() > bound {
 				return false
 			}
 		}
 
-		ws := make([]*PolyNTTVecv2, pp.paramK)
-		deltas := make([]*PolyNTTv2, pp.paramK)
+		ws := make([]*PolyCNTTVec, pp.paramK)
+		deltas := make([]*PolyCNTT, pp.paramK)
 
-		chtmp, err := pp.expandChallenge(cbTx.TxWitness.rpulpproof.chseed)
+		chtmp, err := pp.expandChallenge(cbTx.TxWitness.rpulpproof.chseed) // todo
 		if err != nil {
 			return false
 		}
-		ch := pp.NTTInRQc(chtmp)
+		ch := pp.NTTPolyC(chtmp)
 		mtmp := intToBinary(cbTx.Vin, pp.paramDC)
 		//msg := pp.NTTInRQc(&Polyv2{coeffs1: mtmp})
-		msg := &PolyNTTv2{coeffs1: mtmp}
+		msg := &PolyCNTT{coeffs: mtmp}
 		for t := 0; t < pp.paramK; t++ {
-			sigma_t_ch := pp.sigmaPowerPolyNTT(ch, R_QC, t)
+			sigma_t_ch := pp.sigmaPowerPolyCNTT(ch, t)
 
-			ws[t] = PolyNTTVecSub(
-				PolyNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], R_QC, pp.paramKC, pp.paramLC),
-				PolyNTTVecScaleMul(sigma_t_ch, cbTx.OutputTxos[0].b, R_QC, pp.paramKC),
-				R_QC,
-				pp.paramKC)
-			deltas[t] = PolyNTTSub(
-				PolyNTTVecInnerProduct(pp.paramMatrixH[0], cbTx.TxWitness.rpulpproof.zs[t], R_QC, pp.paramLC),
-				PolyNTTMul(
+			ws[t] = pp.PolyCNTTVecSub(
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTVecScaleMul(sigma_t_ch, cbTx.OutputTxos[0].ValueCommitment.b, pp.paramKC),
+				pp.paramKC,
+				)
+			deltas[t] = pp.PolyCNTTSub(
+				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], cbTx.TxWitness.rpulpproof.zs[t], pp.paramLC),
+				pp.PolyCNTTMul(
 					sigma_t_ch,
-					PolyNTTSub(cbTx.OutputTxos[0].c, msg, R_QC), R_QC), // Modified?
-				R_QC)
+					pp.PolyCNTTSub(cbTx.OutputTxos[0].c, msg),
+					), // Modified?
+				)
 		}
 
-		seed_ch, err := Hash(pp.collectBytesForCoinbase1(cbTx.Vin, []*Commitmentv2{cbTx.OutputTxos[0].Commitmentv2}, ws, deltas))
+		seed_ch, err := Hash(pp.collectBytesForCoinbase1(cbTxCon, ws, deltas))
 		if err != nil {
 			return false
 		}
@@ -1629,7 +1638,7 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		}
 
 		//	infNorm of u'
-		infNorm := int32(0)
+		infNorm := int64(0)
 		if len(cbTx.TxWitness.u_p) != pp.paramDC {
 			return false
 		}
@@ -1639,7 +1648,7 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 				infNorm = -infNorm
 			}
 
-			if infNorm >= (pp.paramEtaF - int32(J-1)) { // todo: q/12 or eta_f - (J-1)
+			if infNorm >= (pp.paramEtaF - int64(J-1)) { // todo: q/12 or eta_f - (J-1)
 				return false
 			}
 		}
@@ -1653,25 +1662,26 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 			return false
 		}
 
-		u_hats := make([][]int32, 3)
+		u_hats := make([][]int64, 3)
 		u_hats[0] = intToBinary(cbTx.Vin, pp.paramDC)
-		u_hats[1] = make([]int32, pp.paramDC)
+		u_hats[1] = make([]int64, pp.paramDC)
 		u_hats[2] = cbTx.TxWitness.u_p
 
-		cmts := make([]*Commitmentv2, n)
+		cmts := make([]*ValueCommitment, n)
 		for i := 0; i < n; i++ {
-			cmts[i] = cbTx.OutputTxos[i].Commitmentv2
+			cmts[i] = cbTx.OutputTxos[i].ValueCommitment
 		}
 
 		n1 := n
-		flag := pp.rpulpVerify(cmts, n, cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats, cbTx.TxWitness.rpulpproof)
+		flag := pp.rpulpVerify(cbTxCon, cmts, n, cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats, cbTx.TxWitness.rpulpproof)
 		return flag
 	}
 
 	return true
 }
 
-func (pp *PublicParameterv2) collectBytesForCoinbase1(vin uint64, cmts []*Commitmentv2, ws []*PolyNTTVecv2, deltas []*PolyNTTv2) []byte {
+// todo : use the revised parameter
+func (pp *PublicParameterv2) collectBytesForCoinbase1(premsg []byte, ws []*PolyCNTTVec, deltas []*PolyCNTT) []byte {
 	tmp := make([]byte, pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4)
 	appendPolyNTTToBytes := func(a *PolyNTTv2) {
 		for k := 0; k < pp.paramDC; k++ {
@@ -1701,7 +1711,8 @@ func (pp *PublicParameterv2) collectBytesForCoinbase1(vin uint64, cmts []*Commit
 }
 
 // collectBytesForCoinbase2 is an auxiliary function for CoinbaseTxGen and CoinbaseTxVerify to collect some information into a byte slice
-func (pp *PublicParameterv2) collectBytesForCoinbase2(b_hat *PolyNTTVecv2, c_hats []*PolyNTTv2) []byte {
+// 	todo: need take as input the premsg
+func (pp *PublicParameterv2) collectBytesForCoinbase2(premsg []byte, b_hat *PolyNTTVecv2, c_hats []*PolyNTTv2) []byte {
 	res := make([]byte, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
 	appendPolyNTTToBytes := func(a *PolyNTTv2) {
 		for k := 0; k < pp.paramDC; k++ {
@@ -1719,6 +1730,7 @@ func (pp *PublicParameterv2) collectBytesForCoinbase2(b_hat *PolyNTTVecv2, c_hat
 	}
 	return res
 }
+
 
 func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDescs []*TxOutputDescv2, fee uint64, txMemo []byte) (trTx *TransferTxv2, err error) {
 	//	check the well-formness of the inputs and outputs

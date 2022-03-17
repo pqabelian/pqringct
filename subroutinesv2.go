@@ -1117,6 +1117,8 @@ func intMatrixInnerProductWithReduction(a [][]int64, b [][]int64, rowNum int, co
 	return rst
 }
 
+// todo: should be the same with
+//	use name expandChallengeC
 func (pp *PublicParameterv2) expandChallenge(seed []byte) (r *PolyC, err error) {
 	// extend seed via sha3.Shake128
 	ret := pp.NewPolyC()
