@@ -5,6 +5,40 @@ import (
 	"math/big"
 )
 
+func (pp *PublicParameterv2) expandRandomBitsV(seed []byte) (r []byte, err error) {
+	if len(seed) == 0 {
+		return nil, ErrLength
+	}
+	seed = append(seed, 'V')
+	r, err = pp.generateBits(seed, pp.paramDC)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+func (pp *PublicParameterv2) generateBits(seed []byte, length int) ([]byte, error) {
+	var err error
+	// check the length of seed
+	res := make([]byte, length)
+	buf := make([]byte, (length+7)/8)
+	XOF := sha3.NewShake128()
+	for i := 0; i < (length+7)/8; i++ {
+		XOF.Reset()
+		_, err = XOF.Write(append(seed, byte(i)))
+		if err != nil {
+			return nil, err
+		}
+		_, err = XOF.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		for j := 0; j < 8 && 8*i+j < length; j++ {
+			res[8*i+j] = buf[i] & (1 << j) >> j
+		}
+	}
+	return res[:length], nil
+}
+
 func (pp *PublicParameterv2) expandRandomnessAv2(seed []byte) (*PolyAVec, error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
@@ -26,7 +60,56 @@ func (pp *PublicParameterv2) expandRandomnessAv2(seed []byte) (*PolyAVec, error)
 
 	return res, nil
 }
-
+func (pp *PublicParameterv2) expandRandomnessC(seed []byte) (r *PolyCVec, err error) {
+	if len(seed) == 0 {
+		return nil, ErrLength
+	}
+	seed = append(seed, 'C')
+	r, err = pp.generatePolyVecWithProbabilityDistributions(seed, pp.paramLC)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+func (pp *PublicParameterv2) generatePolyVecWithProbabilityDistributions(seed []byte, vecLen int) (*PolyCVec, error) {
+	var err error
+	// check the length of seed
+	ret := pp.NewPolyCVec(vecLen)
+	buf := make([]byte, pp.paramDC*4)
+	XOF := sha3.NewShake128()
+	for i := 0; i < vecLen; i++ {
+		XOF.Reset()
+		_, err = XOF.Write(seed)
+		if err != nil {
+			return nil, err
+		}
+		_, err = XOF.Write([]byte{byte(i)})
+		if err != nil {
+			return nil, err
+		}
+		_, err = XOF.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		_, got, err := randomnessFromProbabilityDistributions(buf, pp.paramDC)
+		if len(got) < pp.paramLC {
+			newBuf := make([]byte, pp.paramDC)
+			_, err = XOF.Read(newBuf)
+			if err != nil {
+				return nil, err
+			}
+			_, newGot, err := randomnessFromProbabilityDistributions(newBuf, pp.paramDC-len(got))
+			if err != nil {
+				return nil, err
+			}
+			got = append(got, newGot...)
+		}
+		for k := 0; k < pp.paramDC; k++ {
+			ret.polyCs[i].coeffs[k] = got[k]
+		}
+	}
+	return ret, nil
+}
 func (pp PublicParameterv2) sampleMaskAv2() (r *PolyAVec, err error) {
 	// 1000_1000_1001_1100_0101
 	res := pp.NewPolyAVec(pp.paramLA)

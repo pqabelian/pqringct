@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
 	"hash"
+	"log"
 	"math/big"
 )
 
@@ -19,12 +20,20 @@ type AddressSecretKey struct {
 	ma *PolyANTT
 }
 
+type versionKEM int
+
+const (
+	KEM_KYBER versionKEM = iota
+)
+
 type ValuePublicKey struct {
-	pkkem *kyber.PublicKey
+	version versionKEM
+	pkkem   *kyber.PublicKey
 }
 
 type ValueSecretKey struct {
-	skkem *kyber.SecretKey
+	version versionKEM
+	skkem   *kyber.SecretKey
 }
 
 func (apk *AddressPublicKey) WellformCheck(pp *PublicParameterv2) bool {
@@ -120,9 +129,9 @@ type SerialNumber struct {
 }
 
 type elrsSignaturev2 struct {
-	seeds  [][]byte
-	z_as   []*PolyANTTVec
-	z_cs   [][]*PolyCNTTVec
+	seeds [][]byte
+	z_as  []*PolyANTTVec
+	z_cs  [][]*PolyCNTTVec
 	z_cps [][]*PolyCNTTVec
 }
 
@@ -157,7 +166,7 @@ func (pp *PublicParameterv2) AddressKeyGen(seed []byte) (apk *AddressPublicKey, 
 		tmp[i] = seed[i]
 	}
 
-	mat := rejectionUniformWithQa(append([]byte{'M', 'A'}, seed...), pp.paramDA)
+	mat := rejectionUniformWithQa(append([]byte{'M', 'A'}, seed...), pp.paramDA, pp.paramQA)
 	ma := &PolyANTT{coeffs: mat}
 
 	// t = A * s, will be as a part of public key
@@ -198,12 +207,15 @@ func (pp *PublicParameterv2) ValueKeyGen(seed []byte) (vpk *ValuePublicKey, vsk 
 		return nil, nil, err
 	}
 
-	//	todo: shall we add kemVersion in type ValuePublicKey and ValueSecretKey
+	// todo: shall we add kemVersion in type ValuePublicKey and ValueSecretKey
+	// Ans: Temporary set it to KEM_KEYBER, if need, we can support other kem scheme
 	vpk = &ValuePublicKey{
-		pkkem: kemPK,
+		version: KEM_KYBER,
+		pkkem:   kemPK,
 	}
 	vsk = &ValueSecretKey{
-		skkem: kemSK,
+		version: KEM_KYBER,
+		skkem:   kemSK,
 	}
 
 	return vpk, vsk, nil
@@ -215,11 +227,10 @@ func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk *ValuePublicKey, 
 	CkemSerialzed, kappa, err := vpk.pkkem.CryptoKemEnc() // todo: rename to Encaps, interface to kem
 
 	//	expand the kappa to PolyCVec with length Lc
-	/*	rctmp, err := pp.expandRandomnessC(kappa)
-		if err != nil {
-			return nil, nil, err
-		}*/
-	var rctmp *PolyCVec //	todo
+	rctmp, err := pp.expandRandomnessC(kappa)
+	if err != nil {
+		return nil, nil, err
+	}
 	cmtr = pp.NTTPolyCVec(rctmp)
 
 	mtmp := intToBinary(vin, pp.paramDC)
@@ -234,12 +245,10 @@ func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk *ValuePublicKey, 
 
 	//	vc = m ^ sk
 	//	todo: the vc should have length only N, to prevent the unused D-N bits of leaking information
-	/*	sk, err := pp.expandRandomBitsV(kappa) // todo:
-		if err != nil {
-			return nil, nil, err
-		}*/
-	var sk []byte
-	kappa = kappa
+	sk, err := pp.expandRandomBitsV(kappa)
+	if err != nil {
+		return nil, nil, err
+	}
 	vct := make([]byte, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
 		vct[i] = sk[i] ^ byte(mtmp[i])
@@ -277,7 +286,7 @@ rpUlpProveRestart:
 		cmt_ws[t] = make([]*PolyCNTTVec, n)
 		for i := 0; i < n; i++ {
 			// random some element in the {s_etaC}^Lc space
-			maskCi, err := pp.sampleMaskCv2() // todo
+			maskCi, err := pp.sampleMaskCv2()
 			if err != nil {
 				return nil, err
 			}
@@ -299,7 +308,6 @@ rpUlpProveRestart:
 	c_hat_g := pp.PolyCNTTAdd(pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], r_hat, pp.paramLC), g)
 
 	// splicing the data to be processed
-	// todo
 	tmp := pp.collectBytesForRPULP1(message, n, n1, n2, binMatrixB, m, cmts, b_hat, c_hats, rpulpType, I, J, u_hats, c_waves, cmt_ws, ws, c_hat_g)
 	seed_rand, err := Hash(tmp) // todo_DONE
 	if err != nil {
@@ -808,46 +816,31 @@ func (pp PublicParameterv2) rpulpVerify(message []byte,
 	return true
 }
 
-//	todo: this method directly samples and returns a PloyANTT
+//	todo_DONE: this method directly samples and returns a PloyANTT
 func (pp *PublicParameterv2) ExpandKIDR(lgtxo *LgrTxo) *PolyANTT {
-	//	todo: directly the serialize of Txo and Id
 	buf := make([]byte, 0, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
-	err = WritePublicKey(w, lgtxo.AddressPublicKey)
+	err = lgtxo.Serialize0(w)
 	if err != nil {
-		return nil
-	}
-	err = WriteCommitmentv2(w, lgtxo.ValueCommitment)
-	if err != nil {
-		return nil
-	}
-	err = writeElement(w, lgtxo.Id)
-	if err != nil {
+		log.Fatalln("error for lgtxo.Serialize0(w)")
 		return nil
 	}
 	seed, err := Hash(w.Bytes())
 	if err != nil {
 		return nil
 	}
-	got := rejectionUniformWithQa(seed, pp.paramDA)
+	got := rejectionUniformWithQa(seed, pp.paramDA, pp.paramQA)
 	return &PolyANTT{coeffs: got}
 }
 
-//	todo: (ringHash, index) shall be ok?
-func (pp *PublicParameterv2) LedgerTxoSerialNumberGen(blockHases []hash.Hash, txo *Txo, index int) []byte {
+//	todo_DONE: (ringHash, index) shall be ok?
+func (pp *PublicParameterv2) LedgerTxoSerialNumberGen(ringHash hash.Hash, index int) []byte {
 	buf := make([]byte, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
-	// block hash_1 ... block hash_n
-	for i := 0; i < len(blockHases); i++ {
-		err = writeElement(w, blockHases[i])
-		if err != nil {
-			return nil
-		}
-	}
-	// txo serialize
-	err = txo.Serialize0(w) // todo:
+	// ringHash
+	err = writeElement(w, ringHash)
 	if err != nil {
 		return nil
 	}
@@ -928,11 +921,11 @@ func (pp *PublicParameterv2) ELRSSign(
 					pp.PolyANTTAdd(
 						lgrTxoList[j].Txo.AddressPublicKey.e,
 						pp.ExpandKIDR(lgrTxoList[j]),
-						),
-						ma_p,
 					),
+					ma_p,
 				),
-			)
+			),
+		)
 
 		z_cs[j] = make([]*PolyCNTTVec, pp.paramK)
 		z_cps[j] = make([]*PolyCNTTVec, pp.paramK)
@@ -964,20 +957,20 @@ func (pp *PublicParameterv2) ELRSSign(
 					sigmatao,
 					cmt_p.b,
 					pp.paramKC,
-					),
+				),
 				pp.paramKC,
-				)
+			)
 			delta_cs[j][tao] = pp.PolyCNTTSub(
 				pp.PolyCNTTVecInnerProduct(
 					pp.paramMatrixH[0],
 					pp.PolyCNTTVecSub(z_cs[j][tao], z_cps[j][tao], pp.paramLC),
 					pp.paramLC,
-					),
+				),
 				pp.PolyCNTTMul(
 					sigmatao,
 					pp.PolyCNTTSub(lgrTxoList[j].Txo.ValueCommitment.c, cmt_p.c),
-					),
-				)
+				),
+			)
 		}
 	}
 
@@ -1012,16 +1005,16 @@ ELRSSignRestartv2:
 		w_cps[sindex][tao] = pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, y_cps[tao], pp.paramKC, pp.paramLC)
 		delta_cs[sindex][tao] = pp.PolyCNTTVecInnerProduct(
 			pp.paramMatrixH[0],
-			pp.PolyCNTTVecSub(y_cs[tao],y_cps[tao], pp.paramLC),
+			pp.PolyCNTTVecSub(y_cs[tao], y_cps[tao], pp.paramLC),
 			pp.paramLC,
 		)
 	}
 
 	seed_ch := pp.collectBytesForELRv2(lgrTxoList, ma_p, cmt_p, msg, w_as, delta_as, w_cs, w_cps, delta_cs)
-/*	seeds[sindex] = make([]byte, len(seed_ch))
-	for i := 0; i < len(seed_ch); i++ {
-		seeds[sindex][i] = seed_ch[i]
-	}*/
+	/*	seeds[sindex] = make([]byte, len(seed_ch))
+		for i := 0; i < len(seed_ch); i++ {
+			seeds[sindex][i] = seed_ch[i]
+		}*/
 	seeds[sindex] = seed_ch
 	seedByteLen := len(seed_ch)
 	for j := 0; j < ringLen; j++ {
@@ -1053,7 +1046,7 @@ ELRSSignRestartv2:
 			y_cs[tao],
 			pp.PolyCNTTVecScaleMul(sigmaTao, rc, pp.paramLC),
 			pp.paramLC,
-			)
+		)
 		z_cps[sindex][tao] = pp.PolyCNTTVecAdd(
 			y_cps[tao],
 			pp.PolyCNTTVecScaleMul(sigmaTao, rc_p, pp.paramLC),
@@ -1075,122 +1068,101 @@ ELRSSignRestartv2:
 		}
 	}
 	return &elrsSignaturev2{
-		seeds:  seeds,
-		z_as:   z_as,
-		z_cs:   z_cs,
+		seeds: seeds,
+		z_as:  z_as,
+		z_cs:  z_cs,
 		z_cps: z_cps,
 	}, nil
 }
 
-// todo: the paper is not accurate, use the following params
+// todo_DONE: the paper is not accurate, use the following params
 func (pp *PublicParameterv2) collectBytesForELRv2(
 	lgxTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment, msg []byte,
 	w_as []*PolyANTTVec, delta_as []*PolyANTT,
-	w_cs [][]*PolyCNTTVec, w_cps [][]*PolyCNTTVec, delta_cs[][]*PolyCNTT) []byte {
+	w_cs [][]*PolyCNTTVec, w_cps [][]*PolyCNTTVec, delta_cs [][]*PolyCNTT) []byte {
 	tt := make([]byte, 0, len(msg)+pp.paramDC*4*
-		(len(txoList)*(pp.paramKA+1+pp.paramKC+1+pp.paramKA+1+pp.paramK*pp.paramKC*2)+
+		(len(lgxTxoList)*(pp.paramKA+1+pp.paramKC+1+pp.paramKA+1+pp.paramK*pp.paramKC*2)+
 			1+pp.paramKC+1))
-	appendPolyNTTToBytes := func(a *PolyNTTv2, rtp reduceType) {
-		switch rtp {
-		case R_QC:
-			for k := 0; k < pp.paramDC; k++ {
-				tt = append(tt, byte(a.coeffs1[k]>>0))
-				tt = append(tt, byte(a.coeffs1[k]>>8))
-				tt = append(tt, byte(a.coeffs1[k]>>16))
-				tt = append(tt, byte(a.coeffs1[k]>>24))
-			}
-		case R_QA:
-			for k := 0; k < pp.paramDA; k++ {
-				tt = append(tt, byte(a.coeffs2[k]>>0))
-				tt = append(tt, byte(a.coeffs2[k]>>8))
-				tt = append(tt, byte(a.coeffs2[k]>>16))
-				tt = append(tt, byte(a.coeffs2[k]>>24))
-				tt = append(tt, byte(a.coeffs2[k]>>32))
-				tt = append(tt, byte(a.coeffs2[k]>>40))
-				tt = append(tt, byte(a.coeffs2[k]>>48))
-				tt = append(tt, byte(a.coeffs2[k]>>56))
-			}
-		default:
-			panic("Unsupported type")
+	w := bytes.NewBuffer(tt)
+	var err error
+	appendPolyANTTToBytes := func(a *PolyANTT) {
+		for k := 0; k < pp.paramDA; k++ {
+			w.Write([]byte{byte(a.coeffs[k] >> 0)})
+			w.Write([]byte{byte(a.coeffs[k] >> 8)})
+			w.Write([]byte{byte(a.coeffs[k] >> 16)})
+			w.Write([]byte{byte(a.coeffs[k] >> 24)})
+			w.Write([]byte{byte(a.coeffs[k] >> 32)})
+			w.Write([]byte{byte(a.coeffs[k] >> 40)})
+			w.Write([]byte{byte(a.coeffs[k] >> 48)})
+			w.Write([]byte{byte(a.coeffs[k] >> 56)})
+
 		}
 	}
-	appendPolyToBytes := func(a *Polyv2, rtp reduceType) {
-		switch rtp {
-		case R_QC:
-			for k := 0; k < pp.paramDC; k++ {
-				tt = append(tt, byte(a.coeffs1[k]>>0))
-				tt = append(tt, byte(a.coeffs1[k]>>8))
-				tt = append(tt, byte(a.coeffs1[k]>>16))
-				tt = append(tt, byte(a.coeffs1[k]>>24))
-			}
-		case R_QA:
-			for k := 0; k < pp.paramDA; k++ {
-				tt = append(tt, byte(a.coeffs2[k]>>0))
-				tt = append(tt, byte(a.coeffs2[k]>>8))
-				tt = append(tt, byte(a.coeffs2[k]>>16))
-				tt = append(tt, byte(a.coeffs2[k]>>24))
-				tt = append(tt, byte(a.coeffs2[k]>>32))
-				tt = append(tt, byte(a.coeffs2[k]>>40))
-				tt = append(tt, byte(a.coeffs2[k]>>48))
-				tt = append(tt, byte(a.coeffs2[k]>>56))
-			}
-		default:
-			panic("Unsupported type")
+	appendPolyCNTTToBytes := func(a *PolyCNTT) {
+		for k := 0; k < pp.paramDC; k++ {
+			w.Write([]byte{byte(a.coeffs[k] >> 0)})
+			w.Write([]byte{byte(a.coeffs[k] >> 8)})
+			w.Write([]byte{byte(a.coeffs[k] >> 16)})
+			w.Write([]byte{byte(a.coeffs[k] >> 24)})
+			w.Write([]byte{byte(a.coeffs[k] >> 32)})
+			w.Write([]byte{byte(a.coeffs[k] >> 40)})
+			w.Write([]byte{byte(a.coeffs[k] >> 48)})
+			w.Write([]byte{byte(a.coeffs[k] >> 56)})
 		}
 	}
 	// msg
-	for i := 0; i < len(msg); i++ {
-		tt = append(tt, msg...)
-	}
+	w.Write(msg)
 	// txoList=[(pk,cmt)]
-	for i := 0; i < len(txoList); i++ {
-		// pk
-		appendPolyToBytes(txoList[i].e, R_QA)
-		for j := 0; j < len(txoList[i].t.polys); j++ {
-			appendPolyToBytes(txoList[i].t.polys[j], R_QA)
+	for i := 0; i < len(lgxTxoList); i++ {
+		err = lgxTxoList[i].Serialize0(w)
+		if err != nil {
+			log.Fatalln("error for lgtxo.Serialize0(w)")
+			return nil
 		}
-		// cmt
-		for j := 0; j < len(txoList[i].b.polyNTTs); j++ {
-			appendPolyNTTToBytes(txoList[i].b.polyNTTs[j], R_QC)
-		}
-		appendPolyNTTToBytes(txoList[i].c, R_QC)
 	}
 	// ma
-	appendPolyToBytes(ma, R_QA)
+	appendPolyANTTToBytes(ma_p)
 	// cmt
-	for i := 0; i < len(cmt.b.polyNTTs); i++ {
-		appendPolyNTTToBytes(cmt.b.polyNTTs[i], R_QC)
+	for i := 0; i < len(cmt_p.b.polyCNTTs); i++ {
+		appendPolyCNTTToBytes(cmt_p.b.polyCNTTs[i])
 	}
-	appendPolyNTTToBytes(cmt.c, R_QC)
+	appendPolyCNTTToBytes(cmt_p.c)
 	// w_a_js
-	for i := 0; i < len(w_a_js); i++ {
-		for j := 0; j < len(w_a_js[i].polys); j++ {
-			appendPolyToBytes(w_a_js[i].polys[j], R_QA)
+	for i := 0; i < len(w_as); i++ {
+		for j := 0; j < len(w_as[i].polyANTTs); j++ {
+			appendPolyANTTToBytes(w_as[i].polyANTTs[j])
 		}
 	}
-	// theta_a_js
-	for i := 0; i < len(theta_a_js); i++ {
-		appendPolyToBytes(theta_a_js[i], R_QA)
+	// delta_a_js
+	for i := 0; i < len(delta_as); i++ {
+		appendPolyANTTToBytes(delta_as[i])
 	}
+
 	// w_c_j_ts
-	for i := 0; i < len(w_c_j_ts); i++ {
-		for j := 0; j < len(w_c_j_ts[i]); j++ {
-			for k := 0; k < len(w_c_j_ts[i][j].polyNTTs); k++ {
-				appendPolyNTTToBytes(w_c_j_ts[i][j].polyNTTs[k], R_QC)
+	for i := 0; i < len(w_cs); i++ {
+		for j := 0; j < len(w_cs[i]); j++ {
+			for k := 0; k < len(w_cs[i][j].polyCNTTs); k++ {
+				appendPolyCNTTToBytes(w_cs[i][j].polyCNTTs[k])
 			}
 		}
 	}
 	// w_c_j_tps
-	for i := 0; i < len(w_c_j_tps); i++ {
-		for j := 0; j < len(w_c_j_tps[i]); j++ {
-			for k := 0; k < len(w_c_j_tps[i][j].polyNTTs); k++ {
-				appendPolyNTTToBytes(w_c_j_tps[i][j].polyNTTs[k], R_QC)
+	for i := 0; i < len(w_cps); i++ {
+		for j := 0; j < len(w_cps[i]); j++ {
+			for k := 0; k < len(w_cps[i][j].polyCNTTs); k++ {
+				appendPolyCNTTToBytes(w_cps[i][j].polyCNTTs[k])
 			}
 		}
 	}
-	hash := sha256.New()
-	hash.Reset()
-	res := hash.Sum(tt)
+	// delta_cs [][]*PolyCNTT
+	for i := 0; i < len(delta_cs); i++ {
+		for j := 0; j < len(delta_cs[i]); j++ {
+			appendPolyCNTTToBytes(delta_cs[i][j])
+		}
+	}
+	sha := sha256.New()
+	sha.Reset()
+	res := sha.Sum(w.Bytes())
 	return res[:]
 }
 
@@ -1199,7 +1171,7 @@ func (pp *PublicParameterv2) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cm
 	if ringLen == 0 {
 		return false
 	}
-	boundA := pp.paramEtaA-int64(pp.paramThetaA*pp.paramGammaA)
+	boundA := pp.paramEtaA - int64(pp.paramThetaA*pp.paramGammaA)
 	boundC := pp.paramEtaC - int64(pp.paramBetaC)
 	for j := 0; j < ringLen; j++ {
 		if pp.NTTInvPolyAVec(sig.z_as[j]).infNorm() > boundA {
