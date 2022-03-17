@@ -27,7 +27,9 @@ func (pp *PublicParameterv2) expandRandomnessAv2(seed []byte) (*PolyVecv2, error
 
 	return res, nil
 }
-func (pp PublicParameterv2) sampleMaskAv2() (r *PolyVecv2, err error) {
+
+// todo: output PolyAVec
+func (pp PublicParameterv2) sampleMaskAv2() (r *PolyAVec, err error) {
 	// 1000_1000_1001_1100_0101
 	polys := make([]*Polyv2, pp.paramLA)
 
