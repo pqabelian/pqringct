@@ -1,6 +1,6 @@
 module github.com/cryptosuite/pqringct
 
-go 1.16
+go 1.18
 
 require (
 	github.com/cryptosuite/kyber-go v0.0.2-0.20220318022548-9e543651df52

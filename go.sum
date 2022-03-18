@@ -1,5 +1,3 @@
-github.com/cryptosuite/kyber-go v0.0.2-0.20220318014804-4b6e2d3cec43 h1:LjazMD7G6l+7kwUtZ5bCj0NAioFy1JHfMFgV+VLSn/8=
-github.com/cryptosuite/kyber-go v0.0.2-0.20220318014804-4b6e2d3cec43/go.mod h1:ODL2JIys2UaTdDEizZgZx0sxJ46QbrsDk6srdvsRM0o=
 github.com/cryptosuite/kyber-go v0.0.2-0.20220318022548-9e543651df52 h1:D58CS3uBRprQLVv0wKuJZUN6uc7fXShxkofO5/mPIp8=
 github.com/cryptosuite/kyber-go v0.0.2-0.20220318022548-9e543651df52/go.mod h1:ODL2JIys2UaTdDEizZgZx0sxJ46QbrsDk6srdvsRM0o=
 golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2/go.mod h1:T9bdIzuCu7OtxOm1hfPfRQxPLYneinmdGuTeoZ9dtd4=
