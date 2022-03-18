@@ -302,7 +302,7 @@ func (pp *PublicParameterv2) NTTInvPolyAVec(polyANTTVec *PolyANTTVec) (polyAVec 
 
 func (pp *PublicParameterv2) PolyANTTAdd(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
-		panic("the length of the input polyANTT is not paramDA")
+		log.Panic("the length of the input polyANTT is not paramDA")
 	}
 	rst := pp.NewPolyANTT()
 	//	var tmp, tmp1, tmp2 big.Int
@@ -318,7 +318,7 @@ func (pp *PublicParameterv2) PolyANTTAdd(a *PolyANTT, b *PolyANTT) (r *PolyANTT)
 
 func (pp *PublicParameterv2) PolyANTTSub(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
-		panic("the length of the input polyANTT is not paramDA")
+		log.Panic("the length of the input polyANTT is not paramDA")
 	}
 	rst := pp.NewPolyANTT()
 	//	var tmp, tmp1, tmp2 big.Int
@@ -338,7 +338,7 @@ ToDO:
 func (pp *PublicParameterv2) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
 	bigQA := big.NewInt(pp.paramQA) // TODO: the big.Int(pp.paramQA) and big.Int(pp.paramQC) should be as a global parameter of system
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
-		panic("the length of the input polyANTT is not paramDC")
+		log.Panic("the length of the input polyANTT is not paramDC")
 	}
 	rst := pp.NewPolyANTT()
 	// the size of every group is pp.paramDA/(pp.paramZetaAOrder/2)
@@ -407,7 +407,7 @@ func (pp *PublicParameterv2) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyAN
 		return nil
 	}
 	if vecLen > len(polyANTTVec.polyANTTs) {
-		panic("vecLen is bigger than the length of polyANTTVec")
+		log.Panic("vecLen is bigger than the length of polyANTTVec")
 	}
 
 	rst := pp.NewPolyANTTVec(vecLen)
@@ -420,7 +420,7 @@ func (pp *PublicParameterv2) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyAN
 
 func (pp *PublicParameterv2) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
-		panic("the length of the input polyANTT is not paramDC")
+		log.Panic("the length of the input polyANTT is not paramDC")
 	}
 
 	rst := pp.NewPolyA()
@@ -438,7 +438,7 @@ func (pp *PublicParameterv2) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
 
 func (pp *PublicParameterv2) PolyASub(a *PolyA, b *PolyA) (r *PolyA) {
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
-		panic("the length of the input polyANTT is not paramDA")
+		log.Panic("the length of the input polyANTT is not paramDA")
 	}
 
 	rst := pp.NewPolyA()
@@ -456,7 +456,7 @@ func (pp *PublicParameterv2) PolyASub(a *PolyA, b *PolyA) (r *PolyA) {
 
 func (pp *PublicParameterv2) PolyAVecAdd(a *PolyAVec, b *PolyAVec, vecLen int) (r *PolyAVec) {
 	if len(a.polyAs) != len(b.polyAs) {
-		panic("the two input polyAVecs have different length")
+		log.Panic("the two input polyAVecs have different length")
 	}
 	rst := pp.NewPolyAVec(vecLen)
 	for i := 0; i < vecLen; i++ {
@@ -467,7 +467,7 @@ func (pp *PublicParameterv2) PolyAVecAdd(a *PolyAVec, b *PolyAVec, vecLen int) (
 
 func (pp *PublicParameterv2) PolyAVecSub(a *PolyAVec, b *PolyAVec, vecLen int) (r *PolyAVec) {
 	if len(a.polyAs) != len(b.polyAs) {
-		panic("the two input polyAVecs have different length")
+		log.Panic("the two input polyAVecs have different length")
 	}
 	rst := pp.NewPolyAVec(vecLen)
 	for i := 0; i < vecLen; i++ {

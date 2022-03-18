@@ -1,6 +1,7 @@
 package pqringct
 
 import (
+	"log"
 	"math/big"
 )
 
@@ -319,7 +320,7 @@ func (pp *PublicParameterv2) NTTInvPolyCVec(polyCNTTVec *PolyCNTTVec) (polyCVec 
 
 func (pp *PublicParameterv2) PolyCNTTAdd(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
-		panic("the length of the input polyCNTT is not paramDC")
+		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
 	rst := pp.NewPolyCNTT()
 	//	var tmp, tmp1, tmp2 big.Int
@@ -335,7 +336,7 @@ func (pp *PublicParameterv2) PolyCNTTAdd(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT)
 
 func (pp *PublicParameterv2) PolyCNTTSub(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
-		panic("the length of the input polyCNTT is not paramDC")
+		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
 	rst := pp.NewPolyCNTT()
 	//	var tmp, tmp1, tmp2 big.Int
@@ -351,7 +352,7 @@ func (pp *PublicParameterv2) PolyCNTTSub(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT)
 
 func (pp *PublicParameterv2) PolyCNTTMul(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
-		panic("the length of the input polyCNTT is not paramDC")
+		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
 	rst := pp.NewPolyCNTT()
 	var tmp, tmp1, tmp2 big.Int
@@ -403,7 +404,7 @@ func (pp *PublicParameterv2) PolyCNTTVecScaleMul(polyCNTTScale *PolyCNTT, polyCN
 		return nil
 	}
 	if vecLen > len(polyCNTTVec.polyCNTTs) {
-		panic("vecLen is bigger than the length of polyCNTTVec")
+		log.Panic("vecLen is bigger than the length of polyCNTTVec")
 	}
 
 	rst := pp.NewPolyCNTTVec(vecLen)
@@ -424,7 +425,7 @@ func (pp *PublicParameterv2) sigmaPowerPolyCNTT(polyCNTT *PolyCNTT, t int) (r *P
 
 func (pp *PublicParameterv2) PolyCAdd(a *PolyC, b *PolyC) (r *PolyC) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
-		panic("the length of the input polyCNTT is not paramDC")
+		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
 
 	rst := pp.NewPolyC()
@@ -442,7 +443,7 @@ func (pp *PublicParameterv2) PolyCAdd(a *PolyC, b *PolyC) (r *PolyC) {
 
 func (pp *PublicParameterv2) PolyCSub(a *PolyC, b *PolyC) (r *PolyC) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
-		panic("the length of the input polyCNTT is not paramDC")
+		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
 
 	rst := pp.NewPolyC()
@@ -460,7 +461,7 @@ func (pp *PublicParameterv2) PolyCSub(a *PolyC, b *PolyC) (r *PolyC) {
 
 func (pp *PublicParameterv2) PolyCVecAdd(a *PolyCVec, b *PolyCVec, vecLen int) (r *PolyCVec) {
 	if len(a.polyCs) != len(b.polyCs) {
-		panic("the two input polyCVecs have different length")
+		log.Panic("the two input polyCVecs have different length")
 	}
 	rst := pp.NewPolyCVec(vecLen)
 	for i := 0; i < vecLen; i++ {
@@ -471,7 +472,7 @@ func (pp *PublicParameterv2) PolyCVecAdd(a *PolyCVec, b *PolyCVec, vecLen int) (
 
 func (pp *PublicParameterv2) PolyCVecSub(a *PolyCVec, b *PolyCVec, vecLen int) (r *PolyCVec) {
 	if len(a.polyCs) != len(b.polyCs) {
-		panic("the two input polyCVecs have different length")
+		log.Panic("the two input polyCVecs have different length")
 	}
 	rst := pp.NewPolyCVec(vecLen)
 	for i := 0; i < vecLen; i++ {
