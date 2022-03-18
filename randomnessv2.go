@@ -407,7 +407,7 @@ func randomnessFromEtaAv2(seed []byte, length int) ([]int64, error) {
 }
 
 // [-5,5]
-func randomnessFromGammaAv2(seed []byte, length int) ([]int64, error) {
+func randomnessFromGammaA5(seed []byte, length int) ([]int64, error) {
 	res := make([]int64, length)
 	bytes := make([]byte, (length+1)/2)
 	if seed == nil {

@@ -8,7 +8,7 @@ import (
 )
 
 func NewPublicParameterV2(
-	paramDA int, paramQA int64, paramThetaA int, paramKA int, paramLambdaA int, paramGammaA int, paramEtaA int32, paramBetaA int,
+	paramDA int, paramQA int64, paramThetaA int, paramKA int, paramLambdaA int, paramGammaA int, paramEtaA int64, paramBetaA int16,
 	paramI int, paramJ int, paramN int,
 	paramDC int, paramQC int64, paramK int, paramKC int, paramLambdaC int, paramEtaC int64, paramBetaC int,
 	paramEtaF int64, paramSysBytes int,
@@ -26,8 +26,6 @@ func NewPublicParameterV2(
 		paramGammaA:       paramGammaA,
 		paramEtaA:         paramEtaA,
 		paramBetaA:        paramBetaA,
-		paramZetaA:        paramZetaA,
-		paramZetaAOrder:   paramZetaAOrder,
 		paramI:            paramI,
 		paramJ:            paramJ,
 		paramN:            paramN,
@@ -44,6 +42,8 @@ func NewPublicParameterV2(
 		//		paramQCm:      	paramQC >> 1,
 		paramDCInv:             paramDCInv,
 		paramKInv:              paramKInv,
+		paramZetaA:        		paramZetaA,
+		paramZetaAOrder:   		paramZetaAOrder,
 		paramZetaC:             paramZetaC,
 		paramZetaCOrder:        paramZetaCOrder,
 		paramSigmaPermutations: paramSigmaPermutations,
@@ -119,13 +119,7 @@ type PublicParameterv2 struct {
 	// For masking
 	paramEtaA int64
 	// For bounding
-	paramBetaA int
-
-	paramZetaA int64
-	// For splitting
-	paramZetasA      []int64
-	paramZetaAOrder  int
-	paramNTTAFactors []int
+	paramBetaA int16
 
 	// Parameter for Commit
 	// paramI defines the maximum number of consumed coins of a transfer transaction
@@ -166,7 +160,7 @@ type PublicParameterv2 struct {
 	paramEtaC int64
 
 	// As paramBetaC is used to specify the infNorm of polys in Ring
-	paramBetaC int
+	paramBetaC int16
 
 	// As paramEtaF may be (q_c-1)/16, we define it with 'int64' type
 	paramEtaF int64
@@ -180,6 +174,12 @@ type PublicParameterv2 struct {
 	paramDCInv int64
 	//paramKInv = k^{-1} mod q_c
 	paramKInv int64
+
+	paramZetaA int64
+	// For splitting
+	paramZetasA      []int64
+	paramZetaAOrder  int
+	paramNTTAFactors []int
 
 	// paramZetaC is a primitive 2d-th root of unity in Z_q^*.
 	// As zeta \in Z_q, we define it with 'int32' type.
@@ -228,12 +228,12 @@ func (pp *PublicParameterv2) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, erro
 	res := make([]*PolyANTTVec, pp.paramKA)
 	unit := pp.NewPolyA()
 	unit.coeffs[0] = 1
-	pp.NTTPolyA(unit)
+	unitNTT := pp.NTTPolyA(unit)
 	for i := 0; i < pp.paramKA; i++ {
 		res[i] = pp.NewPolyANTTVec(pp.paramLA)
 		for j := 0; j < pp.paramLA; j++ {
 			for k := 0; k < pp.paramDA; k++ {
-				res[i].polyANTTs[j].coeffs[k] = unit.coeffs[k]
+				res[i].polyANTTs[j].coeffs[k] = unitNTT.coeffs[k]
 			}
 		}
 	}

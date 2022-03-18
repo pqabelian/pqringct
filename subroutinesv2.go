@@ -39,7 +39,7 @@ func (pp *PublicParameterv2) generateBits(seed []byte, length int) ([]byte, erro
 	return res[:length], nil
 }
 
-func (pp *PublicParameterv2) expandRandomnessAv2(seed []byte) (*PolyAVec, error) {
+func (pp *PublicParameterv2) expandRandomnessA(seed []byte) (*PolyAVec, error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
 	}
@@ -51,7 +51,7 @@ func (pp *PublicParameterv2) expandRandomnessAv2(seed []byte) (*PolyAVec, error)
 			tSeed[j] = seed[j]
 		}
 		tSeed[len(seed)] = byte(i)
-		tmp, err := randomnessFromGammaAv2(tSeed, pp.paramDA)
+		tmp, err := randomnessFromGammaA5(tSeed, pp.paramDA)
 		if err != nil {
 			return nil, err
 		}
@@ -571,7 +571,7 @@ func (pp PublicParameterv2) expandSigAChv2(seeds []byte) (*PolyA, error) {
 	// TODO : About optimization, because the ThetaA must less than DC? so there would use the
 	// 8-th binary for Setting and 0-th to 7-th for Shuffling.
 	// Setting
-	for i := 0; i < int(pp.paramThetaA); i += 8 {
+	for i := 0; i < pp.paramThetaA; i += 8 {
 		for j := 0; j < 8; j++ {
 			if buf[cur]&1<<j == 0 {
 				res[i+j] = -1

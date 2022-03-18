@@ -167,7 +167,7 @@ func (pp *PublicParameterv2) AddressKeyGen(seed []byte) (apk *AddressPublicKey, 
 	for i := 0; i < pp.paramSeedBytesLen; i++ {
 		tmp[i] = seed[i]
 	}
-	ts, err := pp.expandRandomnessAv2(tmp)
+	ts, err := pp.expandRandomnessA(tmp)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1067,7 +1067,7 @@ ELRSSignRestartv2:
 	}
 
 	// todo: here we assume pp.paramThetaA*pp.paramGammaA is small
-	if pp.NTTInvPolyAVec(z_as[sindex]).infNorm() > pp.paramEtaA-int64(pp.paramThetaA*pp.paramGammaA) {
+	if pp.NTTInvPolyAVec(z_as[sindex]).infNorm() > pp.paramEtaA-int64(pp.paramBetaA) {
 		goto ELRSSignRestartv2
 	}
 	for tao := 0; tao < pp.paramK; tao++ {
@@ -1183,7 +1183,7 @@ func (pp *PublicParameterv2) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cm
 	if ringLen == 0 {
 		return false
 	}
-	boundA := pp.paramEtaA - int64(pp.paramThetaA*pp.paramGammaA)
+	boundA := pp.paramEtaA - int64(pp.paramBetaA)
 	boundC := pp.paramEtaC - int64(pp.paramBetaC)
 	for j := 0; j < ringLen; j++ {
 		if pp.NTTInvPolyAVec(sig.z_as[j]).infNorm() > boundA {

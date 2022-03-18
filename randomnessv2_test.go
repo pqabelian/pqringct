@@ -27,13 +27,13 @@ func Test_randomnessFromGammaAv2(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := randomnessFromGammaAv2(tt.args.seed, tt.args.length)
+			got, err := randomnessFromGammaA5(tt.args.seed, tt.args.length)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("randomnessFromGammaAv2() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("randomnessFromGammaA5() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			for i := 0; i < len(got); i++ {
 				if got[i] < int64(-DefaultPPV2.paramGammaA) || got[i] > int64(DefaultPPV2.paramGammaA) {
-					t.Errorf("randomnessFromGammaAv2() sample a value %v", got[i])
+					t.Errorf("randomnessFromGammaA5() sample a value %v", got[i])
 				}
 			}
 		})
@@ -65,7 +65,7 @@ func Test_randomnessFromEtaAv2(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := randomnessFromEtaAv2(tt.args.seed, tt.args.length)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("randomnessFromGammaAv2() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("randomnessFromGammaA5() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			for i := 0; i < len(got); i++ {
 				if got[i] < int64(-DefaultPPV2.paramEtaA) || got[i] > int64(DefaultPPV2.paramEtaA) {
