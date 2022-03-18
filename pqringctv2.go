@@ -863,7 +863,7 @@ func (pp *PublicParameter) ELRSSign(
 		dc := pp.NTTPolyC(tmpC)
 
 		// sample randomness for z_a_j
-		tmpZa, err := pp.sampleZetaAv2()
+		tmpZa, err := pp.sampleZetaA()
 		if err != nil {
 			return nil, err
 		}
@@ -942,7 +942,7 @@ func (pp *PublicParameter) ELRSSign(
 	delta_cs[sindex] = make([]*PolyCNTT, pp.paramK)
 ELRSSignRestartv2:
 	// randomness y_a_j_bar
-	tmpYa, err := pp.sampleMaskAv2()
+	tmpYa, err := pp.sampleMaskA()
 	if err != nil {
 		return nil, err
 	}

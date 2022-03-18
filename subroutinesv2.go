@@ -120,7 +120,7 @@ func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []by
 	}
 	return ret, nil
 }
-func (pp PublicParameter) sampleMaskAv2() (r *PolyAVec, err error) {
+func (pp PublicParameter) sampleMaskA() (r *PolyAVec, err error) {
 	// 1000_1000_1001_1100_0101
 	res := pp.NewPolyAVec(pp.paramLA)
 
@@ -134,7 +134,7 @@ func (pp PublicParameter) sampleMaskAv2() (r *PolyAVec, err error) {
 	return res, nil
 }
 
-func (pp *PublicParameter) sampleZetaAv2() (*PolyAVec, error) {
+func (pp *PublicParameter) sampleZetaA() (*PolyAVec, error) {
 	// 1000_1000_1000_1001_1001
 	res := pp.NewPolyAVec(pp.paramLA)
 
