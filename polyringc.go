@@ -153,7 +153,9 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 	slotNum := zetaCOrder / 2 //	have been factored to irreducible factors, i.e., fully splitting
 	segNum := slotNum
 	segLen := 1
-	factors := pp.paramNTTCFactors
+//	factors := pp.paramNTTCFactors
+	factors := make([]int, len(pp.paramNTTCFactors))
+	copy(factors, pp.paramNTTCFactors)
 
 	finalFactors := make([]int, 2*len(factors))
 	for i := 0; i < len(factors); i++ {

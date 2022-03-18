@@ -138,7 +138,9 @@ func (pp *PublicParameterv2) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
 	slotNum := zetaAOrder / 2 //	have been factored to irreducible factors
 	segNum := slotNum
 	segLen := pp.paramDA / segNum
-	factors := pp.paramNTTAFactors
+	//factors := pp.paramNTTAFactors
+	factors := make([]int, len(pp.paramNTTAFactors))
+	copy(factors, pp.paramNTTAFactors)
 
 	nttCoeffs := make([]int64, pp.paramDA)
 	for i := 0; i < pp.paramDC; i++ {
