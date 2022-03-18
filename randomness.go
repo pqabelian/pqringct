@@ -27,8 +27,8 @@ var Sr Distribution = Distribution{
 	weights:     []int{5, 6, 5},
 }
 
-// randomBytes returns a byte array with given length from crypto/rand.Reader
-func randomBytes(length int) []byte {
+// RandomBytes returns a byte array with given length from crypto/rand.Reader
+func RandomBytes(length int) []byte {
 	res := make([]byte, 0, length)
 	for length > 0 {
 		tmp := make([]byte, length)
@@ -50,7 +50,7 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte, []
 	res := make([]int64, length)
 	// if the seed is nil, acquire the seed from crypto/rand.Reader
 	if seed == nil {
-		seed = randomBytes(length / 2)
+		seed = RandomBytes(length / 2)
 	}
 	// check the length of seed, make sure the randomness is enough
 	if len(seed) < length/2 {
@@ -120,7 +120,7 @@ func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
 	// 1<<22-1
 	bytes := make([]byte, (24*length+7)/8)
 	if seed == nil {
-		seed = randomBytes(32)
+		seed = RandomBytes(32)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
@@ -155,7 +155,7 @@ func randomnessFromEtaC2(seed []byte, length int) ([]int32, error) {
 	// 1<<23-1
 	bytes := make([]byte, (24*length+7)/8)
 	if seed == nil {
-		seed = randomBytes(32)
+		seed = RandomBytes(32)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
@@ -196,7 +196,7 @@ func randomnessFromZetaA(seed []byte, length int) ([]int32, error) {
 	res := make([]int32, 0, length)
 	bytes := make([]byte, (length+7)/8)
 	if seed == nil {
-		seed = randomBytes(32)
+		seed = RandomBytes(32)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
@@ -285,7 +285,7 @@ func randomnessFromZetaC2(seed []byte, length int) ([]int32, error) {
 	res := make([]int32, 0, length)
 	bytes := make([]byte, (length+7)/8)
 	if seed == nil {
-		seed = randomBytes(32)
+		seed = RandomBytes(32)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
@@ -346,7 +346,7 @@ func randomnessFromChallengeSpace(seed []byte, length int) ([]int64, error) {
 	res := make([]int64, length)
 	// if the seed is nil, acquire the seed from crypto/rand.Reader
 	if seed == nil {
-		seed = randomBytes(length / 4)
+		seed = RandomBytes(length / 4)
 	}
 	// check the length of seed, make sure the randomness is enough
 	if len(seed) < length/4 {
@@ -372,7 +372,7 @@ func randomnessFromChallengeSpace(seed []byte, length int) ([]int64, error) {
 
 func randomFromDistribution(seed []byte, dist Distribution, length int) ([]byte, []int) {
 	if seed == nil || len(seed) == 0 {
-		seed = randomBytes(64)
+		seed = RandomBytes(64)
 	}
 	res := make([]int, length)
 	// expand the seed with prf

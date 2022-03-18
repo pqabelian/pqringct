@@ -2,6 +2,7 @@ package pqringct
 
 import (
 	"github.com/cryptosuite/kyber-go/kyber"
+	"github.com/cryptosuite/pqringct/pqringctkem"
 	"golang.org/x/crypto/sha3"
 	"log"
 	"math/big"
@@ -14,7 +15,7 @@ func NewPublicParameterV2(
 	paramEtaF int64, paramSysBytes int,
 	paramDCInv int64, paramKInv int64,
 	paramZetaA int64, paramZetaAOrder int,
-	paramZetaC int64, paramZetaCOrder int, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *kyber.ParameterSet) (*PublicParameterv2, error) {
+	paramZetaC int64, paramZetaCOrder int, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *pqringctkem.ParamKem) (*PublicParameterv2, error) {
 
 	res := &PublicParameterv2{
 		paramDA:           paramDA,
@@ -42,8 +43,8 @@ func NewPublicParameterV2(
 		//		paramQCm:      	paramQC >> 1,
 		paramDCInv:             paramDCInv,
 		paramKInv:              paramKInv,
-		paramZetaA:        		paramZetaA,
-		paramZetaAOrder:   		paramZetaAOrder,
+		paramZetaA:             paramZetaA,
+		paramZetaAOrder:        paramZetaAOrder,
 		paramZetaC:             paramZetaC,
 		paramZetaCOrder:        paramZetaCOrder,
 		paramSigmaPermutations: paramSigmaPermutations,
@@ -261,7 +262,7 @@ type PublicParameterv2 struct {
 	paramMu []int64
 
 	// paramKem defines the key encapsulate mechanism
-	paramKem *kyber.ParameterSet
+	paramKem *pqringctkem.ParamKem
 }
 
 func (pp *PublicParameterv2) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
@@ -345,7 +346,6 @@ func (pp *PublicParameterv2) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTV
 	return res, nil
 }
 
-
 func (pp *PublicParameterv2) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec, err error) {
 	res := make([]*PolyCNTTVec, pp.paramI+pp.paramJ+7)
 
@@ -373,7 +373,6 @@ func (pp *PublicParameterv2) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTV
 
 	return res, nil
 }
-
 
 var DefaultPPV2 *PublicParameterv2
 
@@ -449,8 +448,12 @@ func init() {
 				80, 17, 82, 19, 84, 21, 86, 23, 88, 25, 90, 27, 92, 29, 94, 31,
 			},
 		},
+
 		[]byte("Welcome to Post Quantum World!"), // todo: a more interesting sentence
-		kyber.Kyber768,
+		&pqringctkem.ParamKem{
+			Version: pqringctkem.KEM_KYBER,
+			Kyber:   kyber.Kyber768,
+		},
 	)
 	if err != nil {
 		log.Fatalln(err)

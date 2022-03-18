@@ -419,7 +419,6 @@ func (pp *PublicParameterv2) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyAN
 	return rst
 }
 
-
 func (pp *PublicParameterv2) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
 		log.Panic("the length of the input polyANTT is not paramDC")

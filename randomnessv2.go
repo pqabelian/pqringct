@@ -7,7 +7,7 @@ func randomnessFromZetaAv2(seed []byte, length int) ([]int64, error) {
 	res := make([]int64, length)
 	buf := make([]byte, (length+7)/8)
 	if seed == nil {
-		seed = randomBytes(32)
+		seed = RandomBytes(32)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
@@ -148,7 +148,7 @@ func randomnessFromZetaC2v2(seed []byte, length int) ([]int64, error) {
 	res := make([]int64, 0, length)
 	buf := make([]byte, (length+7)/8)
 	if seed == nil {
-		seed = randomBytes(32)
+		seed = RandomBytes(32)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
@@ -210,7 +210,7 @@ func randomnessFromEtaCv2(seed []byte, length int) ([]int64, error) {
 	res := make([]int64, 0, length)
 	buf := make([]byte, (length+7)/8)
 	if seed == nil {
-		seed = randomBytes(32)
+		seed = RandomBytes(32)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
@@ -270,7 +270,7 @@ func randomnessFromEtaAv2(seed []byte, length int) ([]int64, error) {
 	res := make([]int64, length)
 	buf := make([]byte, (length+7)/8)
 	if seed == nil {
-		seed = randomBytes(32)
+		seed = RandomBytes(32)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
@@ -411,7 +411,7 @@ func randomnessFromGammaA5(seed []byte, length int) ([]int64, error) {
 	res := make([]int64, length)
 	bytes := make([]byte, (length+1)/2)
 	if seed == nil {
-		seed = randomBytes(32)
+		seed = RandomBytes(32)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()

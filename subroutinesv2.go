@@ -5,6 +5,16 @@ import (
 	"math/big"
 )
 
+// RpUlpType is the type for difference transaction
+type RpUlpType uint8
+
+const (
+	RpUlpTypeCbTx1 RpUlpType = 0
+	RpUlpTypeCbTx2 RpUlpType = 1
+	RpUlpTypeTrTx1 RpUlpType = 2
+	RpUlpTypeTrTx2 RpUlpType = 3
+)
+
 func (pp *PublicParameterv2) expandRandomBitsV(seed []byte) (r []byte, err error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
@@ -153,7 +163,7 @@ func (pp PublicParameterv2) sampleZetaC2v2() (r *PolyCVec, err error) {
 func (pp *PublicParameterv2) sampleUniformWithinEtaFv2() ([]int64, error) {
 	//  qc =					0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
 	// (qc-1)/16 = 562949953421632 = 	0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000
-	seed := randomBytes(pp.paramSeedBytesLen)
+	seed := RandomBytes(pp.paramSeedBytesLen)
 	length := pp.paramDC
 	res := make([]int64, 0, length)
 	var curr int
@@ -583,7 +593,7 @@ func (pp *PublicParameterv2) sampleMaskCv2() (r *PolyCVec, err error) {
 	polys := make([]*PolyC, pp.paramLC)
 
 	for i := 0; i < pp.paramLC; i++ {
-		tmp, err := randomnessFromEtaCv2(randomBytes(pp.paramSeedBytesLen), pp.paramDC)
+		tmp, err := randomnessFromEtaCv2(RandomBytes(pp.paramSeedBytesLen), pp.paramDC)
 		if err != nil {
 			return nil, err
 		}
@@ -596,7 +606,7 @@ func (pp *PublicParameterv2) sampleMaskCv2() (r *PolyCVec, err error) {
 }
 func (pp *PublicParameterv2) sampleUniformPloyWithLowZeros() (r *PolyC) {
 	ret := pp.NewPolyC()
-	seed := randomBytes(pp.paramSeedBytesLen)
+	seed := RandomBytes(pp.paramSeedBytesLen)
 	tmp := rejectionUniformWithQc(seed, pp.paramDC-pp.paramK)
 	for i := pp.paramK; i < pp.paramDC; i++ {
 		ret.coeffs[i] = tmp[i-pp.paramK]
@@ -1191,4 +1201,40 @@ func reduceInt64(a int64, q int64) int64 {
 	}
 
 	return r
+}
+
+func intToBinary(v uint64, bitNum int) (bits []int64) {
+	rstbits := make([]int64, bitNum)
+	for i := 0; i < bitNum; i++ {
+		rstbits[i] = int64((v >> i) & 1)
+	}
+	return rstbits
+}
+
+func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err error) {
+	binM = make([][]byte, rownum)
+	XOF := sha3.NewShake128()
+	for i := 0; i < rownum; i++ {
+		buf := make([]byte, (colnum+7)/8)
+		binM[i] = make([]byte, (colnum+7)/8)
+		XOF.Reset()
+		_, err = XOF.Write(append(seed, byte(i)))
+		if err != nil {
+			return nil, err
+		}
+		_, err = XOF.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		binM[i] = buf
+	}
+	return binM, nil
+}
+
+func getMatrixColumn(matrix [][]byte, rowNum int, j int) (col []int64) {
+	retcol := make([]int64, rowNum)
+	for i := 0; i < rowNum; i++ {
+		retcol[i] = int64((matrix[i][j/8] >> (j % 8)) & 1)
+	}
+	return retcol
 }

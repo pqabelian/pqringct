@@ -4,17 +4,6 @@ import (
 	"testing"
 )
 
-func TestPublicParameterv2_ComGen(t *testing.T) {
-	pp := DefaultPPV2
-	v := uint64(100)
-	cmt, r, err := pp.ComGen(v)
-	if err != nil {
-		t.Errorf("error in pp.ComGen with %v", v)
-	}
-	if !pp.ComVerify(cmt, r, v) {
-		t.Errorf("Not matching for pp.ComGen and pp.ComVerify with %v", v)
-	}
-}
 func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 	// generate key pair
 	//seed1 := []byte{
@@ -25,8 +14,13 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 	//	33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 	//}
 	pp := DefaultPPV2
-	_, pk1, _, _ := pp.KeyGen(randomBytes(pp.paramSeedBytesLen))
-	_, pk2, _, _ := pp.KeyGen(randomBytes(pp.paramSeedBytesLen))
+	seed1 := RandomBytes(pp.paramSeedBytesLen)
+	apk1, _, _ := AddressKeyGen(pp, seed1)
+	vpk1, _, _ := ValueKeyGen(pp, seed1)
+
+	seed2 := RandomBytes(pp.paramSeedBytesLen)
+	apk2, _, _ := AddressKeyGen(pp, seed2)
+	vpk2, _, _ := ValueKeyGen(pp, seed2)
 
 	type cbtxGenArgs struct {
 		vin           uint64
@@ -44,7 +38,8 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 				vin: 512,
 				txOutputDescs: []*TxOutputDescv2{
 					{
-						pk:    pk1,
+						apk:   apk1,
+						vpk:   vpk1,
 						value: 512,
 					},
 				},
@@ -58,11 +53,13 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 				vin: 512,
 				txOutputDescs: []*TxOutputDescv2{
 					{
-						pk:    pk1,
+						apk:   apk1,
+						vpk:   vpk1,
 						value: 500,
 					},
 					{
-						pk:    pk2,
+						apk:   apk2,
+						vpk:   vpk2,
 						value: 12,
 					},
 				},
@@ -102,25 +99,34 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	//	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	//	33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 	//}
-	_, pk1, sk1, _ := pp.KeyGen(randomBytes(pp.paramSeedBytesLen))
-	_, pk2, _, _ := pp.KeyGen(randomBytes(pp.paramSeedBytesLen))
+	seed1 := RandomBytes(pp.paramSeedBytesLen)
+	apk1, ask1, _ := AddressKeyGen(pp, seed1)
+	vpk1, vsk1, _ := ValueKeyGen(pp, seed1)
+
+	seed2 := RandomBytes(pp.paramSeedBytesLen)
+	apk2, _, _ := AddressKeyGen(pp, seed2)
+	vpk2, _, _ := ValueKeyGen(pp, seed2)
 	cbTx1, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
 		{
-			pk:    pk1,
+			apk:   apk1,
+			vpk:   vpk1,
 			value: 500,
 		},
 		{
-			pk:    pk2,
+			apk:   apk2,
+			vpk:   vpk2,
 			value: 12,
 		},
 	})
 	cbTx2, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
 		{
-			pk:    pk1,
+			apk:   apk1,
+			vpk:   vpk1,
 			value: 500,
 		},
 		{
-			pk:    pk2,
+			apk:   apk2,
+			vpk:   vpk2,
 			value: 12,
 		},
 	})
@@ -139,30 +145,33 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			name: "test 1",
 			args: args{
 				inputDescs: []*TxInputDescv2{
-					&TxInputDescv2{
-						txoList: []*LGRTXO{
+					{
+						txoList: []*LgrTxo{
 							{
-								TXOv2: *cbTx1.OutputTxos[0],
-								id:    []byte{1},
+								Txo: *cbTx1.OutputTxos[0],
+								Id:  []byte{1},
 							},
 							{
-								TXOv2: *cbTx1.OutputTxos[1],
-								id:    []byte{2},
+								Txo: *cbTx1.OutputTxos[1],
+								Id:  []byte{2},
 							},
 						},
 						sidx:  0,
-						sk:    sk1,
+						ask:   ask1,
+						vpk:   vpk1,
+						vsk:   vsk1,
 						value: 500,
-						r:     cbTx1.TxWitness.cmt_rs[0],
 					},
 				},
 				outputDescs: []*TxOutputDescv2{
 					{
-						pk:    pk1,
+						apk:   apk1,
+						vpk:   vpk1,
 						value: 400,
 					},
 					{
-						pk:    pk2,
+						apk:   apk2,
+						vpk:   vpk2,
 						value: 90,
 					},
 				},
@@ -176,46 +185,50 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			name: "test 2",
 			args: args{
 				inputDescs: []*TxInputDescv2{
-					&TxInputDescv2{
-						txoList: []*LGRTXO{
+					{
+						txoList: []*LgrTxo{
 							{
-								TXOv2: *cbTx1.OutputTxos[0],
-								id:    []byte{1},
+								Txo: *cbTx1.OutputTxos[0],
+								Id:  []byte{1},
 							},
 							{
-								TXOv2: *cbTx1.OutputTxos[1],
-								id:    []byte{2},
+								Txo: *cbTx1.OutputTxos[1],
+								Id:  []byte{2},
 							},
 						},
 						sidx:  0,
-						sk:    sk1,
+						ask:   ask1,
+						vpk:   vpk1,
+						vsk:   vsk1,
 						value: 500,
-						r:     cbTx1.TxWitness.cmt_rs[0],
 					},
-					&TxInputDescv2{
-						txoList: []*LGRTXO{
+					{
+						txoList: []*LgrTxo{
 							{
-								TXOv2: *cbTx2.OutputTxos[0],
-								id:    []byte{1},
+								Txo: *cbTx2.OutputTxos[0],
+								Id:  []byte{1},
 							},
 							{
-								TXOv2: *cbTx2.OutputTxos[1],
-								id:    []byte{2},
+								Txo: *cbTx2.OutputTxos[1],
+								Id:  []byte{2},
 							},
 						},
 						sidx:  0,
-						sk:    sk1,
+						ask:   ask1,
+						vpk:   vpk1,
+						vsk:   vsk1,
 						value: 500,
-						r:     cbTx2.TxWitness.cmt_rs[0],
 					},
 				},
 				outputDescs: []*TxOutputDescv2{
 					{
-						pk:    pk1,
+						apk:   apk1,
+						vpk:   vpk1,
 						value: 800,
 					},
 					{
-						pk:    pk2,
+						apk:   apk2,
+						vpk:   vpk2,
 						value: 190,
 					},
 				},

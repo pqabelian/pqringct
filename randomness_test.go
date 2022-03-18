@@ -29,7 +29,7 @@ func Test_randomnessFromProbabilityDistributions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _,  err := randomnessFromProbabilityDistributions(tt.args.seed, tt.args.length)
+			got, _, err := randomnessFromProbabilityDistributions(tt.args.seed, tt.args.length)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("randomnessFromProbabilityDistributions() error = %value, wantErr %value", err, tt.wantErr)
 				return
@@ -93,10 +93,10 @@ func Test_randomBytes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := randomBytes(tt.args.length)
+			got := RandomBytes(tt.args.length)
 			fmt.Println(got)
 			if reflect.DeepEqual(got, tt.want) {
-				t.Errorf("randomBytes() = %value, want %value", got, tt.want)
+				t.Errorf("RandomBytes() = %value, want %value", got, tt.want)
 			}
 		})
 	}

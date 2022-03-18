@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
-	"github.com/cryptosuite/kyber-go/kyber"
-	"hash"
+	"github.com/cryptosuite/pqringct/pqringctkem"
 	"log"
 	"math/big"
 )
@@ -20,22 +19,6 @@ type AddressSecretKey struct {
 	ma *PolyANTT
 }
 
-type versionKEM int
-
-const (
-	KEM_KYBER versionKEM = iota
-)
-
-type ValuePublicKey struct {
-	version versionKEM
-	pkkem   *kyber.PublicKey
-}
-
-type ValueSecretKey struct {
-	version versionKEM
-	skkem   *kyber.SecretKey
-}
-
 func (apk *AddressPublicKey) WellformCheck(pp *PublicParameterv2) bool {
 	// todo
 	return true
@@ -48,16 +31,6 @@ func (ask *AddressSecretKey) WellformCheck(pp *PublicParameterv2) bool {
 
 func (ask *AddressSecretKey) CheckMatchPublciKey(apk *AddressPublicKey, pp *PublicParameterv2) bool {
 	// todo As=t, <a,s> + m_a = e
-	return true
-}
-
-func (vpk *ValuePublicKey) WellformCheck(pp *PublicParameterv2) bool {
-	// todo
-	return true
-}
-
-func (vsk *ValueSecretKey) WellformCheck(pp *PublicParameterv2) bool {
-	// todo
 	return true
 }
 
@@ -103,13 +76,13 @@ type TxInputDescv2 struct {
 	txoList []*LgrTxo // todo: refactor lgrTxoList
 	sidx    int
 	ask     *AddressSecretKey
-	vpk     *ValuePublicKey
-	vsk     *ValueSecretKey
+	vpk     []byte
+	vsk     []byte
 	value   uint64
 }
 type TxOutputDescv2 struct {
 	apk   *AddressPublicKey
-	vpk   *ValuePublicKey
+	vpk   []byte
 	value uint64
 }
 
@@ -146,11 +119,7 @@ type elrsSignaturev2 struct {
 	z_cps [][]*PolyCNTTVec
 }
 
-/**
-This method does not return seed.
-Seed is genrated by the caller.
-*/
-func (pp *PublicParameterv2) AddressKeyGen(seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
+func AddressKeyGen(pp *PublicParameterv2, seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
 	var s *PolyANTTVec
 
 	// check the validity of the length of seed
@@ -158,7 +127,7 @@ func (pp *PublicParameterv2) AddressKeyGen(seed []byte) (apk *AddressPublicKey, 
 		return nil, nil, errors.New("the length of seed is invalid")
 	}
 	if seed == nil {
-		seed = randomBytes(pp.paramSeedBytesLen)
+		seed = RandomBytes(pp.paramSeedBytesLen)
 	}
 
 	// this temporary byte slice is for protect seed unmodified
@@ -197,46 +166,44 @@ func (pp *PublicParameterv2) AddressKeyGen(seed []byte) (apk *AddressPublicKey, 
 	return apk, ask, nil
 }
 
-func (pp *PublicParameterv2) ValueKeyGen(seed []byte) (vpk *ValuePublicKey, vsk *ValueSecretKey, err error) {
-
-	// check the validity of the length of seed
-	if seed != nil && len(seed) != pp.paramSeedBytesLen {
-		return nil, nil, errors.New("the length of seed is invalid")
-	}
-	if seed == nil {
-		seed = randomBytes(pp.paramSeedBytesLen)
-	}
-
-	// this temporary byte slice is for protect seed unmodified
-	tmp := make([]byte, pp.paramSeedBytesLen)
-	for i := 0; i < pp.paramSeedBytesLen; i++ {
-		tmp[i] = seed[i]
-	}
-
-	kemPK, kemSK, err := pp.paramKem.CryptoKemKeyPair(tmp)
+func (pp *PublicParameterv2) AddressKeyGen(seed []byte) ([]byte, []byte, []byte, error) {
+	apk, ask, err := AddressKeyGen(pp, seed)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	serializedAPk := make([]byte, 0, 4+(len(apk.t.polyANTTs)+1)*pp.paramDA*8)
+	length := int32(len(apk.t.polyANTTs) + 1)
+	serializedAPk = append(serializedAPk, byte(length>>0))
+	serializedAPk = append(serializedAPk, byte(length>>1))
+	serializedAPk = append(serializedAPk, byte(length>>2))
+	serializedAPk = append(serializedAPk, byte(length>>3))
+	serializedAPk = append(serializedAPk, pp.SerializePolyANTTVec(apk.t)...)
+	serializedAPk = append(serializedAPk, pp.SerializePolyANTT(apk.e)...)
 
-	// todo: shall we add kemVersion in type ValuePublicKey and ValueSecretKey
-	// Ans: Temporary set it to KEM_KEYBER, if need, we can support other kem scheme
-	vpk = &ValuePublicKey{
-		version: KEM_KYBER,
-		pkkem:   kemPK,
-	}
-	vsk = &ValueSecretKey{
-		version: KEM_KYBER,
-		skkem:   kemSK,
-	}
+	return serializedAPk, pp.SerializePolyANTT(ask.ma), pp.SerializePolyANTTVec(ask.s), nil
+}
 
-	return vpk, vsk, nil
+func ValueKeyGen(pp *PublicParameterv2, seed []byte) (vpk []byte, vsk []byte, err error) {
+	return pqringctkem.KeyGen(pp.paramKem, seed, pp.paramSeedBytesLen)
+
+}
+
+func (pp *PublicParameterv2) ValueKeyGen(seed []byte) ([]byte, []byte, error) {
+	return ValueKeyGen(pp, seed)
 }
 
 // txoGen returns an transaction output and a random polynomial related to the corresponding transaction output with the master public key and value
-func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk *ValuePublicKey, vin uint64) (txo *Txo, cmtr *PolyCNTTVec, err error) {
+func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk []byte, vin uint64) (txo *Txo, cmtr *PolyCNTTVec, err error) {
 	//	got (C, kappa) from key encapsulate mechanism
-	CkemSerialzed, kappa, err := vpk.pkkem.CryptoKemEnc() // todo: rename to Encaps, interface to kem
-
+	// Restore the KEM version
+	version := uint32(vpk[0]) << 0
+	version |= uint32(vpk[1]) << 8
+	version |= uint32(vpk[2]) << 16
+	version |= uint32(vpk[3]) << 24
+	if pqringctkem.VersionKEM(version) != pp.paramKem.Version {
+		return nil, nil, errors.New("the version of kem is not matched")
+	}
+	CkemSerialzed, kappa, err := pqringctkem.Encaps(pp.paramKem, vpk[4:])
 	//	expand the kappa to PolyCVec with length Lc
 	rctmp, err := pp.expandRandomnessC(kappa)
 	if err != nil {
@@ -274,8 +241,14 @@ func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk *ValuePublicKey, 
 
 	return rettxo, cmtr, nil
 }
+func (pp *PublicParameterv2) rpulpProve(message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec,
+	n int, b_hat *PolyCNTTVec, r_hat *PolyCNTTVec, c_hats []*PolyCNTT, msg_hats [][]int64, n2 int,
+	n1 int, rpulpType RpUlpType, binMatrixB [][]byte,
+	I int, J int, m int, u_hats [][]int64) (rpulppi *rpulpProofv2, err error) {
+	return rpulpProve(pp, message, cmts, cmt_rs, n, b_hat, r_hat, c_hats, msg_hats, n2, n1, rpulpType, binMatrixB, I, J, m, u_hats)
+}
 
-func (pp *PublicParameterv2) rpulpProve(message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec, n int,
+func rpulpProve(pp *PublicParameterv2, message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec, n int,
 	b_hat *PolyCNTTVec, r_hat *PolyCNTTVec, c_hats []*PolyCNTT, msg_hats [][]int64, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte,
 	I int, J int, m int, u_hats [][]int64) (rpulppi *rpulpProofv2, err error) {
@@ -846,26 +819,6 @@ func (pp *PublicParameterv2) ExpandKIDR(lgrtxo *LgrTxo) *PolyANTT {
 }
 
 //	todo_DONE: (ringHash, index) shall be ok?
-func (pp *PublicParameterv2) LedgerTxoIdGen(ringHash hash.Hash, index int) []byte {
-	buf := make([]byte, 0, 1000)
-	w := bytes.NewBuffer(buf)
-	var err error
-	// ringHash
-	err = writeElement(w, ringHash)
-	if err != nil {
-		return nil
-	}
-	// index
-	err = writeElement(w, index)
-	if err != nil {
-		return nil
-	}
-	ret, err := Hash(w.Bytes())
-	if err != nil {
-		return nil
-	}
-	return ret[:]
-}
 
 func (pp *PublicParameterv2) ELRSSign(
 	lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment,
@@ -896,7 +849,7 @@ func (pp *PublicParameterv2) ELRSSign(
 		if j == sindex {
 			continue
 		}
-		seeds[j] = randomBytes(pp.paramSeedBytesLen)
+		seeds[j] = RandomBytes(pp.paramSeedBytesLen)
 
 		tmpA, err := pp.expandChallengeA(seeds[j])
 		if err != nil {
@@ -1788,9 +1741,6 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 		if !outputDescItem.apk.WellformCheck(pp) {
 			return nil, errors.New("the apk is not well-form")
 		}
-		if !outputDescItem.vpk.WellformCheck(pp) {
-			return nil, errors.New("the vpk is not well-form")
-		}
 	}
 
 	I := len(inputDescs)
@@ -1831,7 +1781,25 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 		}
 
 		// run kem.decaps to get kappa
-		kappa := inputDescItem.vsk.skkem.CryptoKemDec(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed)
+		version := uint32(inputDescItem.vsk[0]) << 0
+		version |= uint32(inputDescItem.vsk[1]) << 8
+		version |= uint32(inputDescItem.vsk[2]) << 16
+		version |= uint32(inputDescItem.vsk[3]) << 24
+		if pqringctkem.VersionKEM(version) != pp.paramKem.Version {
+			return nil, errors.New("the version of kem is not matched")
+		}
+		version = uint32(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[0]) << 0
+		version |= uint32(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[1]) << 8
+		version |= uint32(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[2]) << 16
+		version |= uint32(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[3]) << 24
+		if pqringctkem.VersionKEM(version) != pp.paramKem.Version {
+			return nil, errors.New("the version of kem is not matched")
+		}
+
+		kappa, err := pqringctkem.Decaps(pp.paramKem, inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[4:], inputDescItem.vsk[4:])
+		if err != nil {
+			return nil, err
+		}
 
 		//	msgs_in[i] <-- inputDescItem.value
 		msgs_in[i] = intToBinary(inputDescItem.value, pp.paramDC)
@@ -1880,9 +1848,11 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 	cmt_ps := make([]*ValueCommitment, I)
 	cmtr_ps := make([]*PolyCNTTVec, I)
 	for i := 0; i < I; i++ {
+		// extract this as a function named SerialNumberCompute
 		m_r := pp.ExpandKIDR(inputDescs[i].txoList[inputDescs[i].sidx])
 		ma_ps[i] = pp.PolyANTTAdd(inputDescs[i].ask.ma, m_r)
 		sn := pp.SerialNumberCompute(ma_ps[i])
+
 		rettrTx.Inputs[i] = &TrTxInputv2{
 			TxoList:      inputDescs[i].txoList,
 			SerialNumber: sn,
@@ -2376,4 +2346,21 @@ func (pp *PublicParameterv2) SerialNumberCompute(a *PolyANTT) []byte {
 		log.Fatalln("Error call Hash() in SerialNumberCompute")
 	}
 	return res
+}
+
+func (pp *PublicParameterv2) LedgerTXOSerialNumberGen(txo []byte, txolid []byte, skma []byte) []byte {
+	t := make([]byte, 0, len(txo)+len(txolid))
+	t = append(t, txo...)
+	t = append(t, txolid...)
+	seed, err := Hash(t)
+	if err != nil {
+		return nil
+	}
+	got := rejectionUniformWithQa(seed, pp.paramDA, pp.paramQA)
+	m_r := &PolyANTT{coeffs: got}
+
+	ma := pp.DeserializePolyANTT(skma)
+	ma_ps := pp.PolyANTTAdd(ma, m_r)
+	sn := pp.SerialNumberCompute(ma_ps)
+	return sn[:]
 }

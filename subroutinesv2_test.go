@@ -30,7 +30,7 @@ func Test_rejectionUniformWithQc(t *testing.T) {
 			//	t.Errorf("rejectionUniformWithQc() = %v, want %v", got, tt.want)
 			//}
 			for i := 0; i < len(got); i++ {
-				if got[i] < -int32(DefaultPPV2.paramQCm) || got[i] > int32(DefaultPPV2.paramQCm) {
+				if got[i] < -(DefaultPPV2.paramQC-1)>>1 || got[i] > (DefaultPPV2.paramQC-1)>>1 {
 					t.Errorf("rejectionUniformWithQc() sample a value %v", got[i])
 				}
 			}
@@ -59,7 +59,7 @@ func Test_rejectionUniformWithQa(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := rejectionUniformWithQa(tt.args.seed, tt.args.length)
+			got := rejectionUniformWithQa(tt.args.seed, tt.args.length, DefaultPPV2.paramQA)
 			//if !reflect.DeepEqual(got, tt.want) {
 			//	t.Errorf("rejectionUniformWithQc() = %v, want %v", got, tt.want)
 			//}
