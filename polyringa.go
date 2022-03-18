@@ -19,20 +19,20 @@ type PolyANTTVec struct {
 	polyANTTs []*PolyANTT
 }
 
-func (pp *PublicParameterv2) NewPolyA() *PolyA {
+func (pp *PublicParameter) NewPolyA() *PolyA {
 	return &PolyA{coeffs: make([]int64, pp.paramDA)}
 }
-func (pp *PublicParameterv2) NewZeroPolyA() *PolyA {
+func (pp *PublicParameter) NewZeroPolyA() *PolyA {
 	rst := &PolyA{coeffs: make([]int64, pp.paramDA)}
 	for i := 0; i < pp.paramDA; i++ {
 		rst.coeffs[i] = 0
 	}
 	return rst
 }
-func (pp *PublicParameterv2) NewPolyANTT() *PolyANTT {
+func (pp *PublicParameter) NewPolyANTT() *PolyANTT {
 	return &PolyANTT{coeffs: make([]int64, pp.paramDA)}
 }
-func (pp *PublicParameterv2) NewZeroPolyANTT() *PolyANTT {
+func (pp *PublicParameter) NewZeroPolyANTT() *PolyANTT {
 	rst := &PolyANTT{coeffs: make([]int64, pp.paramDA)}
 	for i := 0; i < pp.paramDA; i++ {
 		rst.coeffs[i] = 0
@@ -64,7 +64,7 @@ func (polyAVec *PolyAVec) infNorm() (infNorm int64) {
 	return rst
 }
 
-func (pp *PublicParameterv2) NTTPolyA(polyA *PolyA) *PolyANTT {
+func (pp *PublicParameter) NTTPolyA(polyA *PolyA) *PolyANTT {
 	//	NTT
 	zetaAOrder := pp.paramZetaAOrder
 	slotNum := zetaAOrder / 2 //	will factor to irreducible factors
@@ -132,7 +132,7 @@ func (pp *PublicParameterv2) NTTPolyA(polyA *PolyA) *PolyANTT {
 	return rst
 }
 
-func (pp *PublicParameterv2) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
+func (pp *PublicParameter) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
 	// NTT Inverse
 	zetaAOrder := pp.paramZetaAOrder
 	slotNum := zetaAOrder / 2 //	have been factored to irreducible factors
@@ -248,7 +248,7 @@ func PolyANTTVecEqualCheck(a *PolyANTTVec, b *PolyANTTVec) (eq bool) {
 	return true
 }
 
-func (pp *PublicParameterv2) NewPolyAVec(vecLen int) *PolyAVec {
+func (pp *PublicParameter) NewPolyAVec(vecLen int) *PolyAVec {
 	polys := make([]*PolyA, vecLen)
 	for i := 0; i < vecLen; i++ {
 		polys[i] = pp.NewPolyA()
@@ -256,7 +256,7 @@ func (pp *PublicParameterv2) NewPolyAVec(vecLen int) *PolyAVec {
 	return &PolyAVec{polyAs: polys}
 }
 
-func (pp *PublicParameterv2) NewPolyANTTVec(vecLen int) *PolyANTTVec {
+func (pp *PublicParameter) NewPolyANTTVec(vecLen int) *PolyANTTVec {
 	polyNTTs := make([]*PolyANTT, vecLen)
 	for i := 0; i < vecLen; i++ {
 		polyNTTs[i] = pp.NewPolyANTT()
@@ -264,7 +264,7 @@ func (pp *PublicParameterv2) NewPolyANTTVec(vecLen int) *PolyANTTVec {
 	return &PolyANTTVec{polyANTTs: polyNTTs}
 }
 
-func (pp *PublicParameterv2) NewZeroPolyANTTVec(vecLen int) *PolyANTTVec {
+func (pp *PublicParameter) NewZeroPolyANTTVec(vecLen int) *PolyANTTVec {
 	polyANTTs := make([]*PolyANTT, vecLen)
 	for i := 0; i < vecLen; i++ {
 		polyANTTs[i] = pp.NewZeroPolyANTT()
@@ -272,7 +272,7 @@ func (pp *PublicParameterv2) NewZeroPolyANTTVec(vecLen int) *PolyANTTVec {
 	return &PolyANTTVec{polyANTTs}
 }
 
-func (pp *PublicParameterv2) NTTPolyAVec(polyAVec *PolyAVec) *PolyANTTVec {
+func (pp *PublicParameter) NTTPolyAVec(polyAVec *PolyAVec) *PolyANTTVec {
 	if polyAVec == nil {
 		return nil
 	}
@@ -286,7 +286,7 @@ func (pp *PublicParameterv2) NTTPolyAVec(polyAVec *PolyAVec) *PolyANTTVec {
 	return r
 }
 
-func (pp *PublicParameterv2) NTTInvPolyAVec(polyANTTVec *PolyANTTVec) (polyAVec *PolyAVec) {
+func (pp *PublicParameter) NTTInvPolyAVec(polyANTTVec *PolyANTTVec) (polyAVec *PolyAVec) {
 	if polyANTTVec == nil {
 		return nil
 	}
@@ -301,7 +301,7 @@ func (pp *PublicParameterv2) NTTInvPolyAVec(polyANTTVec *PolyANTTVec) (polyAVec 
 	return r
 }
 
-func (pp *PublicParameterv2) PolyANTTAdd(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
+func (pp *PublicParameter) PolyANTTAdd(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
 		log.Panic("the length of the input polyANTT is not paramDA")
 	}
@@ -317,7 +317,7 @@ func (pp *PublicParameterv2) PolyANTTAdd(a *PolyANTT, b *PolyANTT) (r *PolyANTT)
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyANTTSub(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
+func (pp *PublicParameter) PolyANTTSub(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
 		log.Panic("the length of the input polyANTT is not paramDA")
 	}
@@ -336,7 +336,7 @@ func (pp *PublicParameterv2) PolyANTTSub(a *PolyANTT, b *PolyANTT) (r *PolyANTT)
 /*
 ToDO:
 */
-func (pp *PublicParameterv2) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
+func (pp *PublicParameter) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
 	bigQA := big.NewInt(pp.paramQA) // TODO: the big.Int(pp.paramQA) and big.Int(pp.paramQC) should be as a global parameter of system
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
 		log.Panic("the length of the input polyANTT is not paramDC")
@@ -369,7 +369,7 @@ func (pp *PublicParameterv2) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyANTTVecAdd(a *PolyANTTVec, b *PolyANTTVec, vecLen int) (r *PolyANTTVec) {
+func (pp *PublicParameter) PolyANTTVecAdd(a *PolyANTTVec, b *PolyANTTVec, vecLen int) (r *PolyANTTVec) {
 	var rst = pp.NewPolyANTTVec(vecLen)
 	for i := 0; i < vecLen; i++ {
 		rst.polyANTTs[i] = pp.PolyANTTAdd(a.polyANTTs[i], b.polyANTTs[i])
@@ -377,7 +377,7 @@ func (pp *PublicParameterv2) PolyANTTVecAdd(a *PolyANTTVec, b *PolyANTTVec, vecL
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyANTTVecSub(a *PolyANTTVec, b *PolyANTTVec, vecLen int) (r *PolyANTTVec) {
+func (pp *PublicParameter) PolyANTTVecSub(a *PolyANTTVec, b *PolyANTTVec, vecLen int) (r *PolyANTTVec) {
 	var rst = pp.NewPolyANTTVec(vecLen)
 	for i := 0; i < vecLen; i++ {
 		rst.polyANTTs[i] = pp.PolyANTTSub(a.polyANTTs[i], b.polyANTTs[i])
@@ -385,7 +385,7 @@ func (pp *PublicParameterv2) PolyANTTVecSub(a *PolyANTTVec, b *PolyANTTVec, vecL
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyANTTVecInnerProduct(a *PolyANTTVec, b *PolyANTTVec, vecLen int) (r *PolyANTT) {
+func (pp *PublicParameter) PolyANTTVecInnerProduct(a *PolyANTTVec, b *PolyANTTVec, vecLen int) (r *PolyANTT) {
 	var rst = pp.NewZeroPolyANTT()
 	for i := 0; i < vecLen; i++ {
 		tmp := pp.PolyANTTMul(a.polyANTTs[i], b.polyANTTs[i])
@@ -394,7 +394,7 @@ func (pp *PublicParameterv2) PolyANTTVecInnerProduct(a *PolyANTTVec, b *PolyANTT
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyANTTMatrixMulVector(M []*PolyANTTVec, vec *PolyANTTVec, rowNum int, vecLen int) (r *PolyANTTVec) {
+func (pp *PublicParameter) PolyANTTMatrixMulVector(M []*PolyANTTVec, vec *PolyANTTVec, rowNum int, vecLen int) (r *PolyANTTVec) {
 	rst := &PolyANTTVec{}
 	rst.polyANTTs = make([]*PolyANTT, rowNum)
 	for i := 0; i < rowNum; i++ {
@@ -403,7 +403,7 @@ func (pp *PublicParameterv2) PolyANTTMatrixMulVector(M []*PolyANTTVec, vec *Poly
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyANTTVec *PolyANTTVec, vecLen int) (r *PolyANTTVec) {
+func (pp *PublicParameter) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyANTTVec *PolyANTTVec, vecLen int) (r *PolyANTTVec) {
 	if polyANTTScale == nil || polyANTTVec == nil {
 		return nil
 	}
@@ -418,7 +418,7 @@ func (pp *PublicParameterv2) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyAN
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
+func (pp *PublicParameter) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
 		log.Panic("the length of the input polyANTT is not paramDC")
 	}
@@ -436,7 +436,7 @@ func (pp *PublicParameterv2) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyASub(a *PolyA, b *PolyA) (r *PolyA) {
+func (pp *PublicParameter) PolyASub(a *PolyA, b *PolyA) (r *PolyA) {
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
 		log.Panic("the length of the input polyANTT is not paramDA")
 	}
@@ -454,7 +454,7 @@ func (pp *PublicParameterv2) PolyASub(a *PolyA, b *PolyA) (r *PolyA) {
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyAVecAdd(a *PolyAVec, b *PolyAVec, vecLen int) (r *PolyAVec) {
+func (pp *PublicParameter) PolyAVecAdd(a *PolyAVec, b *PolyAVec, vecLen int) (r *PolyAVec) {
 	if len(a.polyAs) != len(b.polyAs) {
 		log.Panic("the two input polyAVecs have different length")
 	}
@@ -465,7 +465,7 @@ func (pp *PublicParameterv2) PolyAVecAdd(a *PolyAVec, b *PolyAVec, vecLen int) (
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyAVecSub(a *PolyAVec, b *PolyAVec, vecLen int) (r *PolyAVec) {
+func (pp *PublicParameter) PolyAVecSub(a *PolyAVec, b *PolyAVec, vecLen int) (r *PolyAVec) {
 	if len(a.polyAs) != len(b.polyAs) {
 		log.Panic("the two input polyAVecs have different length")
 	}
@@ -476,7 +476,7 @@ func (pp *PublicParameterv2) PolyAVecSub(a *PolyAVec, b *PolyAVec, vecLen int) (
 	return rst
 }
 
-func (pp *PublicParameterv2) MulKaratsuba(a, b []int64, n int) []int64 {
+func (pp *PublicParameter) MulKaratsuba(a, b []int64, n int) []int64 {
 	bigQA := big.NewInt(pp.paramQA)
 	if len(a) != 2*n || len(b) != 2*n {
 		log.Fatal("MulKaratsuba() called by array with invalid length")
@@ -613,7 +613,7 @@ func BigNumberMultiplication(a int64, b int64) (ans int64) {
 	}
 	return reduceToQa(an)
 }
-func (pp *PublicParameterv2) Divide(z *Polyv2) (res [3][3][3]*Polyv2) {
+func (pp *PublicParameter) Divide(z *Polyv2) (res [3][3][3]*Polyv2) {
 	for i := 1; i < 3; i++ {
 		for j := 1; j < 3; j++ {
 			for k := 1; k < 3; k++ {
@@ -663,7 +663,7 @@ func (pp *PublicParameterv2) Divide(z *Polyv2) (res [3][3][3]*Polyv2) {
 	}
 	return res
 }
-func (pp *PublicParameterv2) Mul(a, b *Polyv2) *Polyv2 {
+func (pp *PublicParameter) Mul(a, b *Polyv2) *Polyv2 {
 	da := pp.Divide(a)
 	db := pp.Divide(b)
 	var dz [3][3][3]*Polyv2

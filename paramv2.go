@@ -8,16 +8,16 @@ import (
 	"math/big"
 )
 
-func NewPublicParameterV2(
+func NewPublicParameter(
 	paramDA int, paramQA int64, paramThetaA int, paramKA int, paramLambdaA int, paramGammaA int, paramEtaA int64, paramBetaA int16,
 	paramI int, paramJ int, paramN int,
 	paramDC int, paramQC int64, paramK int, paramKC int, paramLambdaC int, paramEtaC int64, paramBetaC int16,
 	paramEtaF int64, paramSysBytes int,
 	paramDCInv int64, paramKInv int64,
 	paramZetaA int64, paramZetaAOrder int,
-	paramZetaC int64, paramZetaCOrder int, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *pqringctkem.ParamKem) (*PublicParameterv2, error) {
+	paramZetaC int64, paramZetaCOrder int, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *pqringctkem.ParamKem) (*PublicParameter, error) {
 
-	res := &PublicParameterv2{
+	res := &PublicParameter{
 		paramDA:           paramDA,
 		paramQA:           paramQA,
 		paramThetaA:       paramThetaA,
@@ -145,7 +145,7 @@ func NewPublicParameterV2(
 	return res, nil
 }
 
-type PublicParameterv2 struct {
+type PublicParameter struct {
 	// Paramter for Address
 	paramDA int
 	paramQA int64
@@ -267,7 +267,7 @@ type PublicParameterv2 struct {
 	paramKem *pqringctkem.ParamKem
 }
 
-func (pp *PublicParameterv2) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
+func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
 	res := make([]*PolyANTTVec, pp.paramKA)
 
 	unit := pp.NewZeroPolyA()
@@ -297,7 +297,7 @@ func (pp *PublicParameterv2) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, erro
 	return res, nil
 }
 
-func (pp *PublicParameterv2) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
+func (pp *PublicParameter) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
 	unit := pp.NewZeroPolyA()
 	unit.coeffs[0] = 1
 	unitNTT := pp.NTTPolyA(unit)
@@ -319,7 +319,7 @@ func (pp *PublicParameterv2) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
 	return res, nil
 }
 
-func (pp *PublicParameterv2) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec, err error) {
+func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec, err error) {
 	res := make([]*PolyCNTTVec, pp.paramKC)
 
 	unit := pp.NewZeroPolyC()
@@ -348,7 +348,7 @@ func (pp *PublicParameterv2) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTV
 	return res, nil
 }
 
-func (pp *PublicParameterv2) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec, err error) {
+func (pp *PublicParameter) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec, err error) {
 	res := make([]*PolyCNTTVec, pp.paramI+pp.paramJ+7)
 
 	unitPoly := pp.NewZeroPolyC()
@@ -376,12 +376,12 @@ func (pp *PublicParameterv2) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTV
 	return res, nil
 }
 
-var DefaultPPV2 *PublicParameterv2
+var DefaultPPV2 *PublicParameter
 
 func init() {
 	var err error
 
-	DefaultPPV2, err = NewPublicParameterV2(
+	DefaultPPV2, err = NewPublicParameter(
 		256,
 		137438953937,
 		60,

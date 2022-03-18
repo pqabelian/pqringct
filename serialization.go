@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-func (pp *PublicParameterv2) SerializePolyCNTT(a *PolyCNTT) []byte {
+func (pp *PublicParameter) SerializePolyCNTT(a *PolyCNTT) []byte {
 	tmp := make([]byte, 0, pp.paramDC*8)
 	w := bytes.NewBuffer(tmp)
 	for k := 0; k < pp.paramDC; k++ {
@@ -23,7 +23,7 @@ func (pp *PublicParameterv2) SerializePolyCNTT(a *PolyCNTT) []byte {
 	return tmp
 }
 
-func (pp *PublicParameterv2) SerializePolyCNTTVec(a *PolyCNTTVec) []byte {
+func (pp *PublicParameter) SerializePolyCNTTVec(a *PolyCNTTVec) []byte {
 	tmp := make([]byte, 0, 4+len(a.polyCNTTs)*pp.paramDC*8)
 	w := bytes.NewBuffer(tmp)
 	length := int32(len(a.polyCNTTs))
@@ -46,7 +46,7 @@ func (pp *PublicParameterv2) SerializePolyCNTTVec(a *PolyCNTTVec) []byte {
 	return tmp
 }
 
-func (pp *PublicParameterv2) SerializePolyANTT(a *PolyANTT) []byte {
+func (pp *PublicParameter) SerializePolyANTT(a *PolyANTT) []byte {
 	tmp := make([]byte, 0, pp.paramDA*8)
 	w := bytes.NewBuffer(tmp)
 	for k := 0; k < pp.paramDA; k++ {
@@ -61,7 +61,7 @@ func (pp *PublicParameterv2) SerializePolyANTT(a *PolyANTT) []byte {
 	}
 	return tmp
 }
-func (pp *PublicParameterv2) DeserializePolyANTT(a []byte) *PolyANTT {
+func (pp *PublicParameter) DeserializePolyANTT(a []byte) *PolyANTT {
 	tmp := make([]int64, pp.paramDA)
 	var r int64
 	for k := 0; k < len(a); k += 8 {
@@ -77,7 +77,7 @@ func (pp *PublicParameterv2) DeserializePolyANTT(a []byte) *PolyANTT {
 	return &PolyANTT{coeffs: tmp}
 }
 
-func (pp *PublicParameterv2) SerializePolyANTTVec(a *PolyANTTVec) []byte {
+func (pp *PublicParameter) SerializePolyANTTVec(a *PolyANTTVec) []byte {
 	// length
 	tmp := make([]byte, 0, 4+len(a.polyANTTs)*pp.paramDA*8)
 	length := int32(len(a.polyANTTs))

@@ -15,7 +15,7 @@ const (
 	RpUlpTypeTrTx2 RpUlpType = 3
 )
 
-func (pp *PublicParameterv2) expandRandomBitsV(seed []byte) (r []byte, err error) {
+func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte, err error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
 	}
@@ -26,7 +26,7 @@ func (pp *PublicParameterv2) expandRandomBitsV(seed []byte) (r []byte, err error
 	}
 	return r, nil
 }
-func (pp *PublicParameterv2) generateBits(seed []byte, length int) ([]byte, error) {
+func (pp *PublicParameter) generateBits(seed []byte, length int) ([]byte, error) {
 	var err error
 	// check the length of seed
 	res := make([]byte, length)
@@ -49,7 +49,7 @@ func (pp *PublicParameterv2) generateBits(seed []byte, length int) ([]byte, erro
 	return res[:length], nil
 }
 
-func (pp *PublicParameterv2) expandRandomnessA(seed []byte) (*PolyAVec, error) {
+func (pp *PublicParameter) expandRandomnessA(seed []byte) (*PolyAVec, error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
 	}
@@ -70,7 +70,7 @@ func (pp *PublicParameterv2) expandRandomnessA(seed []byte) (*PolyAVec, error) {
 
 	return res, nil
 }
-func (pp *PublicParameterv2) expandRandomnessC(seed []byte) (r *PolyCVec, err error) {
+func (pp *PublicParameter) expandRandomnessC(seed []byte) (r *PolyCVec, err error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
 	}
@@ -81,7 +81,7 @@ func (pp *PublicParameterv2) expandRandomnessC(seed []byte) (r *PolyCVec, err er
 	}
 	return r, nil
 }
-func (pp *PublicParameterv2) generatePolyVecWithProbabilityDistributions(seed []byte, vecLen int) (*PolyCVec, error) {
+func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []byte, vecLen int) (*PolyCVec, error) {
 	var err error
 	// check the length of seed
 	ret := pp.NewPolyCVec(vecLen)
@@ -120,7 +120,7 @@ func (pp *PublicParameterv2) generatePolyVecWithProbabilityDistributions(seed []
 	}
 	return ret, nil
 }
-func (pp PublicParameterv2) sampleMaskAv2() (r *PolyAVec, err error) {
+func (pp PublicParameter) sampleMaskAv2() (r *PolyAVec, err error) {
 	// 1000_1000_1001_1100_0101
 	res := pp.NewPolyAVec(pp.paramLA)
 
@@ -134,7 +134,7 @@ func (pp PublicParameterv2) sampleMaskAv2() (r *PolyAVec, err error) {
 	return res, nil
 }
 
-func (pp *PublicParameterv2) sampleZetaAv2() (*PolyAVec, error) {
+func (pp *PublicParameter) sampleZetaAv2() (*PolyAVec, error) {
 	// 1000_1000_1000_1001_1001
 	res := pp.NewPolyAVec(pp.paramLA)
 
@@ -148,7 +148,7 @@ func (pp *PublicParameterv2) sampleZetaAv2() (*PolyAVec, error) {
 	return res, nil
 }
 
-func (pp PublicParameterv2) sampleZetaC2v2() (r *PolyCVec, err error) {
+func (pp PublicParameter) sampleZetaC2v2() (r *PolyCVec, err error) {
 	res := pp.NewPolyCVec(pp.paramLC)
 
 	for i := 0; i < pp.paramLC; i++ {
@@ -160,7 +160,7 @@ func (pp PublicParameterv2) sampleZetaC2v2() (r *PolyCVec, err error) {
 	}
 	return res, nil
 }
-func (pp *PublicParameterv2) sampleUniformWithinEtaFv2() ([]int64, error) {
+func (pp *PublicParameter) sampleUniformWithinEtaFv2() ([]int64, error) {
 	//  qc =					0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
 	// <(qc-1)/16 = 562949953421632 = 	0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000<qc/12
 	// 1<<49-1
@@ -291,7 +291,7 @@ func (pp *PublicParameterv2) sampleUniformWithinEtaFv2() ([]int64, error) {
 }
 
 // generatePolyCNTTMatrix generate a matrix with rowLength * colLength, and the element in matrix is length
-func (pp *PublicParameterv2) generatePolyCNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyCNTTVec, error) {
+func (pp *PublicParameter) generatePolyCNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyCNTTVec, error) {
 	// check the length of seed
 	res := make([]*PolyCNTTVec, rowLength)
 	for i := 0; i < rowLength; i++ {
@@ -309,7 +309,7 @@ func (pp *PublicParameterv2) generatePolyCNTTMatrix(seed []byte, rowLength int, 
 	}
 	return res, nil
 }
-func (pp *PublicParameterv2) generatePolyANTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyANTTVec, error) {
+func (pp *PublicParameter) generatePolyANTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyANTTVec, error) {
 	// check the length of seed
 	res := make([]*PolyANTTVec, rowLength)
 	for i := 0; i < rowLength; i++ {
@@ -515,7 +515,7 @@ func rejectionUniformWithQa(seed []byte, length int, bound int64) []int64 {
 // expandSigACh should output a {-1,0,1}^DC vector with the number of not-0 is theta_a from a byte array
 // Firstly, set the 1 or -1 with total number is theta
 // Secondly, shuffle the array using the Knuth-Durstenfeld Shuffle
-func (pp PublicParameterv2) expandChallengeA(seeds []byte) (*PolyA, error) {
+func (pp PublicParameter) expandChallengeA(seeds []byte) (*PolyA, error) {
 	seed := make([]byte, len(seeds)+2)
 	for i := 0; i < len(seeds); i++ {
 		seed[i] = seeds[i]
@@ -578,7 +578,7 @@ func (pp PublicParameterv2) expandChallengeA(seeds []byte) (*PolyA, error) {
 	return &PolyA{coeffs: res}, nil
 }
 
-func (pp PublicParameterv2) expandChallengeC(seeds []byte) (*PolyC, error) {
+func (pp PublicParameter) expandChallengeC(seeds []byte) (*PolyC, error) {
 	seed := make([]byte, len(seeds))
 	for i := 0; i < len(seeds); i++ {
 		seed[i] = seeds[i]
@@ -609,7 +609,7 @@ func (pp PublicParameterv2) expandChallengeC(seeds []byte) (*PolyC, error) {
 }
 
 // todo: rename with C
-func (pp *PublicParameterv2) sampleRandomnessRv2() (*PolyCVec, error) {
+func (pp *PublicParameter) sampleRandomnessRv2() (*PolyCVec, error) {
 	polys := make([]*PolyC, pp.paramLC)
 	var err error
 	for i := 0; i < pp.paramLC; i++ {
@@ -626,7 +626,7 @@ func (pp *PublicParameterv2) sampleRandomnessRv2() (*PolyCVec, error) {
 	return res, nil
 }
 
-func (pp *PublicParameterv2) sampleMaskCv2() (r *PolyCVec, err error) {
+func (pp *PublicParameter) sampleMaskCv2() (r *PolyCVec, err error) {
 	// etaC
 	polys := make([]*PolyC, pp.paramLC)
 
@@ -642,7 +642,7 @@ func (pp *PublicParameterv2) sampleMaskCv2() (r *PolyCVec, err error) {
 	}
 	return rst, nil
 }
-func (pp *PublicParameterv2) sampleUniformPloyWithLowZeros() (r *PolyC) {
+func (pp *PublicParameter) sampleUniformPloyWithLowZeros() (r *PolyC) {
 	ret := pp.NewPolyC()
 	seed := RandomBytes(pp.paramSeedBytesLen)
 	tmp := rejectionUniformWithQc(seed, pp.paramDC-pp.paramK)
@@ -652,7 +652,7 @@ func (pp *PublicParameterv2) sampleUniformPloyWithLowZeros() (r *PolyC) {
 	return ret
 }
 
-func (pp *PublicParameterv2) collectBytesForRPULP1(message []byte,
+func (pp *PublicParameter) collectBytesForRPULP1(message []byte,
 	n int, n1 int, n2 int, binMatrixB [][]byte, m int,
 	cmts []*ValueCommitment, b_hat *PolyCNTTVec, c_hats []*PolyCNTT,
 	rpulpType RpUlpType, I int, J int, u_hats [][]int64, c_waves []*PolyCNTT,
@@ -744,7 +744,7 @@ func (pp *PublicParameterv2) collectBytesForRPULP1(message []byte,
 }
 
 // collectBytesForRPULP2 is an auxiliary function for rpulpProve and rpulpVerify to collect some information into a byte slice
-func (pp *PublicParameterv2) collectBytesForRPULP2(
+func (pp *PublicParameter) collectBytesForRPULP2(
 	tmp []byte, delta_waves [][]*PolyCNTT, delta_hats [][]*PolyCNTT,
 	psi *PolyCNTT, psip *PolyCNTT, phi *PolyCNTT, phips []*PolyCNTT) []byte {
 
@@ -788,7 +788,7 @@ func (pp *PublicParameterv2) collectBytesForRPULP2(
 	return tmp
 }
 
-func (pp *PublicParameterv2) expandUniformRandomnessInRqZqC(seed []byte, n1 int, m int) (alphas []*PolyCNTT, betas []*PolyCNTT, gammas [][][]int64, err error) {
+func (pp *PublicParameter) expandUniformRandomnessInRqZqC(seed []byte, n1 int, m int) (alphas []*PolyCNTT, betas []*PolyCNTT, gammas [][][]int64, err error) {
 	alphas = make([]*PolyCNTT, n1)
 	betas = make([]*PolyCNTT, pp.paramK)
 	gammas = make([][][]int64, pp.paramK)
@@ -876,7 +876,7 @@ func (pp *PublicParameterv2) expandUniformRandomnessInRqZqC(seed []byte, n1 int,
 	return alphas, betas, gammas, nil
 }
 
-func (pp *PublicParameterv2) sigmaInvPolyCNTT(polyCNTT *PolyCNTT, t int) (r *PolyCNTT) {
+func (pp *PublicParameter) sigmaInvPolyCNTT(polyCNTT *PolyCNTT, t int) (r *PolyCNTT) {
 	coeffs := make([]int64, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
 		coeffs[i] = polyCNTT.coeffs[pp.paramSigmaPermutations[(pp.paramK-t)%pp.paramK][i]]
@@ -884,7 +884,7 @@ func (pp *PublicParameterv2) sigmaInvPolyCNTT(polyCNTT *PolyCNTT, t int) (r *Pol
 	return &PolyCNTT{coeffs: coeffs}
 }
 
-func (pp *PublicParameterv2) sigmaInvPolyNTT(polyNTT *PolyCNTT, t int) (r *PolyCNTT) {
+func (pp *PublicParameter) sigmaInvPolyNTT(polyNTT *PolyCNTT, t int) (r *PolyCNTT) {
 	coeffs := make([]int64, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
 		coeffs[i] = polyNTT.coeffs[pp.paramSigmaPermutations[(pp.paramK-t)%pp.paramK][i]]
@@ -892,7 +892,7 @@ func (pp *PublicParameterv2) sigmaInvPolyNTT(polyNTT *PolyCNTT, t int) (r *PolyC
 	return &PolyCNTT{coeffs: coeffs}
 }
 
-func (pp *PublicParameterv2) genUlpPolyCNTTs(rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, gammas [][][]int64) (ps [][]*PolyCNTT) {
+func (pp *PublicParameter) genUlpPolyCNTTs(rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, gammas [][][]int64) (ps [][]*PolyCNTT) {
 	p := make([][]*PolyCNTT, pp.paramK)
 	//	var tmp1, tmp2 big.Int
 
@@ -1183,7 +1183,7 @@ func intMatrixInnerProductWithReduction(a [][]int64, b [][]int64, rowNum int, co
 
 // todo: should be the same with
 //	use name expandChallengeC
-func (pp *PublicParameterv2) expandChallenge(seed []byte) (r *PolyC, err error) {
+func (pp *PublicParameter) expandChallenge(seed []byte) (r *PolyC, err error) {
 	// extend seed via sha3.Shake128
 	ret := pp.NewPolyC()
 	buf := make([]byte, pp.paramDC/4)

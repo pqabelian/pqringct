@@ -19,17 +19,17 @@ type AddressSecretKey struct {
 	ma *PolyANTT
 }
 
-func (apk *AddressPublicKey) WellformCheck(pp *PublicParameterv2) bool {
+func (apk *AddressPublicKey) WellformCheck(pp *PublicParameter) bool {
 	// todo
 	return true
 }
 
-func (ask *AddressSecretKey) WellformCheck(pp *PublicParameterv2) bool {
+func (ask *AddressSecretKey) WellformCheck(pp *PublicParameter) bool {
 	// todo
 	return true
 }
 
-func (ask *AddressSecretKey) CheckMatchPublciKey(apk *AddressPublicKey, pp *PublicParameterv2) bool {
+func (ask *AddressSecretKey) CheckMatchPublciKey(apk *AddressPublicKey, pp *PublicParameter) bool {
 	// todo As=t, <a,s> + m_a = e
 	return true
 }
@@ -119,7 +119,7 @@ type elrsSignaturev2 struct {
 	z_cps [][]*PolyCNTTVec
 }
 
-func AddressKeyGen(pp *PublicParameterv2, seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
+func AddressKeyGen(pp *PublicParameter, seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
 	var s *PolyANTTVec
 
 	// check the validity of the length of seed
@@ -166,7 +166,7 @@ func AddressKeyGen(pp *PublicParameterv2, seed []byte) (apk *AddressPublicKey, a
 	return apk, ask, nil
 }
 
-func (pp *PublicParameterv2) AddressKeyGen(seed []byte) ([]byte, []byte, []byte, error) {
+func (pp *PublicParameter) AddressKeyGen(seed []byte) ([]byte, []byte, []byte, error) {
 	apk, ask, err := AddressKeyGen(pp, seed)
 	if err != nil {
 		return nil, nil, nil, err
@@ -183,16 +183,16 @@ func (pp *PublicParameterv2) AddressKeyGen(seed []byte) ([]byte, []byte, []byte,
 	return serializedAPk, pp.SerializePolyANTT(ask.ma), pp.SerializePolyANTTVec(ask.s), nil
 }
 
-func ValueKeyGen(pp *PublicParameterv2, seed []byte) (vpk []byte, vsk []byte, err error) {
+func ValueKeyGen(pp *PublicParameter, seed []byte) (vpk []byte, vsk []byte, err error) {
 	return pqringctkem.KeyGen(pp.paramKem, seed, pp.paramSeedBytesLen)
 }
 
-func (pp *PublicParameterv2) ValueKeyGen(seed []byte) ([]byte, []byte, error) {
+func (pp *PublicParameter) ValueKeyGen(seed []byte) ([]byte, []byte, error) {
 	return ValueKeyGen(pp, seed)
 }
 
 // txoGen returns an transaction output and a random polynomial related to the corresponding transaction output with the master public key and value
-func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk []byte, vin uint64) (txo *Txo, cmtr *PolyCNTTVec, err error) {
+func (pp *PublicParameter) txoGen(apk *AddressPublicKey, vpk []byte, vin uint64) (txo *Txo, cmtr *PolyCNTTVec, err error) {
 	//	got (C, kappa) from key encapsulate mechanism
 	// Restore the KEM version
 	version := uint32(vpk[0]) << 0
@@ -240,14 +240,14 @@ func (pp *PublicParameterv2) txoGen(apk *AddressPublicKey, vpk []byte, vin uint6
 
 	return rettxo, cmtr, nil
 }
-func (pp *PublicParameterv2) rpulpProve(message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec,
+func (pp *PublicParameter) rpulpProve(message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec,
 	n int, b_hat *PolyCNTTVec, r_hat *PolyCNTTVec, c_hats []*PolyCNTT, msg_hats [][]int64, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte,
 	I int, J int, m int, u_hats [][]int64) (rpulppi *rpulpProofv2, err error) {
 	return rpulpProve(pp, message, cmts, cmt_rs, n, b_hat, r_hat, c_hats, msg_hats, n2, n1, rpulpType, binMatrixB, I, J, m, u_hats)
 }
 
-func rpulpProve(pp *PublicParameterv2, message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec, n int,
+func rpulpProve(pp *PublicParameter, message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec, n int,
 	b_hat *PolyCNTTVec, r_hat *PolyCNTTVec, c_hats []*PolyCNTT, msg_hats [][]int64, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte,
 	I int, J int, m int, u_hats [][]int64) (rpulppi *rpulpProofv2, err error) {
@@ -494,7 +494,7 @@ rpUlpProveRestart:
 	return retrpulppi, nil
 }
 
-func (pp PublicParameterv2) rpulpVerify(message []byte,
+func (pp PublicParameter) rpulpVerify(message []byte,
 	cmts []*ValueCommitment, n int,
 	b_hat *PolyCNTTVec, c_hats []*PolyCNTT, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte, I int, J int, m int, u_hats [][]int64,
@@ -800,7 +800,7 @@ func (pp PublicParameterv2) rpulpVerify(message []byte,
 }
 
 //	todo_DONE: this method directly samples and returns a PloyANTT
-func (pp *PublicParameterv2) ExpandKIDR(lgrtxo *LgrTxo) *PolyANTT {
+func (pp *PublicParameter) ExpandKIDR(lgrtxo *LgrTxo) *PolyANTT {
 	buf := make([]byte, 0, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
@@ -819,7 +819,7 @@ func (pp *PublicParameterv2) ExpandKIDR(lgrtxo *LgrTxo) *PolyANTT {
 
 //	todo_DONE: (ringHash, index) shall be ok?
 
-func (pp *PublicParameterv2) ELRSSign(
+func (pp *PublicParameter) ELRSSign(
 	lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment,
 	msg []byte, sindex int, sa *PolyANTTVec, rc *PolyCNTTVec, rc_p *PolyCNTTVec) (*elrsSignaturev2, error) {
 	var err error
@@ -1039,7 +1039,7 @@ ELRSSignRestartv2:
 }
 
 // todo_DONE: the paper is not accurate, use the following params
-func (pp *PublicParameterv2) collectBytesForELRv2(
+func (pp *PublicParameter) collectBytesForELRv2(
 	lgxTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment, msg []byte,
 	w_as []*PolyANTTVec, delta_as []*PolyANTT,
 	w_cs [][]*PolyCNTTVec, w_cps [][]*PolyCNTTVec, delta_cs [][]*PolyCNTT) []byte {
@@ -1129,7 +1129,7 @@ func (pp *PublicParameterv2) collectBytesForELRv2(
 	return res[:]
 }
 
-func (pp *PublicParameterv2) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment, msg []byte, sig *elrsSignaturev2) bool {
+func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment, msg []byte, sig *elrsSignaturev2) bool {
 	ringLen := len(lgrTxoList)
 	if ringLen == 0 {
 		return false
@@ -1241,7 +1241,7 @@ func (pp *PublicParameterv2) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cm
 	return true
 }
 
-func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDescv2) (cbTx *CoinbaseTxv2, err error) {
+func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDescv2) (cbTx *CoinbaseTxv2, err error) {
 	V := uint64(1)<<pp.paramN - 1
 
 	if vin >= V {
@@ -1472,7 +1472,7 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 }
 
 // CoinbaseTxVerify reports whether a coinbase transaction is legal.
-func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
+func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 	if cbTx == nil {
 		return false
 	}
@@ -1644,7 +1644,7 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 	return true
 }
 
-func (pp *PublicParameterv2) collectBytesForCoinbase1(premsg []byte, ws []*PolyCNTTVec, deltas []*PolyCNTT) []byte {
+func (pp *PublicParameter) collectBytesForCoinbase1(premsg []byte, ws []*PolyCNTTVec, deltas []*PolyCNTT) []byte {
 	tmp := make([]byte, 0, pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4+(pp.paramKC+1)*pp.paramDC*4)
 	w := bytes.NewBuffer(tmp)
 	appendPolyCNTTToBytes := func(a *PolyCNTT) {
@@ -1675,7 +1675,7 @@ func (pp *PublicParameterv2) collectBytesForCoinbase1(premsg []byte, ws []*PolyC
 }
 
 // collectBytesForCoinbase2 is an auxiliary function for CoinbaseTxGen and CoinbaseTxVerify to collect some information into a byte slice
-func (pp *PublicParameterv2) collectBytesForCoinbase2(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
+func (pp *PublicParameter) collectBytesForCoinbase2(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
 	res := make([]byte, 0, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
 	w := bytes.NewBuffer(res)
 	appendPolyCNTTToBytes := func(a *PolyCNTT) {
@@ -1703,7 +1703,7 @@ func (pp *PublicParameterv2) collectBytesForCoinbase2(premsg []byte, b_hat *Poly
 	return res
 }
 
-func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDescs []*TxOutputDescv2, fee uint64, txMemo []byte) (trTx *TransferTxv2, err error) {
+func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDescs []*TxOutputDescv2, fee uint64, txMemo []byte) (trTx *TransferTxv2, err error) {
 	//	check the well-formness of the inputs and outputs
 	if len(inputDescs) == 0 || len(outputDescs) == 0 {
 		return nil, errors.New("some information is empty")
@@ -2156,7 +2156,7 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 }
 
 // TransferTxVerify reports whether a transfer transaction is legal.
-func (pp *PublicParameterv2) TransferTxVerify(trTx *TransferTxv2) bool {
+func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 	if trTx == nil {
 		return false
 	}
@@ -2298,7 +2298,7 @@ func (pp *PublicParameterv2) TransferTxVerify(trTx *TransferTxv2) bool {
 }
 
 // todo: add input premsg
-func (pp *PublicParameterv2) collectBytesForTransfer(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
+func (pp *PublicParameter) collectBytesForTransfer(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
 	res := make([]byte, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
 	w := bytes.NewBuffer(res)
 	appendPolyCNTTToBytes := func(a *PolyCNTT) {
@@ -2326,7 +2326,7 @@ func (pp *PublicParameterv2) collectBytesForTransfer(premsg []byte, b_hat *PolyC
 	return res
 }
 
-func (pp *PublicParameterv2) SerialNumberCompute(a *PolyANTT) []byte {
+func (pp *PublicParameter) SerialNumberCompute(a *PolyANTT) []byte {
 	tmp := make([]byte, pp.paramDA*8)
 	for k := 0; k < pp.paramDA; k++ {
 		tmp = append(tmp, byte(a.coeffs[k]>>0))
@@ -2346,7 +2346,7 @@ func (pp *PublicParameterv2) SerialNumberCompute(a *PolyANTT) []byte {
 	return res
 }
 
-func (pp *PublicParameterv2) LedgerTXOSerialNumberGen(txo []byte, txolid []byte, skma []byte) []byte {
+func (pp *PublicParameter) LedgerTXOSerialNumberGen(txo []byte, txolid []byte, skma []byte) []byte {
 	t := make([]byte, 0, len(txo)+len(txolid))
 	t = append(t, txo...)
 	t = append(t, txolid...)

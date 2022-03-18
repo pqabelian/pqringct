@@ -18,20 +18,20 @@ type PolyCNTTVec struct {
 	polyCNTTs []*PolyCNTT
 }
 
-func (pp *PublicParameterv2) NewPolyC() *PolyC {
+func (pp *PublicParameter) NewPolyC() *PolyC {
 	return &PolyC{coeffs: make([]int64, pp.paramDC)}
 }
-func (pp *PublicParameterv2) NewZeroPolyC() *PolyC {
+func (pp *PublicParameter) NewZeroPolyC() *PolyC {
 	rst := &PolyC{coeffs: make([]int64, pp.paramDC)}
 	for i := 0; i < pp.paramDC; i++ {
 		rst.coeffs[i] = 0
 	}
 	return rst
 }
-func (pp *PublicParameterv2) NewPolyCNTT() *PolyCNTT {
+func (pp *PublicParameter) NewPolyCNTT() *PolyCNTT {
 	return &PolyCNTT{coeffs: make([]int64, pp.paramDC)}
 }
-func (pp *PublicParameterv2) NewZeroPolyCNTT() *PolyCNTT {
+func (pp *PublicParameter) NewZeroPolyCNTT() *PolyCNTT {
 	rst := &PolyCNTT{coeffs: make([]int64, pp.paramDC)}
 	for i := 0; i < pp.paramDC; i++ {
 		rst.coeffs[i] = 0
@@ -39,7 +39,7 @@ func (pp *PublicParameterv2) NewZeroPolyCNTT() *PolyCNTT {
 	return rst
 }
 
-func (pp *PublicParameterv2) NewZeroPolyCNTTVec(vecLen int) *PolyCNTTVec {
+func (pp *PublicParameter) NewZeroPolyCNTTVec(vecLen int) *PolyCNTTVec {
 	polyCNTTs := make([]*PolyCNTT, vecLen)
 	for i := 0; i < vecLen; i++ {
 		polyCNTTs[i] = pp.NewZeroPolyCNTT()
@@ -70,7 +70,7 @@ func (polyCVec *PolyCVec) infNorm() (infNorm int64) {
 	return rst
 }
 
-func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
+func (pp *PublicParameter) NTTPolyC(polyC *PolyC) *PolyCNTT {
 	//	NTT
 	zetaCOrder := pp.paramZetaCOrder //	todo_DONE: this should be set as a system parameter, together with zetaCs[], decided by d_c, q_c
 	slotNum := zetaCOrder / 2        // fully splitting
@@ -148,7 +148,7 @@ func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
 //	9, 113, 49, 81, 17, 97, 33, 65, 1,
 //}
 
-func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
+func (pp *PublicParameter) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 	//	NTT Inverse
 	zetaCOrder := pp.paramZetaCOrder
 	slotNum := zetaCOrder / 2 //	have been factored to irreducible factors, i.e., fully splitting
@@ -276,7 +276,7 @@ func PolyCNTTVecEqualCheck(a *PolyCNTTVec, b *PolyCNTTVec) (eq bool) {
 	return true
 }
 
-func (pp *PublicParameterv2) NewPolyCVec(vecLen int) *PolyCVec {
+func (pp *PublicParameter) NewPolyCVec(vecLen int) *PolyCVec {
 	polys := make([]*PolyC, vecLen)
 	for i := 0; i < vecLen; i++ {
 		polys[i] = pp.NewPolyC()
@@ -284,7 +284,7 @@ func (pp *PublicParameterv2) NewPolyCVec(vecLen int) *PolyCVec {
 	return &PolyCVec{polyCs: polys}
 }
 
-func (pp *PublicParameterv2) NewPolyCNTTVec(vecLen int) *PolyCNTTVec {
+func (pp *PublicParameter) NewPolyCNTTVec(vecLen int) *PolyCNTTVec {
 	polyNTTs := make([]*PolyCNTT, vecLen)
 	for i := 0; i < vecLen; i++ {
 		polyNTTs[i] = pp.NewPolyCNTT()
@@ -292,7 +292,7 @@ func (pp *PublicParameterv2) NewPolyCNTTVec(vecLen int) *PolyCNTTVec {
 	return &PolyCNTTVec{polyCNTTs: polyNTTs}
 }
 
-func (pp *PublicParameterv2) NTTPolyCVec(polyCVec *PolyCVec) *PolyCNTTVec {
+func (pp *PublicParameter) NTTPolyCVec(polyCVec *PolyCVec) *PolyCNTTVec {
 	if polyCVec == nil {
 		return nil
 	}
@@ -306,7 +306,7 @@ func (pp *PublicParameterv2) NTTPolyCVec(polyCVec *PolyCVec) *PolyCNTTVec {
 	return r
 }
 
-func (pp *PublicParameterv2) NTTInvPolyCVec(polyCNTTVec *PolyCNTTVec) (polyCVec *PolyCVec) {
+func (pp *PublicParameter) NTTInvPolyCVec(polyCNTTVec *PolyCNTTVec) (polyCVec *PolyCVec) {
 	if polyCNTTVec == nil {
 		return nil
 	}
@@ -321,7 +321,7 @@ func (pp *PublicParameterv2) NTTInvPolyCVec(polyCNTTVec *PolyCNTTVec) (polyCVec 
 	return r
 }
 
-func (pp *PublicParameterv2) PolyCNTTAdd(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
+func (pp *PublicParameter) PolyCNTTAdd(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
 		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
@@ -337,7 +337,7 @@ func (pp *PublicParameterv2) PolyCNTTAdd(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT)
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCNTTSub(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
+func (pp *PublicParameter) PolyCNTTSub(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
 		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
@@ -353,7 +353,7 @@ func (pp *PublicParameterv2) PolyCNTTSub(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT)
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCNTTMul(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
+func (pp *PublicParameter) PolyCNTTMul(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
 		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
@@ -368,7 +368,7 @@ func (pp *PublicParameterv2) PolyCNTTMul(a *PolyCNTT, b *PolyCNTT) (r *PolyCNTT)
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCNTTVecAdd(a *PolyCNTTVec, b *PolyCNTTVec, vecLen int) (r *PolyCNTTVec) {
+func (pp *PublicParameter) PolyCNTTVecAdd(a *PolyCNTTVec, b *PolyCNTTVec, vecLen int) (r *PolyCNTTVec) {
 	var rst = pp.NewPolyCNTTVec(vecLen)
 	for i := 0; i < vecLen; i++ {
 		rst.polyCNTTs[i] = pp.PolyCNTTAdd(a.polyCNTTs[i], b.polyCNTTs[i])
@@ -376,7 +376,7 @@ func (pp *PublicParameterv2) PolyCNTTVecAdd(a *PolyCNTTVec, b *PolyCNTTVec, vecL
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCNTTVecSub(a *PolyCNTTVec, b *PolyCNTTVec, vecLen int) (r *PolyCNTTVec) {
+func (pp *PublicParameter) PolyCNTTVecSub(a *PolyCNTTVec, b *PolyCNTTVec, vecLen int) (r *PolyCNTTVec) {
 	var rst = pp.NewPolyCNTTVec(vecLen)
 	for i := 0; i < vecLen; i++ {
 		rst.polyCNTTs[i] = pp.PolyCNTTSub(a.polyCNTTs[i], b.polyCNTTs[i])
@@ -384,7 +384,7 @@ func (pp *PublicParameterv2) PolyCNTTVecSub(a *PolyCNTTVec, b *PolyCNTTVec, vecL
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCNTTVecInnerProduct(a *PolyCNTTVec, b *PolyCNTTVec, vecLen int) (r *PolyCNTT) {
+func (pp *PublicParameter) PolyCNTTVecInnerProduct(a *PolyCNTTVec, b *PolyCNTTVec, vecLen int) (r *PolyCNTT) {
 	var rst = pp.NewZeroPolyCNTT()
 	for i := 0; i < vecLen; i++ {
 		tmp := pp.PolyCNTTMul(a.polyCNTTs[i], b.polyCNTTs[i])
@@ -393,7 +393,7 @@ func (pp *PublicParameterv2) PolyCNTTVecInnerProduct(a *PolyCNTTVec, b *PolyCNTT
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCNTTMatrixMulVector(M []*PolyCNTTVec, vec *PolyCNTTVec, rowNum int, vecLen int) (r *PolyCNTTVec) {
+func (pp *PublicParameter) PolyCNTTMatrixMulVector(M []*PolyCNTTVec, vec *PolyCNTTVec, rowNum int, vecLen int) (r *PolyCNTTVec) {
 	rst := &PolyCNTTVec{}
 	rst.polyCNTTs = make([]*PolyCNTT, rowNum)
 	for i := 0; i < rowNum; i++ {
@@ -402,7 +402,7 @@ func (pp *PublicParameterv2) PolyCNTTMatrixMulVector(M []*PolyCNTTVec, vec *Poly
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCNTTVecScaleMul(polyCNTTScale *PolyCNTT, polyCNTTVec *PolyCNTTVec, vecLen int) (r *PolyCNTTVec) {
+func (pp *PublicParameter) PolyCNTTVecScaleMul(polyCNTTScale *PolyCNTT, polyCNTTVec *PolyCNTTVec, vecLen int) (r *PolyCNTTVec) {
 	if polyCNTTScale == nil || polyCNTTVec == nil {
 		return nil
 	}
@@ -418,7 +418,7 @@ func (pp *PublicParameterv2) PolyCNTTVecScaleMul(polyCNTTScale *PolyCNTT, polyCN
 }
 
 // todo
-func (pp *PublicParameterv2) sigmaPowerPolyCNTT(polyCNTT *PolyCNTT, t int) (r *PolyCNTT) {
+func (pp *PublicParameter) sigmaPowerPolyCNTT(polyCNTT *PolyCNTT, t int) (r *PolyCNTT) {
 	rst := pp.NewPolyCNTT()
 	for i := 0; i < pp.paramDC; i++ {
 		rst.coeffs[i] = polyCNTT.coeffs[pp.paramSigmaPermutations[t][i]]
@@ -426,7 +426,7 @@ func (pp *PublicParameterv2) sigmaPowerPolyCNTT(polyCNTT *PolyCNTT, t int) (r *P
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCAdd(a *PolyC, b *PolyC) (r *PolyC) {
+func (pp *PublicParameter) PolyCAdd(a *PolyC, b *PolyC) (r *PolyC) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
 		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
@@ -444,7 +444,7 @@ func (pp *PublicParameterv2) PolyCAdd(a *PolyC, b *PolyC) (r *PolyC) {
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCSub(a *PolyC, b *PolyC) (r *PolyC) {
+func (pp *PublicParameter) PolyCSub(a *PolyC, b *PolyC) (r *PolyC) {
 	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
 		log.Panic("the length of the input polyCNTT is not paramDC")
 	}
@@ -462,7 +462,7 @@ func (pp *PublicParameterv2) PolyCSub(a *PolyC, b *PolyC) (r *PolyC) {
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCVecAdd(a *PolyCVec, b *PolyCVec, vecLen int) (r *PolyCVec) {
+func (pp *PublicParameter) PolyCVecAdd(a *PolyCVec, b *PolyCVec, vecLen int) (r *PolyCVec) {
 	if len(a.polyCs) != len(b.polyCs) {
 		log.Panic("the two input polyCVecs have different length")
 	}
@@ -473,7 +473,7 @@ func (pp *PublicParameterv2) PolyCVecAdd(a *PolyCVec, b *PolyCVec, vecLen int) (
 	return rst
 }
 
-func (pp *PublicParameterv2) PolyCVecSub(a *PolyCVec, b *PolyCVec, vecLen int) (r *PolyCVec) {
+func (pp *PublicParameter) PolyCVecSub(a *PolyCVec, b *PolyCVec, vecLen int) (r *PolyCVec) {
 	if len(a.polyCs) != len(b.polyCs) {
 		log.Panic("the two input polyCVecs have different length")
 	}
@@ -502,7 +502,7 @@ func reduce(a *big.Int, q int64) int64 {
 	}
 	return r
 }
-func (pp *PublicParameterv2) PolyCNTTVecEqualCheck(a *PolyCNTTVec, b *PolyCNTTVec) (eq bool) {
+func (pp *PublicParameter) PolyCNTTVecEqualCheck(a *PolyCNTTVec, b *PolyCNTTVec) (eq bool) {
 	if a == nil || b == nil {
 		return false
 	}
@@ -523,7 +523,7 @@ func (pp *PublicParameterv2) PolyCNTTVecEqualCheck(a *PolyCNTTVec, b *PolyCNTTVe
 
 	return true
 }
-func (pp *PublicParameterv2) PolyCNTTEqualCheck(a *PolyCNTT, b *PolyCNTT) (eq bool) {
+func (pp *PublicParameter) PolyCNTTEqualCheck(a *PolyCNTT, b *PolyCNTT) (eq bool) {
 	if a == nil || b == nil {
 		return false
 	}
