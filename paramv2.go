@@ -140,7 +140,8 @@ func NewPublicParameterV2(
 	for i := 0; i < res.paramN; i++ {
 		res.paramMu[i] = 1
 	}
-
+	// initial the paramNTTCFactors
+	res.NTTPolyC(&PolyC{coeffs: make([]int64, res.paramDC)})
 	return res, nil
 }
 
@@ -400,7 +401,7 @@ func init() {
 		16777215,
 		128,
 		(137438953937-1)>>4,
-		256,
+		256/8,
 		-70368744177704,
 		-2251799813686528,
 		-12372710086,

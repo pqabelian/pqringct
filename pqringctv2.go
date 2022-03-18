@@ -185,7 +185,6 @@ func (pp *PublicParameterv2) AddressKeyGen(seed []byte) ([]byte, []byte, []byte,
 
 func ValueKeyGen(pp *PublicParameterv2, seed []byte) (vpk []byte, vsk []byte, err error) {
 	return pqringctkem.KeyGen(pp.paramKem, seed, pp.paramSeedBytesLen)
-
 }
 
 func (pp *PublicParameterv2) ValueKeyGen(seed []byte) ([]byte, []byte, error) {
@@ -1335,7 +1334,6 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 			return nil, err
 		}
 		ch := pp.NTTPolyC(chtmp)
-
 		for t := 0; t < pp.paramK; t++ {
 			zs[t] = pp.PolyCNTTVecAdd(
 				ys[t],

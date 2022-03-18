@@ -343,8 +343,8 @@ func (pp *PublicParameterv2) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
 	}
 	rst := pp.NewPolyANTT()
 	// the size of every group is pp.paramDA/(pp.paramZetaAOrder/2)
-	groupLen := 2 * pp.paramDA / pp.paramZetaAOrder
-	groupSize := pp.paramDA / groupLen
+	groupSize := 2 * pp.paramDA / pp.paramZetaAOrder
+	groupLen := pp.paramDA / groupSize
 	left := make([]int64, groupSize)
 	right := make([]int64, groupSize)
 	for i := 0; i < groupLen; i++ {
@@ -494,12 +494,14 @@ func (pp *PublicParameterv2) MulKaratsuba(a, b []int64, n int) []int64 {
 	}
 	fg := make([][][]int64, 2)
 	for i := 0; i < 2; i++ {
+		fg[i] = make([][]int64, 2)
 		for j := 0; j < 2; j++ {
 			fg[i][j] = make([]int64, 2*n)
 		}
 	}
 	// fg[i][j]=f[i] * g[j]
-	var tmp, left, right *big.Int
+	var left, right *big.Int
+	tmp := big.NewInt(0)
 	for i := 0; i < 2; i++ {
 		for j := 0; j < 2; j++ {
 			for ii := 0; ii < n; ii++ {

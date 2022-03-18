@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
+	"golang.org/x/crypto/sha3"
 	"log"
 )
 
@@ -25,7 +26,7 @@ func RandomBytes(length int) []byte {
 
 func KeyPair(kpp *kyber.ParamSet, seed []byte, seedLen int) ([]byte, []byte, error) {
 	// check the validity of the length of seed
-	if seed != nil || len(seed) != seedLen {
+	if seed == nil || len(seed) != seedLen {
 		return nil, nil, errors.New("the length of seed is invalid")
 	}
 	if seed == nil {
@@ -33,11 +34,12 @@ func KeyPair(kpp *kyber.ParamSet, seed []byte, seedLen int) ([]byte, []byte, err
 	}
 
 	// this temporary byte slice is for protect seed unmodified
-	tmp := make([]byte, seedLen)
-	for i := 0; i < seedLen; i++ {
-		tmp[i] = seed[i]
-	}
-	return kpp.KeyPair(seed)
+	// hash(seed) to meet the length required by kyber
+	usedSeed := make([]byte, 2*seedLen)
+	shake256 := sha3.NewShake256()
+	shake256.Write(seed)
+	shake256.Read(usedSeed)
+	return kpp.KeyPair(usedSeed)
 }
 func Encaps(kpp *kyber.ParamSet, pk []byte) ([]byte, []byte, error) {
 	return kpp.Encaps(pk)
