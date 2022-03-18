@@ -104,7 +104,7 @@ func Test_randomnessFromZetaC2v2(t *testing.T) {
 				t.Errorf("randomnessFromZetaC2v2() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			for i := 0; i < len(got); i++ {
-				if got[i] < -(DefaultPPV2.paramEtaC-DefaultPPV2.paramBetaC) || got[i] > (DefaultPPV2.paramEtaC-DefaultPPV2.paramBetaC) {
+				if got[i] < -(DefaultPPV2.paramEtaC-int64(DefaultPPV2.paramBetaC)) || got[i] > (DefaultPPV2.paramEtaC-int64(DefaultPPV2.paramBetaC)) {
 					t.Errorf("randomnessFromZetaC2v2() sample a value %v", got[i])
 				}
 			}
@@ -140,7 +140,7 @@ func Test_randomnessFromZetaAv2(t *testing.T) {
 				t.Errorf("randomnessFromZetaC2v2() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			for i := 0; i < len(got); i++ {
-				if got[i] < int64(-(DefaultPPV2.paramEtaA-DefaultPPV2.paramThetaA*DefaultPPV2.paramGammaA)) || got[i] > int64(DefaultPPV2.paramEtaA-DefaultPPV2.paramThetaA*DefaultPPV2.paramGammaA) {
+				if got[i] < int64(-(DefaultPPV2.paramEtaA-int64(DefaultPPV2.paramBetaA))) || got[i] > int64(DefaultPPV2.paramEtaA-int64(DefaultPPV2.paramBetaA) {
 					t.Errorf("randomnessFromZetaC2v2() sample a value %v", got[i])
 				}
 			}

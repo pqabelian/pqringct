@@ -10,7 +10,7 @@ import (
 func NewPublicParameterV2(
 	paramDA int, paramQA int64, paramThetaA int, paramKA int, paramLambdaA int, paramGammaA int, paramEtaA int64, paramBetaA int16,
 	paramI int, paramJ int, paramN int,
-	paramDC int, paramQC int64, paramK int, paramKC int, paramLambdaC int, paramEtaC int64, paramBetaC int,
+	paramDC int, paramQC int64, paramK int, paramKC int, paramLambdaC int, paramEtaC int64, paramBetaC int16,
 	paramEtaF int64, paramSysBytes int,
 	paramDCInv int64, paramKInv int64,
 	paramZetaA int64, paramZetaAOrder int,
