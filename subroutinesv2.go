@@ -162,17 +162,38 @@ func (pp PublicParameterv2) sampleZetaC2v2() (r *PolyCVec, err error) {
 }
 func (pp *PublicParameterv2) sampleUniformWithinEtaFv2() ([]int64, error) {
 	//  qc =					0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
-	// (qc-1)/16 = 562949953421632 = 	0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000
+	// <(qc-1)/16 = 562949953421632 = 	0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000<qc/12
+	// 1<<49-1
 	seed := RandomBytes(pp.paramSeedBytesLen)
 	length := pp.paramDC
 	res := make([]int64, 0, length)
-	var curr int
-	var pos int
+	buf := make([]byte, (length+7)/8)
 	var t int64
 	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Write(append(seed, byte(0)))
+	if err != nil {
+		return nil, err
+	}
+	_, err = xof.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	pos := 0
+	for i := 0; i < length; i += 8 {
+		for j := 0; j < 8; j++ {
+			if (buf[pos]>>j)&1 == 0 {
+				res = append(res, -1)
+			} else {
+				res = append(res, 1)
+			}
+		}
+		pos++
+	}
 	cnt := 1
+	curr := 0
 	for len(res) < length {
-		buf := make([]byte, 25*(length+3)/4)
+		buf = make([]byte, 50*(length+7)/8)
 		xof.Reset()
 		_, err := xof.Write(append(seed, byte(cnt)))
 		if err != nil {
@@ -184,73 +205,90 @@ func (pp *PublicParameterv2) sampleUniformWithinEtaFv2() ([]int64, error) {
 		}
 		pos = 0
 		for pos+24 < len(buf) {
-			t = int64(buf[pos])
+			t = int64(buf[pos+0]) << 0
 			t |= int64(buf[pos+1]) << 8
 			t |= int64(buf[pos+2]) << 16
 			t |= int64(buf[pos+3]) << 24
 			t |= int64(buf[pos+4]) << 32
 			t |= int64(buf[pos+5]) << 40
-			t |= int64(buf[pos+6]&0x03) << 48
-			t &= 0x03FFFFFFFFFFFF
-			if t < pp.paramQC {
-				res = append(res, t-pp.paramQC)
-				curr += 1
-				if curr >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+6]&0xFC) >> 2
-			t |= int64(buf[pos+7]) << 6
-			t |= int64(buf[pos+8]) << 14
-			t |= int64(buf[pos+9]) << 22
-			t |= int64(buf[pos+10]) << 30
-			t |= int64(buf[pos+11]) << 38
-			t |= int64(buf[pos+12]&0x0F) << 46
-			t &= 0x03FFFFFFFFFFFF
-			if t < pp.paramQC {
-				res = append(res, t-pp.paramQC)
-				curr += 1
-				if curr >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+12]&0xF0) >> 4
-			t |= int64(buf[pos+13]) << 4
-			t |= int64(buf[pos+14]) << 12
-			t |= int64(buf[pos+15]) << 20
-			t |= int64(buf[pos+16]) << 28
-			t |= int64(buf[pos+17]) << 36
-			t |= int64(buf[pos+18]&0x3F) << 44
-			t &= 0x03FFFFFFFFFFFF
-			if t < pp.paramQC {
-				res = append(res, t-pp.paramQC)
-				curr += 1
-				if curr >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+18]&0xC0) >> 6
-			t |= int64(buf[pos+19]) << 2
-			t |= int64(buf[pos+20]) << 10
-			t |= int64(buf[pos+21]) << 18
-			t |= int64(buf[pos+22]) << 26
-			t |= int64(buf[pos+23]) << 34
-			t |= int64(buf[pos+24]) << 42
-			t &= 0x03FFFFFFFFFFFF
-			if t < pp.paramQC {
-				res = append(res, t-pp.paramQC)
-				curr += 1
-				if curr >= length {
-					break
-				}
-			}
-			pos += 25
+			t |= int64(buf[pos+6]&0x01) << 48
+			t &= 0x01FFFFFFFFFFFF
+			res[curr] *= reduceInt64(t-pp.paramQC, pp.paramQC)
+			curr++
+
+			t = int64(buf[pos+6]&0xFE) >> 1
+			t |= int64(buf[pos+7]) << 7
+			t |= int64(buf[pos+8]) << 15
+			t |= int64(buf[pos+9]) << 23
+			t |= int64(buf[pos+10]) << 31
+			t |= int64(buf[pos+11]) << 39
+			t |= int64(buf[pos+12]&0x03) << 47
+			t &= 0x01FFFFFFFFFFFF
+			res[curr] *= reduceInt64(t-pp.paramQC, pp.paramQC)
+			curr++
+
+			t = int64(buf[pos+12]&0xFC) >> 2
+			t |= int64(buf[pos+13]) << 6
+			t |= int64(buf[pos+14]) << 14
+			t |= int64(buf[pos+15]) << 22
+			t |= int64(buf[pos+16]) << 30
+			t |= int64(buf[pos+17]) << 38
+			t |= int64(buf[pos+18]&0x07) << 46
+			t &= 0x01FFFFFFFFFFFF
+			res[curr] *= reduceInt64(t-pp.paramQC, pp.paramQC)
+			curr++
+
+			t = int64(buf[pos+18]&0xF8) >> 3
+			t |= int64(buf[pos+19]) << 5
+			t |= int64(buf[pos+20]) << 13
+			t |= int64(buf[pos+21]) << 21
+			t |= int64(buf[pos+22]) << 29
+			t |= int64(buf[pos+23]) << 38
+			t |= int64(buf[pos+24]&0x0F) << 45
+			t &= 0x01FFFFFFFFFFFF
+
+			t = int64(buf[pos+24]&0xF0) >> 4
+			t |= int64(buf[pos+25]) << 4
+			t |= int64(buf[pos+26]) << 12
+			t |= int64(buf[pos+27]) << 20
+			t |= int64(buf[pos+28]) << 28
+			t |= int64(buf[pos+29]) << 37
+			t |= int64(buf[pos+30]&0x1F) << 44
+			t &= 0x01FFFFFFFFFFFF
+
+			t = int64(buf[pos+30]&0xE0) >> 5
+			t |= int64(buf[pos+31]) << 3
+			t |= int64(buf[pos+32]) << 11
+			t |= int64(buf[pos+33]) << 19
+			t |= int64(buf[pos+34]) << 28
+			t |= int64(buf[pos+35]) << 36
+			t |= int64(buf[pos+36]&0x3F) << 43
+			t &= 0x01FFFFFFFFFFFF
+
+			t = int64(buf[pos+36]&0xC0) >> 6
+			t |= int64(buf[pos+37]) << 2
+			t |= int64(buf[pos+39]) << 10
+			t |= int64(buf[pos+40]) << 18
+			t |= int64(buf[pos+41]) << 27
+			t |= int64(buf[pos+42]) << 35
+			t |= int64(buf[pos+43]&0x7F) << 42
+			t &= 0x01FFFFFFFFFFFF
+
+			t = int64(buf[pos+43]&0x80) >> 7
+			t |= int64(buf[pos+44]) << 1
+			t |= int64(buf[pos+45]) << 9
+			t |= int64(buf[pos+46]) << 17
+			t |= int64(buf[pos+47]) << 26
+			t |= int64(buf[pos+48]) << 34
+			t |= int64(buf[pos+49]) << 41
+			t &= 0x01FFFFFFFFFFFF
+
+			pos += 50
 		}
 		cnt++
 	}
 	return res, nil
 }
-
 
 // generatePolyCNTTMatrix generate a matrix with rowLength * colLength, and the element in matrix is length
 func (pp *PublicParameterv2) generatePolyCNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyCNTTVec, error) {
