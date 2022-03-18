@@ -498,3 +498,41 @@ func reduce(a *big.Int, q int64) int64 {
 	}
 	return r
 }
+func (pp *PublicParameterv2) PolyCNTTVecEqualCheck(a *PolyCNTTVec, b *PolyCNTTVec) (eq bool) {
+	if a == nil || b == nil {
+		return false
+	}
+
+	if a.polyCNTTs == nil || b.polyCNTTs == nil {
+		return false
+	}
+
+	if len(a.polyCNTTs) != len(b.polyCNTTs) {
+		return false
+	}
+
+	for i := 0; i < len(a.polyCNTTs); i++ {
+		if pp.PolyCNTTEqualCheck(a.polyCNTTs[i], b.polyCNTTs[i]) != true {
+			return false
+		}
+	}
+
+	return true
+}
+func (pp *PublicParameterv2) PolyCNTTEqualCheck(a *PolyCNTT, b *PolyCNTT) (eq bool) {
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
+		return false
+	}
+
+	for i := 0; i < pp.paramDC; i++ {
+		if a.coeffs[i] != b.coeffs[i] {
+			return false
+		}
+	}
+
+	return true
+}
