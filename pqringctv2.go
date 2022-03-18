@@ -103,8 +103,8 @@ type TxInputDescv2 struct {
 	txoList []*LgrTxo // todo: refactor lgrTxoList
 	sidx    int
 	ask     *AddressSecretKey
-	vpk		*ValuePublicKey
-	vsk		*ValueSecretKey
+	vpk     *ValuePublicKey
+	vsk     *ValueSecretKey
 	value   uint64
 }
 type TxOutputDescv2 struct {
@@ -125,7 +125,7 @@ type TransferTxv2 struct {
 }
 
 type TrTxInputv2 struct {
-	TxoList []*LgrTxo
+	TxoList      []*LgrTxo
 	SerialNumber []byte
 }
 
@@ -138,7 +138,6 @@ type TrTxWitnessv2 struct {
 	u_p        []int64
 	rpulpproof *rpulpProofv2
 }
-
 
 type elrsSignaturev2 struct {
 	seeds [][]byte
@@ -899,13 +898,13 @@ func (pp *PublicParameterv2) ELRSSign(
 		}
 		seeds[j] = randomBytes(pp.paramSeedBytesLen)
 
-		tmpA, err := pp.expandSigAChv2(seeds[j])
+		tmpA, err := pp.expandChallengeA(seeds[j])
 		if err != nil {
 			return nil, err
 		}
 		da := pp.NTTPolyA(tmpA)
 
-		tmpC, err := pp.expandSigCChv2(seeds[j])
+		tmpC, err := pp.expandChallengeC(seeds[j])
 		if err != nil {
 			return nil, err
 		}
@@ -1038,11 +1037,11 @@ ELRSSignRestartv2:
 		}
 	}
 
-	tmpA, err := pp.expandSigAChv2(seeds[sindex])
+	tmpA, err := pp.expandChallengeA(seeds[sindex])
 	if err != nil {
 		return nil, err
 	}
-	tmpC, err := pp.expandSigCChv2(seeds[sindex])
+	tmpC, err := pp.expandChallengeC(seeds[sindex])
 	if err != nil {
 		return nil, err
 	}
@@ -1207,13 +1206,13 @@ func (pp *PublicParameterv2) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cm
 	delta_cs := make([][]*PolyCNTT, ringLen)
 
 	for j := 0; j < ringLen; j++ {
-		tmpDA, err := pp.expandSigAChv2(sig.seeds[j])
+		tmpDA, err := pp.expandChallengeA(sig.seeds[j])
 		if err != nil {
 			return false
 		}
 		da := pp.NTTPolyA(tmpDA)
 
-		tmpDC, err := pp.expandSigCChv2(sig.seeds[j])
+		tmpDC, err := pp.expandChallengeC(sig.seeds[j])
 		if err != nil {
 			return false
 		}
@@ -1378,7 +1377,7 @@ func (pp *PublicParameterv2) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutput
 			return nil, err
 		}
 
-		chtmp, err := pp.expandSigCChv2(chseed)
+		chtmp, err := pp.expandChallengeC(chseed)
 		if err != nil {
 			return nil, err
 		}
@@ -1606,7 +1605,7 @@ func (pp *PublicParameterv2) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		ws := make([]*PolyCNTTVec, pp.paramK)
 		deltas := make([]*PolyCNTT, pp.paramK)
 
-		chtmp, err := pp.expandSigCChv2(cbTx.TxWitness.rpulpproof.chseed)
+		chtmp, err := pp.expandChallengeC(cbTx.TxWitness.rpulpproof.chseed)
 		if err != nil {
 			return false
 		}
@@ -1725,22 +1724,30 @@ func (pp *PublicParameterv2) collectBytesForCoinbase1(premsg []byte, ws []*PolyC
 }
 
 // collectBytesForCoinbase2 is an auxiliary function for CoinbaseTxGen and CoinbaseTxVerify to collect some information into a byte slice
-// 	todo: need take as input the premsg
 func (pp *PublicParameterv2) collectBytesForCoinbase2(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
-	res := make([]byte, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
-	appendPolyNTTToBytes := func(a *PolyNTTv2) {
+	res := make([]byte, 0, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
+	w := bytes.NewBuffer(res)
+	appendPolyCNTTToBytes := func(a *PolyCNTT) {
 		for k := 0; k < pp.paramDC; k++ {
-			res = append(res, byte(a.coeffs1[k]>>0))
-			res = append(res, byte(a.coeffs1[k]>>8))
-			res = append(res, byte(a.coeffs1[k]>>16))
-			res = append(res, byte(a.coeffs1[k]>>24))
+			w.WriteByte(byte(a.coeffs[k] >> 0))
+			w.WriteByte(byte(a.coeffs[k] >> 8))
+			w.WriteByte(byte(a.coeffs[k] >> 16))
+			w.WriteByte(byte(a.coeffs[k] >> 24))
+			w.WriteByte(byte(a.coeffs[k] >> 32))
+			w.WriteByte(byte(a.coeffs[k] >> 40))
+			w.WriteByte(byte(a.coeffs[k] >> 48))
+			w.WriteByte(byte(a.coeffs[k] >> 56))
 		}
 	}
+	// premsg
+	w.Write(premsg)
+	// b_hat
 	for i := 0; i < pp.paramKC; i++ {
-		appendPolyNTTToBytes(b_hat.polyNTTs[i])
+		appendPolyCNTTToBytes(b_hat.polyCNTTs[i])
 	}
+	// c_hats
 	for i := 0; i < len(c_hats); i++ {
-		appendPolyNTTToBytes(c_hats[i])
+		appendPolyCNTTToBytes(c_hats[i])
 	}
 	return res
 }
@@ -1793,7 +1800,7 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 
 	inputTotal := uint64(0)
 	//dpkMap := make(map[*PublicKey]struct{})
-	for _, inputDescItem := range inputDescs {
+	for i, inputDescItem := range inputDescs {
 		if inputDescItem.value > V {
 			return nil, errors.New("the value is more than max value")
 		}
@@ -1808,10 +1815,10 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 		if inputDescItem.sidx < 0 || inputDescItem.sidx >= len(inputDescItem.txoList) {
 			return nil, errors.New("the index is not suitable")
 		}
-/*		if inputDescItem.txoList[inputDescItem.sidx].ask == nil || inputDescItem.sk == nil {
-			return nil, errors.New("some information is empty")
-		}*/
-		if inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey == nil || inputDescItem.ask == nil || inputDescItem.crand == nil {
+		/*		if inputDescItem.txoList[inputDescItem.sidx].ask == nil || inputDescItem.sk == nil {
+				return nil, errors.New("some information is empty")
+			}*/
+		if inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey == nil || inputDescItem.ask == nil || inputDescItem.txoList[inputDescItem.sidx].ValueCommitment == nil {
 			return nil, errors.New("some information is empty")
 		}
 
@@ -1819,29 +1826,39 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 			return nil, errors.New("the address secret key is not well-formed")
 		}
 
-		if inputDescItem.ask.CheckMatchPublciKey(inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey, pp) == false{
+		if inputDescItem.ask.CheckMatchPublciKey(inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey, pp) == false {
 			return nil, errors.New("the address secret key and correspdong public key does not match")
 		}
 
-		// todo: run kem.decaps to get kappa, then get msgs_in[i], cmtrs_in[i], and check the validity
-		//	kappa
-		//	cmtrs_in[i]
+		// run kem.decaps to get kappa
+		kappa := inputDescItem.vsk.skkem.CryptoKemDec(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed)
+
 		//	msgs_in[i] <-- inputDescItem.value
-		//	b ?= B r, c = <h ,r>+ &NTT{}
+		msgs_in[i] = intToBinary(inputDescItem.value, pp.paramDC)
+		// then get cmtrs_in[i]
+		cmtrtmp, err := pp.expandRandomnessC(kappa)
+		if err != nil {
+			return nil, err
+		}
+		cmtrs_in[i] = pp.NTTPolyCVec(cmtrtmp)
+		b := pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cmtrs_in[i], pp.paramKC, pp.paramLC)
+		c := pp.PolyCNTTAdd(
+			pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], cmtrs_in[i], pp.paramLC),
+			&PolyCNTT{msgs_in[i]})
 
-		//	ComVerify(inputDescItem.txoList[inputDescItem.sidx].ValueCommitment,cmtrs_in[i],inputDescItem.value )
+		// and check the validity
+		if !pp.PolyCNTTVecEqualCheck(b, inputDescItem.txoList[inputDescItem.sidx].b) {
+			return nil, errors.New("fail to receive some transaction output : the computed commitment is not equal to input")
+		}
 
-		// todo: delete
-		b := pp.ComVerify(inputDescItem.txoList[inputDescItem.sidx].ValueCommitment, inputDescItem.crand, inputDescItem.value)
-		if b == false {
-			return nil, errors.New("fail to receive some transaction output")
+		if !pp.PolyCNTTEqualCheck(c, inputDescItem.txoList[inputDescItem.sidx].c) {
+			return nil, errors.New("fail to receive some transaction output : the computed commitment is not equal to input")
 		}
 	}
 
 	if outputTotal != inputTotal {
 		return nil, errors.New("the total coin value is not balance")
 	}
-
 
 	rettrTx := &TransferTxv2{}
 	rettrTx.Inputs = make([]*TrTxInputv2, I)
@@ -1865,7 +1882,7 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 	for i := 0; i < I; i++ {
 		m_r := pp.ExpandKIDR(inputDescs[i].txoList[inputDescs[i].sidx])
 		ma_ps[i] = pp.PolyANTTAdd(inputDescs[i].ask.ma, m_r)
-		sn := SerialNumberCompute(ma_ps[i])	// todo:use a hash value to be the serial number
+		sn := pp.SerialNumberCompute(ma_ps[i])
 		rettrTx.Inputs[i] = &TrTxInputv2{
 			TxoList:      inputDescs[i].txoList,
 			SerialNumber: sn,
@@ -1881,10 +1898,10 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 		cmt_ps[i].c = pp.PolyCNTTAdd(
 			pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], cmtr_ps[i], pp.paramLC),
 			&PolyCNTT{coeffs: msgs_in[i]},
-			)
+		)
 	}
 
-/*	rettrTx.TxWitness = &TrTxWitnessv2{
+	/*	rettrTx.TxWitness = &TrTxWitnessv2{
 		b_hat:      nil,
 		c_hats:     nil,
 		u_p:        nil,
@@ -1898,10 +1915,10 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 		return nil, errors.New("error in rettrTx.Serialize ")
 	}
 	//msgTrTxConExt := msgTrTxCon	// todo: not need to do. append cmt_ps
-/*	msgTrTxConHash, err := Hash(msgTrTxCon)
-	if err != nil {
-		return nil, err
-	}*/
+	/*	msgTrTxConHash, err := Hash(msgTrTxCon)
+		if err != nil {
+			return nil, err
+		}*/
 
 	elrsSigs := make([]*elrsSignaturev2, I)
 	for i := 0; i < I; i++ {
@@ -1944,7 +1961,7 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 		c_hats[i] = pp.PolyCNTTAdd(
 			pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], r_hat, pp.paramLC),
 			&PolyCNTT{coeffs: msg_hats[i]},
-			)
+		)
 	}
 
 	//	fee
@@ -1984,7 +2001,7 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int64, pp.paramDC)
-		u_p_temp := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		u_p_temp := make([]int64, pp.paramDC)                                         // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
 		seed_binM, err := Hash(pp.collectBytesForTransfer(msgTrTxCon, b_hat, c_hats)) // todo:20220317
 		if err != nil {
 			return nil, err
@@ -2008,7 +2025,7 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 				infNorm = -infNorm
 			}
 
-			if infNorm > (pp.paramEtaF-int64(J)) {
+			if infNorm > (pp.paramEtaF - int64(J)) {
 				goto trTxGenI1Restart
 			}
 
@@ -2089,11 +2106,11 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 		c_hats[n+3] = pp.PolyCNTTAdd(
 			pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[n+4], r_hat, pp.paramLC),
 			&PolyCNTT{coeffs: msg_hats[n+3]},
-			)
+		)
 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int64, pp.paramDC)
-		u_p_temp := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		u_p_temp := make([]int64, pp.paramDC)                                         // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
 		seed_binM, err := Hash(pp.collectBytesForTransfer(msgTrTxCon, b_hat, c_hats)) // todo: confirm 20220317
 		if err != nil {
 			return nil, err
@@ -2127,7 +2144,7 @@ func (pp *PublicParameterv2) TransferTxGen(inputDescs []*TxInputDescv2, outputDe
 				infNorm = -infNorm
 			}
 
-			if infNorm > (pp.paramEtaF-int64(betaF)) {
+			if infNorm > (pp.paramEtaF - int64(betaF)) {
 				goto trTxGenI2Restart
 			}
 
@@ -2193,14 +2210,14 @@ func (pp *PublicParameterv2) TransferTxVerify(trTx *TransferTxv2) bool {
 	if msgTrTxCon == nil {
 		return false
 	}
-/*	msgTrTxConHash, err := Hash(msgTrTxCon)
-	if err != nil {
-		return false
-	}*/
+	/*	msgTrTxConHash, err := Hash(msgTrTxCon)
+		if err != nil {
+			return false
+		}*/
 	for i := 0; i < I; i++ {
 		//	check the validity of sigma_{lrs,i}
-		sn := ComputeSerialNumber(trTx.TxWitness.ma_ps[i])
-		if trTx.Inputs[i].SerialNumber != sn { // todo: compute sn with trTx.Inputs[i].SerialNumber
+		sn := pp.SerialNumberCompute(trTx.TxWitness.ma_ps[i])
+		if !bytes.Equal(trTx.Inputs[i].SerialNumber, sn) {
 			return false
 		}
 
@@ -2303,7 +2320,6 @@ func (pp *PublicParameterv2) TransferTxVerify(trTx *TransferTxv2) bool {
 			u_hats[3][0] = 0
 		}
 
-
 		flag := pp.rpulpVerify(msgTrTxCon, cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 5, u_hats, trTx.TxWitness.rpulpproof)
 		if !flag {
 			return false
@@ -2314,21 +2330,50 @@ func (pp *PublicParameterv2) TransferTxVerify(trTx *TransferTxv2) bool {
 }
 
 // todo: add input premsg
-func (pp *PublicParameterv2) collectBytesForTransfer(premsg []byte, b_hat *PolyNTTVecv2, c_hats []*PolyNTTv2) []byte {
+func (pp *PublicParameterv2) collectBytesForTransfer(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
 	res := make([]byte, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
-	appendPolyNTTToBytes := func(a *PolyNTTv2) {
+	w := bytes.NewBuffer(res)
+	appendPolyCNTTToBytes := func(a *PolyCNTT) {
 		for k := 0; k < pp.paramDC; k++ {
-			res = append(res, byte(a.coeffs1[k]>>0))
-			res = append(res, byte(a.coeffs1[k]>>8))
-			res = append(res, byte(a.coeffs1[k]>>16))
-			res = append(res, byte(a.coeffs1[k]>>24))
+			w.WriteByte(byte(a.coeffs[k] >> 0))
+			w.WriteByte(byte(a.coeffs[k] >> 8))
+			w.WriteByte(byte(a.coeffs[k] >> 16))
+			w.WriteByte(byte(a.coeffs[k] >> 24))
+			w.WriteByte(byte(a.coeffs[k] >> 32))
+			w.WriteByte(byte(a.coeffs[k] >> 40))
+			w.WriteByte(byte(a.coeffs[k] >> 48))
+			w.WriteByte(byte(a.coeffs[k] >> 56))
 		}
 	}
+	// premsg
+	w.Write(premsg)
+	// b_hat
 	for i := 0; i < pp.paramKC; i++ {
-		appendPolyNTTToBytes(b_hat.polyNTTs[i])
+		appendPolyCNTTToBytes(b_hat.polyCNTTs[i])
 	}
+	// c_hats
 	for i := 0; i < len(c_hats); i++ {
-		appendPolyNTTToBytes(c_hats[i])
+		appendPolyCNTTToBytes(c_hats[i])
+	}
+	return res
+}
+
+func (pp *PublicParameterv2) SerialNumberCompute(a *PolyANTT) []byte {
+	tmp := make([]byte, pp.paramDA*8)
+	for k := 0; k < pp.paramDA; k++ {
+		tmp = append(tmp, byte(a.coeffs[k]>>0))
+		tmp = append(tmp, byte(a.coeffs[k]>>8))
+		tmp = append(tmp, byte(a.coeffs[k]>>16))
+		tmp = append(tmp, byte(a.coeffs[k]>>24))
+		tmp = append(tmp, byte(a.coeffs[k]>>32))
+		tmp = append(tmp, byte(a.coeffs[k]>>40))
+		tmp = append(tmp, byte(a.coeffs[k]>>48))
+		tmp = append(tmp, byte(a.coeffs[k]>>56))
+
+	}
+	res, err := Hash(tmp)
+	if err != nil {
+		log.Fatalln("Error call Hash() in SerialNumberCompute")
 	}
 	return res
 }

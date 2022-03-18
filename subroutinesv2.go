@@ -535,7 +535,7 @@ func rejectionUniformWithQa(seed []byte, length int, bound int64) []int64 {
 // expandSigACh should output a {-1,0,1}^DC vector with the number of not-0 is theta_a from a byte array
 // Firstly, set the 1 or -1 with total number is theta
 // Secondly, shuffle the array using the Knuth-Durstenfeld Shuffle
-func (pp PublicParameterv2) expandSigAChv2(seeds []byte) (*PolyA, error) {
+func (pp PublicParameterv2) expandChallengeA(seeds []byte) (*PolyA, error) {
 	seed := make([]byte, len(seeds)+2)
 	for i := 0; i < len(seeds); i++ {
 		seed[i] = seeds[i]
@@ -598,7 +598,7 @@ func (pp PublicParameterv2) expandSigAChv2(seeds []byte) (*PolyA, error) {
 	return &PolyA{coeffs: res}, nil
 }
 
-func (pp PublicParameterv2) expandSigCChv2(seeds []byte) (*PolyC, error) {
+func (pp PublicParameterv2) expandChallengeC(seeds []byte) (*PolyC, error) {
 	seed := make([]byte, len(seeds))
 	for i := 0; i < len(seeds); i++ {
 		seed[i] = seeds[i]
