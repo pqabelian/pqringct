@@ -120,19 +120,18 @@ func (pp *PublicParameterv2) NTTPolyC(polyC *PolyC) *PolyCNTT {
 		factors = tmpFactors
 	}
 
-	//finalFactors := make([]int, 2*len(factors))
-	//for i := 0; i < len(factors); i++ {
-	//	finalFactors[2*i] = factors[i] + slotNum
-	//	finalFactors[2*i+1] = factors[i]
-	//}
-	//
-	//nttCoeffs := make([]int64, pp.paramDC)
-	//for i := 0; i < pp.paramDC; i++ {
-	//	nttCoeffs[(finalFactors[i]-1)/2] = coeffs[i]
-	//}
-	//return &PolyCNTT{coeffs: nttCoeffs}
+	finalFactors := make([]int, 2*len(factors))
+	for i := 0; i < len(factors); i++ {
+		finalFactors[2*i] = factors[i] + slotNum
+		finalFactors[2*i+1] = factors[i]
+	}
 
-	return &PolyCNTT{coeffs: coeffs}
+	nttCoeffs := make([]int64, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
+		nttCoeffs[(finalFactors[i]-1)/2] = coeffs[i]
+	}
+	return &PolyCNTT{coeffs: nttCoeffs}
+
 	/*	rst := pp.NewPolyCNTT()
 		for i := 0; i < pp.paramDC; i++ {
 			rst.coeffs[i] = coeffs[i].Int64()
@@ -159,17 +158,16 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 	factors := make([]int, len(pp.paramNTTCFactors))
 	copy(factors, pp.paramNTTCFactors)
 
-	//finalFactors := make([]int, 2*len(factors))
-	//for i := 0; i < len(factors); i++ {
-	//	finalFactors[2*i] = factors[i] + slotNum
-	//	finalFactors[2*i+1] = factors[i]
-	//}
-	//
-	//nttCoeffs := make([]int64, pp.paramDC)
-	//for i := 0; i < pp.paramDC; i++ {
-	//	nttCoeffs[i] = polyCNTT.coeffs[(finalFactors[i]-1)/2]
-	//}
-	nttCoeffs := polyCNTT.coeffs
+	finalFactors := make([]int, 2*len(factors))
+	for i := 0; i < len(factors); i++ {
+		finalFactors[2*i] = factors[i] + slotNum
+		finalFactors[2*i+1] = factors[i]
+	}
+
+	nttCoeffs := make([]int64, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
+		nttCoeffs[i] = polyCNTT.coeffs[(finalFactors[i]-1)/2]
+	}
 
 	/*	nttCoeffs := make([]big.Int, pp.paramDC)
 		for i := 0; i < pp.paramDC; i++ {
@@ -218,7 +216,7 @@ func (pp *PublicParameterv2) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 
 	rst := pp.NewPolyC()
 	for i := 0; i < pp.paramDC; i++ {
-		rst.coeffs[i] = nttCoeffs[i]
+		rst.coeffs[i] = reduceInt64(nttCoeffs[i], pp.paramQC)
 	}
 	return rst
 }
