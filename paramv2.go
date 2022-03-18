@@ -51,6 +51,47 @@ func NewPublicParameterV2(
 		paramCStr:              paramCStr,
 		paramKem:               paramKem,
 	}
+
+	// initialize the NTTCFactors
+	slotNumC := res.paramZetaCOrder / 2 // fully splitting
+	segNumC := 1
+	nttFactorsC := make([]int, 1)
+	nttFactorsC[0] = slotNumC / 2
+
+	for {
+		segNumC = segNumC << 1
+		if segNumC == slotNumC {
+			break
+		}
+		tmpFactors := make([]int, 2*len(nttFactorsC))
+		for i := 0; i < len(nttFactorsC); i++ {
+			tmpFactors[2*i] = (nttFactorsC[i] + slotNumC) / 2
+			tmpFactors[2*i+1] = nttFactorsC[i] / 2
+		}
+		nttFactorsC = tmpFactors
+	}
+	res.paramNTTCFactors = nttFactorsC
+
+	// initialize the NTTAFactors
+	slotNumA := res.paramZetaAOrder / 2 // fully splitting
+	segNumA := 1
+	nttFactorsA := make([]int, 1)
+	nttFactorsA[0] = slotNumA / 2
+
+	for {
+		segNumA = segNumA << 1
+		if segNumA == slotNumA {
+			break
+		}
+		tmpFactors := make([]int, 2*len(nttFactorsA))
+		for i := 0; i < len(nttFactorsA); i++ {
+			tmpFactors[2*i] = (nttFactorsA[i] + slotNumA) / 2
+			tmpFactors[2*i+1] = nttFactorsA[i] / 2
+		}
+		nttFactorsA = tmpFactors
+	}
+	res.paramNTTAFactors = nttFactorsA
+
 	//  parameters for Number Theory Transform
 	res.paramZetasC = make([]int64, res.paramZetaCOrder)
 	for i := 0; i < res.paramZetaCOrder; i++ {
@@ -99,46 +140,6 @@ func NewPublicParameterV2(
 	for i := 0; i < res.paramN; i++ {
 		res.paramMu[i] = 1
 	}
-
-	// initialize the NTTCFactors
-	slotNumC := res.paramZetaCOrder / 2        // fully splitting
-	segNumC := 1
-	nttFactorsC := make([]int, 1)
-	nttFactorsC[0] = slotNumC / 2
-
-	for {
-		segNumC = segNumC << 1
-		if segNumC == slotNumC {
-			break
-		}
-		tmpFactors := make([]int, 2*len(nttFactorsC))
-		for i := 0; i < len(nttFactorsC); i++ {
-			tmpFactors[2*i] = (nttFactorsC[i] + slotNumC) / 2
-			tmpFactors[2*i+1] = nttFactorsC[i] / 2
-		}
-		nttFactorsC = tmpFactors
-	}
-	res.paramNTTCFactors = nttFactorsC
-
-	// initialize the NTTCFactors
-	slotNumA := res.paramZetaCOrder / 2        // fully splitting
-	segNumA := 1
-	nttFactorsA := make([]int, 1)
-	nttFactorsA[0] = slotNumA / 2
-
-	for {
-		segNumA = segNumA << 1
-		if segNumA == slotNumA {
-			break
-		}
-		tmpFactors := make([]int, 2*len(nttFactorsA))
-		for i := 0; i < len(nttFactorsA); i++ {
-			tmpFactors[2*i] = (nttFactorsA[i] + slotNumA) / 2
-			tmpFactors[2*i+1] = nttFactorsA[i] / 2
-		}
-		nttFactorsA = tmpFactors
-	}
-	res.paramNTTAFactors = nttFactorsA
 
 	return res, nil
 }

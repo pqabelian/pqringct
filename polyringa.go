@@ -97,8 +97,8 @@ func (pp *PublicParameterv2) NTTPolyA(polyA *PolyA) *PolyANTT {
 				tmp2.Add(&tmp2, &tmp)
 				//				coeffs[k*segLen+i] = tmp1
 				//				coeffs[k*segLen+i+segLenHalf] = tmp2
-				coeffs[k*segLen+i] = tmp1.Int64()
-				coeffs[k*segLen+i+segLenHalf] = tmp2.Int64()
+				coeffs[k*segLen+i] = reduceInt64(tmp1.Int64(), pp.paramQA)
+				coeffs[k*segLen+i+segLenHalf] = reduceInt64(tmp2.Int64(), pp.paramQA)
 			}
 		}
 		segNum = segNum << 1
@@ -116,18 +116,18 @@ func (pp *PublicParameterv2) NTTPolyA(polyA *PolyA) *PolyANTT {
 	}
 
 	//	factors: 7, 3, 5, 1
-	if pp.paramNTTAFactors == nil {
-		pp.paramNTTAFactors = make([]int, 2*len(factors))
-		for i := 0; i < len(factors); i++ {
-			pp.paramNTTAFactors[2*i] = factors[i] + slotNum
-			pp.paramNTTAFactors[2*i+1] = factors[i]
-		}
-	}
+	//if pp.paramNTTAFactors == nil {
+	//	pp.paramNTTAFactors = make([]int, 2*len(factors))
+	//	for i := 0; i < len(factors); i++ {
+	//		pp.paramNTTAFactors[2*i] = factors[i] + slotNum
+	//		pp.paramNTTAFactors[2*i+1] = factors[i]
+	//	}
+	//}
 	//	finalFactors: 15,7, 11,3, 13,5, 9,1
 
 	rst := pp.NewPolyANTT()
 	for i := 0; i < pp.paramDA; i++ {
-		rst.coeffs[i] = reduceInt64(coeffs[i], pp.paramQA)
+		rst.coeffs[i] = coeffs[i]
 	}
 	return rst
 }
@@ -189,7 +189,7 @@ func (pp *PublicParameterv2) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
 
 	rst := pp.NewPolyA()
 	for i := 0; i < pp.paramDA; i++ {
-		rst.coeffs[i] = reduceInt64(nttCoeffs[i], pp.paramQA)
+		rst.coeffs[i] = nttCoeffs[i]
 	}
 	return rst
 }
@@ -271,7 +271,6 @@ func (pp *PublicParameterv2) NewZeroPolyANTTVec(vecLen int) *PolyANTTVec {
 	}
 	return &PolyANTTVec{polyANTTs}
 }
-
 
 func (pp *PublicParameterv2) NTTPolyAVec(polyAVec *PolyAVec) *PolyANTTVec {
 	if polyAVec == nil {
