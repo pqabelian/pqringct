@@ -240,79 +240,10 @@ func (pp *PublicParameterv2) sampleUniformWithinEtaFv2() ([]int64, error) {
 	}
 	return res, nil
 }
-func (pp *PublicParameterv2) expandPubVecAv2(seed []byte) (*PolyANTTVec, error) {
-	// [0 ... 0(k_a) 1 r ... r(lambda_a)]
-	res := pp.NewPolyANTTVec(pp.paramLA)
-	unit := pp.NewPolyA()
-	unit.coeffs[0] = 1
-	tmp := pp.NTTPolyA(unit)
-	for i := 0; i < pp.paramDA; i++ {
-		res.polyANTTs[pp.paramKA].coeffs[i] = tmp.coeffs[i]
-	}
-	// generate the remained sub-matrix
-	matrix, err := pp.generateNTTMatrixA(seed, pp.paramDA, 1, pp.paramLambdaA)
-	if err != nil {
-		return nil, err
-	}
-	for i := 0; i < pp.paramLambdaA; i++ {
-		res.polyANTTs[i+pp.paramKA+1] = matrix[0].polyANTTs[i]
-	}
-	return res, nil
-}
-func (pp *PublicParameterv2) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec, err error) {
-	res := make([]*PolyCNTTVec, pp.paramKC)
-	for i := 0; i < pp.paramKC; i++ {
-		res[i] = pp.NewPolyCNTTVec(pp.paramLC)
-		for k := 0; k < pp.paramDC; k++ {
-			res[i].polyCNTTs[i].coeffs[k] = 1
-		}
-	}
-	// generate the remained sub-matrix
-	matrix, err := pp.generateNTTMatrixC(seed, pp.paramDC, pp.paramKC, pp.paramI+pp.paramJ+7+pp.paramLambdaC)
-	if err != nil {
-		return nil, err
-	}
-	for i := 0; i < pp.paramKC; i++ {
-		for j := 0; j < pp.paramI+pp.paramJ+7+pp.paramLambdaC; j++ {
-			for k := 0; k < pp.paramDC; k++ {
-				res[i].polyCNTTs[j+pp.paramKC].coeffs[k] = matrix[i].polyCNTTs[j].coeffs[k]
-			}
-		}
-	}
-	return res, nil
-}
-func (pp *PublicParameterv2) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec, err error) {
-	res := make([]*PolyCNTTVec, pp.paramI+pp.paramJ+7)
 
-	unitPoly := pp.NewPolyC()
-	var tmp *PolyCNTT
-	for i := 0; i < pp.paramI+pp.paramJ+7; i++ {
-		res[i] = pp.NewPolyCNTTVec(pp.paramLC)
-		unitPoly.coeffs[i] = 1
-		tmp = pp.NTTPolyC(unitPoly)
-		for j := 0; j < pp.paramDC; j++ {
-			res[i].polyCNTTs[pp.paramKC].coeffs[j] = tmp.coeffs[j]
-		}
-		unitPoly.coeffs[i] = 0
-	}
 
-	// generate the remained sub-matrix
-	matrix, err := pp.generateNTTMatrixC(seed, pp.paramDC, pp.paramI+pp.paramJ+7, pp.paramLambdaC)
-	if err != nil {
-		return nil, err
-	}
-	for i := 0; i < pp.paramI+pp.paramJ+7; i++ {
-		for j := 0; j < pp.paramLambdaC; j++ {
-			for k := 0; k < pp.paramDC; k++ {
-				res[i].polyCNTTs[pp.paramKC+pp.paramI+pp.paramJ+7+j].coeffs[k] = matrix[i].polyCNTTs[j].coeffs[k]
-			}
-		}
-	}
-	return res, nil
-}
-
-// generateNTTMatrixC generate a matrix with rowLength * colLength, and the element in matrix is length
-func (pp *PublicParameterv2) generateNTTMatrixC(seed []byte, length int, rowLength int, colLength int) ([]*PolyCNTTVec, error) {
+// generatePolyCNTTMatrix generate a matrix with rowLength * colLength, and the element in matrix is length
+func (pp *PublicParameterv2) generatePolyCNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyCNTTVec, error) {
 	// check the length of seed
 	res := make([]*PolyCNTTVec, rowLength)
 	for i := 0; i < rowLength; i++ {
@@ -322,27 +253,27 @@ func (pp *PublicParameterv2) generateNTTMatrixC(seed []byte, length int, rowLeng
 			copy(tmpSeed, seed)
 			tmpSeed = append(tmpSeed, byte(i))
 			tmpSeed = append(tmpSeed, byte(j))
-			got := rejectionUniformWithQc(tmpSeed, length)
-			for k := 0; k < length; k++ {
-				res[i].polyCNTTs[j].coeffs[k] = got[k]
+			got := rejectionUniformWithQc(tmpSeed, pp.paramDC)
+			for t := 0; t < pp.paramDC; t++ {
+				res[i].polyCNTTs[j].coeffs[t] = got[t]
 			}
 		}
 	}
 	return res, nil
 }
-func (pp *PublicParameterv2) generateNTTMatrixA(seed []byte, length int, rowLength int, colLength int) ([]*PolyANTTVec, error) {
+func (pp *PublicParameterv2) generatePolyANTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyANTTVec, error) {
 	// check the length of seed
 	res := make([]*PolyANTTVec, rowLength)
 	for i := 0; i < rowLength; i++ {
-		res[i] = pp.NewPolyANTTVec(colLength)
+		res[i] = pp.NewZeroPolyANTTVec(colLength)
 		for j := 0; j < colLength; j++ {
 			tmpSeed := make([]byte, len(seed))
 			copy(tmpSeed, seed)
 			tmpSeed = append(tmpSeed, byte(i))
 			tmpSeed = append(tmpSeed, byte(j))
-			got := rejectionUniformWithQa(tmpSeed, length, pp.paramQA)
-			for k := 0; k < length; k++ {
-				res[i].polyANTTs[j].coeffs[k] = got[k]
+			got := rejectionUniformWithQa(tmpSeed, pp.paramDA, pp.paramQA)
+			for t := 0; t < pp.paramDA; t++ {
+				res[i].polyANTTs[j].coeffs[t] = got[t]
 			}
 		}
 	}
@@ -351,6 +282,7 @@ func (pp *PublicParameterv2) generateNTTMatrixA(seed []byte, length int, rowLeng
 
 // 9007199254746113 = 0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
 // 4503599627373056 = 0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_000_1010_0000_0000
+//	todo: 202203 Qc hard code, but withQa does not hard code, make them consistent
 func rejectionUniformWithQc(seed []byte, length int) []int64 {
 	res := make([]int64, length)
 	var curr int

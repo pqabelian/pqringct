@@ -22,6 +22,13 @@ type PolyANTTVec struct {
 func (pp *PublicParameterv2) NewPolyA() *PolyA {
 	return &PolyA{coeffs: make([]int64, pp.paramDA)}
 }
+func (pp *PublicParameterv2) NewZeroPolyA() *PolyA {
+	rst := &PolyA{coeffs: make([]int64, pp.paramDA)}
+	for i := 0; i < pp.paramDA; i++ {
+		rst.coeffs[i] = 0
+	}
+	return rst
+}
 func (pp *PublicParameterv2) NewPolyANTT() *PolyANTT {
 	return &PolyANTT{coeffs: make([]int64, pp.paramDA)}
 }
@@ -254,6 +261,15 @@ func (pp *PublicParameterv2) NewPolyANTTVec(vecLen int) *PolyANTTVec {
 	}
 	return &PolyANTTVec{polyANTTs: polyNTTs}
 }
+
+func (pp *PublicParameterv2) NewZeroPolyANTTVec(vecLen int) *PolyANTTVec {
+	polyANTTs := make([]*PolyANTT, vecLen)
+	for i := 0; i < vecLen; i++ {
+		polyANTTs[i] = pp.NewZeroPolyANTT()
+	}
+	return &PolyANTTVec{polyANTTs}
+}
+
 
 func (pp *PublicParameterv2) NTTPolyAVec(polyAVec *PolyAVec) *PolyANTTVec {
 	if polyAVec == nil {
