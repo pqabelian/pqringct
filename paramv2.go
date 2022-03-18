@@ -409,7 +409,7 @@ func init() {
 				80, 17, 82, 19, 84, 21, 86, 23, 88, 25, 90, 27, 92, 29, 94, 31,
 			},
 		},
-		[]byte("Welcome to Post Quantum World!"), // todo:
+		[]byte("Welcome to Post Quantum World!"), // todo: a more interesting sentence
 		kyber.Kyber768,
 	)
 	if err != nil {
