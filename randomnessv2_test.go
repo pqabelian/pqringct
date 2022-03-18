@@ -140,7 +140,7 @@ func Test_randomnessFromZetaAv2(t *testing.T) {
 				t.Errorf("randomnessFromZetaC2v2() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			for i := 0; i < len(got); i++ {
-				if got[i] < int64(-(DefaultPPV2.paramEtaA-int64(DefaultPPV2.paramBetaA))) || got[i] > int64(DefaultPPV2.paramEtaA-int64(DefaultPPV2.paramBetaA) {
+				if got[i] < int64(-(DefaultPPV2.paramEtaA-int64(DefaultPPV2.paramBetaA))) || got[i] > int64(DefaultPPV2.paramEtaA-int64(DefaultPPV2.paramBetaA)) {
 					t.Errorf("randomnessFromZetaC2v2() sample a value %v", got[i])
 				}
 			}
