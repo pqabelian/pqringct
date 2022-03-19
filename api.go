@@ -27,8 +27,7 @@ func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, erro
 }
 
 func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDescv2) (cbTx *CoinbaseTxv2, err error) {
-	panic("CoinbaseTxGen implement me")
-	return nil, nil
+	return pp.CoinbaseTxGen(vin, txOutputDescs)
 }
 func CoinbaseTxVerify(pp *PublicParameter, cbTx *CoinbaseTxv2) bool {
 	panic("CoinbaseTxVerify implement me")

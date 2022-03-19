@@ -86,6 +86,14 @@ type TxOutputDescv2 struct {
 	value         uint64
 }
 
+func NewTxOutputDescv2(serializedAPk []byte, serializedVPk []byte, value uint64) *TxOutputDescv2 {
+	return &TxOutputDescv2{
+		serializedAPk: serializedAPk,
+		serializedVPk: serializedVPk,
+		value:         value,
+	}
+}
+
 type TransferTxv2 struct {
 	//	Version uint32
 	Inputs     []*TrTxInputv2

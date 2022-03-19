@@ -267,6 +267,10 @@ type PublicParameter struct {
 	paramKem *pqringctkem.ParamKem
 }
 
+func (pp *PublicParameter) ParamSeedBytesLen() int {
+	return pp.paramSeedBytesLen
+}
+
 func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
 	res := make([]*PolyANTTVec, pp.paramKA)
 
