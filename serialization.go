@@ -1256,6 +1256,41 @@ func WriteCommitmentv2(w io.Writer, cmt *ValueCommitment) error {
 	return nil
 }
 
+func ReadCommitmentv2(r io.Reader) (*ValueCommitment, error) {
+	// read b
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	var b0 *PolyCNTTVec = nil
+	if count > 0 {
+		b0, err = ReadPolyCNTTVec(r)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// read c
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	var c0 *PolyCNTT = nil
+	if count > 0 {
+		c0, err = ReadPolyCNTT(r)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	commitment := &ValueCommitment{
+		b: b0,
+		c: c0,
+	}
+
+	return commitment, nil
+}
+
 //func ReadCommitment(r io.Reader) (*Commitment, error) {
 //	// read b
 //	count, err := ReadVarInt(r)
@@ -1309,7 +1344,6 @@ func WriteCommitmentv2(w io.Writer, cmt *ValueCommitment) error {
 //}
 
 func WritePublicKey(w io.Writer, pk *AddressPublicKey) error {
-	// write ckem
 	// write t
 	if pk.t != nil {
 		WriteNotNULL(w)
@@ -1334,6 +1368,38 @@ func WritePublicKey(w io.Writer, pk *AddressPublicKey) error {
 	}
 
 	return nil
+}
+
+func ReadPublicKey(r io.Reader) (*AddressPublicKey, error) {
+	// read t
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	var t0 *PolyANTTVec = nil
+	if count > 0 {
+		t0, err = ReadPolyANTTVec(r)
+		if err != nil {
+			return nil, err
+		}
+	}
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	var e0 *PolyANTT = nil
+	if count > 0 {
+		e0, err = ReadPolyANTT(r)
+		if err != nil {
+			return nil, err
+		}
+	}
+	derivedPubKey := &AddressPublicKey{
+		t: t0,
+		e: e0,
+	}
+
+	return derivedPubKey, nil
 }
 
 //func WriteDerivedPubKey(w io.Writer, dpk *DerivedPubKey) error {
@@ -2321,16 +2387,86 @@ func (txo *Txo) Serialize0(w io.Writer) error {
 		WriteNULL(w)
 	}
 
-	// write vc
-	//if txo.vc != nil {
-	//	WriteNotNULL(w)
-	//	err := WriteBytes(w, txo.vc)
-	//	if err != nil {
-	//		return err
-	//	}
-	//} else {
-	//	WriteNULL(w)
-	//}
+	//write vc
+	if txo.Vct != nil {
+		WriteNotNULL(w)
+		err := WriteBytes(w, txo.Vct)
+		if err != nil {
+			return err
+		}
+	} else {
+		WriteNULL(w)
+	}
+
+	//CkemSerialzed
+	if txo.CkemSerialzed != nil {
+		WriteNotNULL(w)
+		err := WriteBytes(w, txo.CkemSerialzed)
+		if err != nil {
+			return err
+		}
+	} else {
+		WriteNULL(w)
+	}
+
+	return nil
+}
+func (txo *Txo) Deserialize(r io.Reader) error {
+	// read DerivedPubKey
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var apk0 *AddressPublicKey
+	if count > 0 {
+		apk0, err = ReadPublicKey(r)
+		if err != nil {
+			return err
+		}
+	}
+
+	// read commitment
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var cmt0 *ValueCommitment = nil
+	if count > 0 {
+		cmt0, err = ReadCommitmentv2(r)
+		if err != nil {
+			return err
+		}
+	}
+
+	// read vc
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var vc0 []byte = nil
+	if count > 0 {
+		vc0, err = ReadVarBytes(r, MAXALLOWED, "txo.Deserialize")
+		if err != nil {
+			return err
+		}
+	}
+
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var cs0 []byte = nil
+	if count > 0 {
+		cs0, err = ReadVarBytes(r, MAXALLOWED, "txo.Deserialize")
+		if err != nil {
+			return err
+		}
+	}
+
+	txo.AddressPublicKey = apk0
+	txo.ValueCommitment = cmt0
+	txo.Vct = vc0
+	txo.CkemSerialzed = cs0
 
 	return nil
 }
