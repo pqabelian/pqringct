@@ -100,7 +100,7 @@ func Decaps(ppkem *ParamKem, serializedC []byte, sk []byte) ([]byte, error) {
 	var err error
 	switch ppkem.Version {
 	case KEM_KYBER:
-		kappa, err = pqringctkyber.Decaps(ppkem.Kyber, serializedC, sk)
+		kappa, err = pqringctkyber.Decaps(ppkem.Kyber, serializedC[4:], sk[4:])
 		if err != nil {
 			return nil, err
 		}
