@@ -333,22 +333,6 @@ func (pp *PublicParameter) PolyANTTSub(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
 	return rst
 }
 
-// (F0+x^n*F1)(G0+x^n+G1) mod x^n-CCC
-func (pp *PublicParameter) Mul(a []int64, b []int64) []int64 {
-	res := make([]int64, 64)
-	bigQA := new(big.Int).SetInt64(pp.paramQA)
-	for i := 0; i < 32; i++ {
-		for j := 0; j < 32; j++ {
-			left := new(big.Int).SetInt64(a[i])
-			right := new(big.Int).SetInt64(b[j])
-			left.Mul(left, right)
-			left.Mod(left, bigQA)
-			res[i+j] = reduceInt64(res[i+j]+left.Int64(), pp.paramQA)
-		}
-	}
-	return res
-}
-
 /*
 ToDO:
 */
@@ -374,7 +358,7 @@ func (pp *PublicParameter) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
 			left[j] = a.coeffs[i*groupSize+j]
 			right[j] = b.coeffs[i*groupSize+j]
 		}
-		tr := pp.Mul(left, right)
+		tr := pp.MulKaratsuba(left, right, groupSize/2)
 		// reduce with zetasA[i]
 		var op1, op2 *big.Int
 		for j := 0; j < groupSize; j++ {
@@ -506,6 +490,8 @@ func (pp *PublicParameter) MulKaratsuba(a, b []int64, n int) []int64 {
 	res := make([]int64, 4*n)
 	f := make([][]int64, 2)
 	g := make([][]int64, 2)
+	// low n  -> f[0],g[0]
+	// high n -> f[1],g[1]
 	for i := 0; i < 2; i++ {
 		f[i] = make([]int64, n)
 		g[i] = make([]int64, n)
@@ -514,37 +500,57 @@ func (pp *PublicParameter) MulKaratsuba(a, b []int64, n int) []int64 {
 			g[i][j] = b[j+i*n]
 		}
 	}
-	fg := make([][][]int64, 2)
-	for i := 0; i < 2; i++ {
-		fg[i] = make([][]int64, 2)
-		for j := 0; j < 2; j++ {
-			fg[i][j] = make([]int64, 2*n)
+	f0g0 := make([]int64, 2*n)
+	f1g1 := make([]int64, 2*n)
+
+	var left, right big.Int
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			// f0*g0
+			left.SetInt64(f[0][i])
+			right.SetInt64(g[0][j])
+			left.Mul(&left, &right)
+			left.Mod(&left, bigQA)
+			f0g0[i+j] = reduceInt64(f0g0[i+j]+left.Int64(), pp.paramQA)
+			// f1*g1
+			left.SetInt64(f[1][i])
+			right.SetInt64(g[1][j])
+			left.Mul(&left, &right)
+			left.Mod(&left, bigQA)
+			f1g1[i+j] = reduceInt64(f1g1[i+j]+left.Int64(), pp.paramQA)
 		}
 	}
-	// fg[i][j]=f[i] * g[j]
-	var left, right *big.Int
-	tmp := big.NewInt(0)
-	for i := 0; i < 2; i++ {
-		for j := 0; j < 2; j++ {
-			for ii := 0; ii < n; ii++ {
-				left = big.NewInt(f[i][ii])
-				for jj := 0; jj < n; jj++ {
-					right = big.NewInt(g[j][jj])
-					tmp.Mul(left, right)
-					tmp.Mod(tmp, bigQA)
-					fg[i][j][ii+jj] = reduceInt64(fg[i][j][ii+jj]+reduceInt64(tmp.Int64(), pp.paramQA), pp.paramQA)
-				}
-			}
+	// f0g0 + x^(2n) * f1g1
+	for i := 0; i < 2*n; i++ {
+		res[i] = reduceInt64(res[i]+f0g0[i], pp.paramQA)
+		res[i+2*n] = reduceInt64(res[i+2*n]+f1g1[i], pp.paramQA)
+	}
+	// f0g0=f0g0+f1g1
+	for i := 0; i < 2*n; i++ {
+		f0g0[i] = reduceInt64(f0g0[i]+f1g1[i], pp.paramQA)
+		f1g1[i] = 0
+	}
+	// f1g1=(f0+f1)(g0+g1)
+	for i := 0; i < n; i++ {
+		f[0][i] = reduceInt64(f[0][i]+f[1][i], pp.paramQA)
+		g[0][i] = reduceInt64(g[0][i]+g[1][i], pp.paramQA)
+	}
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			// f1g1[i+j]+= f[0][i] * g[0][j]
+			left.SetInt64(f[0][i])
+			right.SetInt64(g[0][j])
+			left.Mul(&left, &right)
+			left.Mod(&left, bigQA)
+			f1g1[i+j] = reduceInt64(f1g1[i+j]+left.Int64(), pp.paramQA)
 		}
+	}
+	// f1g1 = f1g1 - f0g0 = (f0+f1)(g0+g1)-(f0g0+f1g1)
+	for i := 0; i < 2*n; i++ {
+		f1g1[i] = reduceInt64(f1g1[i]-f0g0[i], pp.paramQA)
 	}
 	for i := 0; i < 2*n; i++ {
-		// F0G0
-		res[i] = reduceInt64(res[i]+fg[0][0][i], pp.paramQA)
-		// (F0G1+F1G0)x^n
-		res[i+n] = reduceInt64(res[i+n]+fg[0][1][i], pp.paramQA)
-		res[i+n] = reduceInt64(res[i+n]+fg[1][0][i], pp.paramQA)
-		// F1G1x^{2n}
-		res[i+2*n] = reduceInt64(res[i+2*n]+fg[1][1][i], pp.paramQA)
+		res[i+n] = reduceInt64(res[i+n]+f1g1[i], pp.paramQA)
 	}
 	return res
 }

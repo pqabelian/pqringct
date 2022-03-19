@@ -6,6 +6,22 @@ import (
 	"testing"
 )
 
+// Mul is help function for testint MulKaratsuba which computes by (F0+x^n*F1)(G0+x^n+G1)
+func (pp *PublicParameter) Mul(a []int64, b []int64) []int64 {
+	res := make([]int64, 64)
+	bigQA := new(big.Int).SetInt64(pp.paramQA)
+	for i := 0; i < 32; i++ {
+		for j := 0; j < 32; j++ {
+			left := new(big.Int).SetInt64(a[i])
+			right := new(big.Int).SetInt64(b[j])
+			left.Mul(left, right)
+			left.Mod(left, bigQA)
+			res[i+j] = reduceInt64(res[i+j]+left.Int64(), pp.paramQA)
+		}
+	}
+	return res
+}
+
 func TestPublicParameter_MulKaratsuba(t *testing.T) {
 	pp := DefaultPPV2
 	length := 32
@@ -17,26 +33,11 @@ func TestPublicParameter_MulKaratsuba(t *testing.T) {
 	got := pp.MulKaratsuba(a, b, length/2)
 	for i := 0; i < 64; i++ {
 		if ab[i] != got[i] {
-			fmt.Println("i=", i, " got[i]=", got[i], " origin[i]=", ab[i])
+			fmt.Println("i=", i, " got[i]=", got[i], " ab[i]=", ab[i])
 		}
 	}
 }
 
-// (F0+x^n*F1)(G0+x^n+G1) mod x^n-CCC
-//func (pp *PublicParameter) Mul(a []int64, b []int64) []int64 {
-//	res := make([]int64, 64)
-//	bigQA := new(big.Int).SetInt64(pp.paramQA)
-//	for i := 0; i < 32; i++ {
-//		for j := 0; j < 32; j++ {
-//			left := new(big.Int).SetInt64(a[i])
-//			right := new(big.Int).SetInt64(b[j])
-//			left.Mul(left, right)
-//			left.Mod(left, bigQA)
-//			res[i+j] = reduceInt64(res[i+j]+left.Int64(), pp.paramQA)
-//		}
-//	}
-//	return res
-//}
 func (pp *PublicParameter) PolyAMul(a *PolyA, b *PolyA) *PolyA {
 	res := make([]int64, 2*pp.paramDA)
 	bigQA := new(big.Int).SetInt64(pp.paramQA)
