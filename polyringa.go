@@ -143,7 +143,7 @@ func (pp *PublicParameter) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
 	copy(factors, pp.paramNTTAFactors)
 
 	nttCoeffs := make([]int64, pp.paramDA)
-	for i := 0; i < pp.paramDC; i++ {
+	for i := 0; i < pp.paramDA; i++ {
 		nttCoeffs[i] = polyANTT.coeffs[i]
 	}
 	// twoInv := int64((pp.paramQC+1)/2) - int64(pp.paramQC)
@@ -318,7 +318,7 @@ func (pp *PublicParameter) PolyANTTAdd(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
 }
 
 func (pp *PublicParameter) PolyANTTSub(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
-	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
+	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
 		log.Panic("the length of the input polyANTT is not paramDA")
 	}
 	rst := pp.NewPolyANTT()
@@ -339,7 +339,7 @@ ToDO:
 func (pp *PublicParameter) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
 	bigQA := big.NewInt(pp.paramQA) // TODO: the big.Int(pp.paramQA) and big.Int(pp.paramQC) should be as a global parameter of system
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
-		log.Panic("the length of the input polyANTT is not paramDC")
+		log.Panic("the length of the input polyANTT is not paramDA")
 	}
 	rst := pp.NewPolyANTT()
 	// the size of every group is pp.paramDA/(pp.paramZetaAOrder/2)
@@ -420,7 +420,7 @@ func (pp *PublicParameter) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyANTT
 
 func (pp *PublicParameter) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
-		log.Panic("the length of the input polyANTT is not paramDC")
+		log.Panic("the length of the input polyANTT is not paramDA")
 	}
 
 	rst := pp.NewPolyA()

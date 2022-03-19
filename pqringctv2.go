@@ -892,6 +892,10 @@ func (pp *PublicParameter) ELRSSign(
 
 		z_cs[j] = make([]*PolyCNTTVec, pp.paramK)
 		z_cps[j] = make([]*PolyCNTTVec, pp.paramK)
+
+		w_cs[j] = make([]*PolyCNTTVec, pp.paramK)
+		w_cps[j] = make([]*PolyCNTTVec, pp.paramK)
+
 		delta_cs[j] = make([]*PolyCNTT, pp.paramK)
 		for tao := 0; tao < pp.paramK; tao++ {
 			tmpZc, err := pp.sampleZetaC2v2()
@@ -952,6 +956,9 @@ ELRSSignRestartv2:
 
 	y_cs := make([]*PolyCNTTVec, pp.paramK)
 	y_cps := make([]*PolyCNTTVec, pp.paramK)
+
+	w_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
+	w_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
 	for tao := 0; tao < pp.paramK; tao++ {
 		tmpYc, err := pp.sampleMaskCv2()
 		if err != nil {
@@ -973,7 +980,10 @@ ELRSSignRestartv2:
 		)
 	}
 
-	seed_ch := pp.collectBytesForELRv2(lgrTxoList, ma_p, cmt_p, msg, w_as, delta_as, w_cs, w_cps, delta_cs)
+	seed_ch, err := Hash(pp.collectBytesForELRv2(lgrTxoList, ma_p, cmt_p, msg, w_as, delta_as, w_cs, w_cps, delta_cs))
+	if err != nil {
+		return nil, err
+	}
 	/*	seeds[sindex] = make([]byte, len(seed_ch))
 		for i := 0; i < len(seed_ch); i++ {
 			seeds[sindex][i] = seed_ch[i]
@@ -1226,7 +1236,10 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 		}
 	}
 
-	seed_ch := pp.collectBytesForELRv2(lgrTxoList, ma_p, cmt_p, msg, w_as, delta_as, w_cs, w_cps, delta_cs)
+	seed_ch, err := Hash(pp.collectBytesForELRv2(lgrTxoList, ma_p, cmt_p, msg, w_as, delta_as, w_cs, w_cps, delta_cs))
+	if err != nil {
+		return false
+	}
 	seedByteLen := len(seed_ch)
 	for j := 0; j < ringLen; j++ {
 		for i := 0; i < len(seed_ch); i++ {

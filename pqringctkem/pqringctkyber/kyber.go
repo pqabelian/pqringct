@@ -24,7 +24,7 @@ func RandomBytes(length int) []byte {
 	return res
 }
 
-func KeyPair(kpp *kyber.ParamSet, seed []byte, seedLen int) ([]byte, []byte, error) {
+func KeyPair(kpp *kyber.ParameterSet, seed []byte, seedLen int) ([]byte, []byte, error) {
 	// check the validity of the length of seed
 	if seed == nil || len(seed) != seedLen {
 		return nil, nil, errors.New("the length of seed is invalid")
@@ -39,11 +39,15 @@ func KeyPair(kpp *kyber.ParamSet, seed []byte, seedLen int) ([]byte, []byte, err
 	shake256 := sha3.NewShake256()
 	shake256.Write(seed)
 	shake256.Read(usedSeed)
-	return kpp.KeyPair(usedSeed)
+	return kyber.KeyPair(kpp, usedSeed)
 }
-func Encaps(kpp *kyber.ParamSet, pk []byte) ([]byte, []byte, error) {
-	return kpp.Encaps(pk)
+func Encaps(kpp *kyber.ParameterSet, pk []byte) ([]byte, []byte, error) {
+	return kyber.Encaps(kpp, pk)
 }
-func Decaps(kpp *kyber.ParamSet, cipher []byte, sk []byte) ([]byte, error) {
-	return kpp.Decaps(cipher, sk)
+func Decaps(kpp *kyber.ParameterSet, cipher []byte, sk []byte) ([]byte, error) {
+	got := kyber.Decaps(kpp, sk, cipher)
+	if got == nil {
+		return nil, errors.New("kyber.Decaps err")
+	}
+	return got, nil
 }

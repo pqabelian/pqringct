@@ -14,7 +14,7 @@ const (
 
 type ParamKem struct {
 	Version VersionKEM
-	Kyber   *kyber.ParamSet
+	Kyber   *kyber.ParameterSet
 }
 
 type ValuePublicKey struct {
@@ -105,7 +105,7 @@ func (vsk *ValueSecretKey) WellformCheck() bool {
 	return true
 }
 
-func NewParamKem(version VersionKEM, kyber *kyber.ParamSet) *ParamKem {
+func NewParamKem(version VersionKEM, kyber *kyber.ParameterSet) *ParamKem {
 	switch version {
 	case KEM_KYBER:
 		return &ParamKem{
