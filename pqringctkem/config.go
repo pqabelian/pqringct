@@ -1,6 +1,7 @@
 package pqringctkem
 
 import (
+	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
 	"github.com/cryptosuite/pqringct/pqringctkem/pqringctkyber"
 	"log"
@@ -81,6 +82,20 @@ func Encaps(ppkem *ParamKem, pk []byte) ([]byte, []byte, error) {
 }
 
 func Decaps(ppkem *ParamKem, serializedC []byte, sk []byte) ([]byte, error) {
+	version := uint32(sk[0]) << 0
+	version |= uint32(sk[1]) << 8
+	version |= uint32(sk[2]) << 16
+	version |= uint32(sk[3]) << 24
+	if VersionKEM(version) != ppkem.Version {
+		return nil, errors.New("the version of kem is not matched")
+	}
+	version = uint32(serializedC[0]) << 0
+	version |= uint32(serializedC[1]) << 8
+	version |= uint32(serializedC[2]) << 16
+	version |= uint32(serializedC[3]) << 24
+	if VersionKEM(version) != ppkem.Version {
+		return nil, errors.New("the version of kem is not matched")
+	}
 	var kappa []byte
 	var err error
 	switch ppkem.Version {

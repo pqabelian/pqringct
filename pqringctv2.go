@@ -1010,7 +1010,7 @@ ELRSSignRestartv2:
 	dA := pp.NTTPolyA(tmpA)
 	dC := pp.NTTPolyC(tmpC)
 
-	z_as[sindex] = pp.PolyANTTVecAdd(y_a, pp.PolyANTTVecScaleMul(dA, sa, pp.paramLA), pp.paramKA)
+	z_as[sindex] = pp.PolyANTTVecAdd(y_a, pp.PolyANTTVecScaleMul(dA, sa, pp.paramLA), pp.paramLA)
 	z_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
 	z_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
 	for tao := 0; tao < pp.paramK; tao++ {
@@ -1201,6 +1201,8 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 			),
 		)
 
+		w_cs[j] = make([]*PolyCNTTVec, pp.paramK)
+		w_cps[j] = make([]*PolyCNTTVec, pp.paramK)
 		delta_cs[j] = make([]*PolyCNTT, pp.paramK)
 		for tao := 0; tao < pp.paramK; tao++ {
 			sigmatao := pp.sigmaPowerPolyCNTT(dc, tao)
@@ -1792,22 +1794,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		}
 
 		// run kem.decaps to get kappa
-		version := uint32(inputDescItem.vsk[0]) << 0
-		version |= uint32(inputDescItem.vsk[1]) << 8
-		version |= uint32(inputDescItem.vsk[2]) << 16
-		version |= uint32(inputDescItem.vsk[3]) << 24
-		if pqringctkem.VersionKEM(version) != pp.paramKem.Version {
-			return nil, errors.New("the version of kem is not matched")
-		}
-		version = uint32(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[0]) << 0
-		version |= uint32(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[1]) << 8
-		version |= uint32(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[2]) << 16
-		version |= uint32(inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[3]) << 24
-		if pqringctkem.VersionKEM(version) != pp.paramKem.Version {
-			return nil, errors.New("the version of kem is not matched")
-		}
-
-		kappa, err := pqringctkem.Decaps(pp.paramKem, inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed[4:], inputDescItem.vsk[4:])
+		kappa, err := pqringctkem.Decaps(pp.paramKem, inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed, inputDescItem.vsk)
 		if err != nil {
 			return nil, err
 		}
@@ -2040,7 +2027,10 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 	} else {
 		//	n2 = n+4
 		msg_hats[n] = intToBinary(inputTotal, pp.paramDC) //	v_in
-
+		c_hats[n] = pp.PolyCNTTAdd(
+			pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[n+1], r_hat, pp.paramLC),
+			&PolyCNTT{coeffs: msg_hats[n]},
+		)
 		//	f1 is the carry vector, such that, m_0 + m_1+ ... + m_{I-1} = m_{n}
 		//	f1[0] = 0, and for i=1 to d-1,
 		//	m_0[i-1] + .. + m_{I-1}[i-1] + f1[i-1] = m_n[i-1] + 2 f[i] ,

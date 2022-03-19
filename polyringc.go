@@ -198,8 +198,8 @@ func (pp *PublicParameter) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 				tmp2.Mul(&tmp2, &tmpZetaInv)
 				tmp2.Mod(&tmp2, &qcBig)
 
-				nttCoeffs[k*segLenDouble+i] = tmp1.Int64()
-				nttCoeffs[k*segLenDouble+i+segLen] = tmp2.Int64()
+				nttCoeffs[k*segLenDouble+i] = reduceInt64(tmp1.Int64(), pp.paramQC)
+				nttCoeffs[k*segLenDouble+i+segLen] = reduceInt64(tmp2.Int64(), pp.paramQC)
 			}
 		}
 		segNum = segNum >> 1

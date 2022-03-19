@@ -332,10 +332,11 @@ func (pp *PublicParameter) generatePolyANTTMatrix(seed []byte, rowLength int, co
 // 4503599627373056 = 0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_000_1010_0000_0000
 //	todo: 202203 Qc hard code, but withQa does not hard code, make them consistent
 func rejectionUniformWithQc(seed []byte, length int) []int64 {
+	bound := int64(9007199254746113)
 	res := make([]int64, length)
 	var curr int
 	var pos int
-	var t uint64
+	var t int64
 
 	xof := sha3.NewShake128()
 	cnt := 1
@@ -354,68 +355,72 @@ func rejectionUniformWithQc(seed []byte, length int) []int64 {
 		//
 		for pos+27 < len(buf) {
 			// read 4 byte from buf and view it as a uint32
-			t = uint64(buf[pos])
-			t |= uint64(buf[pos+1]) << 8
-			t |= uint64(buf[pos+2]) << 16
-			t |= uint64(buf[pos+3]) << 24
-			t |= uint64(buf[pos+4]) << 32
-			t |= uint64(buf[pos+5]) << 40
-			t |= uint64(buf[pos+6]) << 48
-			t |= uint64(buf[pos+7]&0x3F) << 56
+			t = int64(buf[pos])
+			t |= int64(buf[pos+1]) << 8
+			t |= int64(buf[pos+2]) << 16
+			t |= int64(buf[pos+3]) << 24
+			t |= int64(buf[pos+4]) << 32
+			t |= int64(buf[pos+5]) << 40
+			t |= int64(buf[pos+6]) << 48
+			t |= int64(buf[pos+7]&0x3F) << 56
+			t &= 0x3F_FFFF_FFFF_FFFF
 			// if t is in [0,4294962689] then accept
 			// otherwise reject this one
 			if t < 9007199254746113 {
-				res[curr] = int64(t - 4503599627373056)
+				res[curr] = reduceInt64(t, bound)
 				curr += 1
 				if curr >= length {
 					break
 				}
 			}
-			t = uint64(buf[pos+7]&0xC0) >> 6
-			t |= uint64(buf[pos+8]) << 2
-			t |= uint64(buf[pos+9]) << 10
-			t |= uint64(buf[pos+10]) << 18
-			t |= uint64(buf[pos+11]) << 26
-			t |= uint64(buf[pos+12]) << 34
-			t |= uint64(buf[pos+13]) << 42
-			t |= uint64(buf[pos+14]&0x0F) << 50
+			t = int64(buf[pos+7]&0xC0) >> 6
+			t |= int64(buf[pos+8]) << 2
+			t |= int64(buf[pos+9]) << 10
+			t |= int64(buf[pos+10]) << 18
+			t |= int64(buf[pos+11]) << 26
+			t |= int64(buf[pos+12]) << 34
+			t |= int64(buf[pos+13]) << 42
+			t |= int64(buf[pos+14]&0x0F) << 50
+			t &= 0x3F_FFFF_FFFF_FFFF
 			// if t is in [0,4294962689] then accept
 			// otherwise reject this one
 			if t < 9007199254746113 {
-				res[curr] = int64(t - 4503599627373056)
+				res[curr] = reduceInt64(t, bound)
 				curr += 1
 				if curr >= length {
 					break
 				}
 			}
-			t = uint64(buf[pos+14]&0xF0) >> 4
-			t |= uint64(buf[pos+15]) << 4
-			t |= uint64(buf[pos+16]) << 12
-			t |= uint64(buf[pos+17]) << 20
-			t |= uint64(buf[pos+18]) << 28
-			t |= uint64(buf[pos+19]) << 36
-			t |= uint64(buf[pos+20]) << 44
-			t |= uint64(buf[pos+21]&0x03) << 52
+			t = int64(buf[pos+14]&0xF0) >> 4
+			t |= int64(buf[pos+15]) << 4
+			t |= int64(buf[pos+16]) << 12
+			t |= int64(buf[pos+17]) << 20
+			t |= int64(buf[pos+18]) << 28
+			t |= int64(buf[pos+19]) << 36
+			t |= int64(buf[pos+20]) << 44
+			t |= int64(buf[pos+21]&0x03) << 52
+			t &= 0x3F_FFFF_FFFF_FFFF
 			// if t is in [0,4294962689] then accept
 			// otherwise reject this one
 			if t < 9007199254746113 {
-				res[curr] = int64(t - 4503599627373056)
+				res[curr] = reduceInt64(t, bound)
 				curr += 1
 				if curr >= length {
 					break
 				}
 			}
-			t = uint64(buf[pos+21]&0xFC) >> 2
-			t |= uint64(buf[pos+22]) << 6
-			t |= uint64(buf[pos+23]) << 14
-			t |= uint64(buf[pos+24]) << 22
-			t |= uint64(buf[pos+25]) << 30
-			t |= uint64(buf[pos+26]) << 38
-			t |= uint64(buf[pos+27]) << 46
+			t = int64(buf[pos+21]&0xFC) >> 2
+			t |= int64(buf[pos+22]) << 6
+			t |= int64(buf[pos+23]) << 14
+			t |= int64(buf[pos+24]) << 22
+			t |= int64(buf[pos+25]) << 30
+			t |= int64(buf[pos+26]) << 38
+			t |= int64(buf[pos+27]) << 46
+			t &= 0x3F_FFFF_FFFF_FFFF
 			// if t is in [0,4294962689] then accept
 			// otherwise reject this one
 			if t < 9007199254746113 {
-				res[curr] = int64(t - 4503599627373056)
+				res[curr] = reduceInt64(t, bound)
 				curr += 1
 				if curr >= length {
 					break
@@ -456,8 +461,8 @@ func rejectionUniformWithQa(seed []byte, length int, bound int64) []int64 {
 			t |= int64(buf[pos+3]) << 24
 			t |= (int64(buf[pos+4] & 0x3F)) << 32
 			t &= 0x3FFFFFFFFF
-			if t < bound {
-				res[cur] = t - (bound-1)>>1
+			if t < bound { // [0,bound]  ->  [-(bound-1)/2,(bound-1)/2]
+				res[cur] = reduceInt64(t, bound)
 				cur++
 				if cur >= length {
 					break
@@ -471,7 +476,7 @@ func rejectionUniformWithQa(seed []byte, length int, bound int64) []int64 {
 			t |= int64(buf[pos+9]&0x0F) << 34
 			t &= 0x3FFFFFFFFF
 			if t < bound {
-				res[cur] = t - (bound-1)>>1
+				res[cur] = reduceInt64(t, bound)
 				cur++
 				if cur >= length {
 					break
@@ -485,7 +490,7 @@ func rejectionUniformWithQa(seed []byte, length int, bound int64) []int64 {
 			t |= int64(buf[pos+14]&0x03) << 36
 			t &= 0x3FFFFFFFFF
 			if t < bound {
-				res[cur] = t - (bound-1)>>1
+				res[cur] = reduceInt64(t, bound)
 				cur++
 				if cur >= length {
 					break
@@ -498,7 +503,7 @@ func rejectionUniformWithQa(seed []byte, length int, bound int64) []int64 {
 			t |= int64(buf[pos+18]) << 30
 			t &= 0x3FFFFFFFFF
 			if t < bound {
-				res[cur] = t - (bound-1)>>1
+				res[cur] = reduceInt64(t, bound)
 				cur++
 				if cur >= length {
 					break

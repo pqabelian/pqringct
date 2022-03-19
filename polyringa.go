@@ -170,8 +170,8 @@ func (pp *PublicParameter) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
 				tmp2.Mul(&tmp2, &tmpZetaInv)
 				tmp2.Mod(&tmp2, &qaBig)
 
-				nttCoeffs[k*segLenDouble+i] = tmp1.Int64()
-				nttCoeffs[k*segLenDouble+i+segLen] = tmp2.Int64()
+				nttCoeffs[k*segLenDouble+i] = reduceInt64(tmp1.Int64(), pp.paramQA)
+				nttCoeffs[k*segLenDouble+i+segLen] = reduceInt64(tmp2.Int64(), pp.paramQA)
 			}
 		}
 		segNum = segNum >> 1
@@ -333,6 +333,22 @@ func (pp *PublicParameter) PolyANTTSub(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
 	return rst
 }
 
+// (F0+x^n*F1)(G0+x^n+G1) mod x^n-CCC
+func (pp *PublicParameter) Mul(a []int64, b []int64) []int64 {
+	res := make([]int64, 64)
+	bigQA := new(big.Int).SetInt64(pp.paramQA)
+	for i := 0; i < 32; i++ {
+		for j := 0; j < 32; j++ {
+			left := new(big.Int).SetInt64(a[i])
+			right := new(big.Int).SetInt64(b[j])
+			left.Mul(left, right)
+			left.Mod(left, bigQA)
+			res[i+j] = reduceInt64(res[i+j]+left.Int64(), pp.paramQA)
+		}
+	}
+	return res
+}
+
 /*
 ToDO:
 */
@@ -343,21 +359,27 @@ func (pp *PublicParameter) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
 	}
 	rst := pp.NewPolyANTT()
 	// the size of every group is pp.paramDA/(pp.paramZetaAOrder/2)
+	factor := make([]int, pp.paramZetaAOrder/2)
+	for i := 0; i < pp.paramZetaAOrder/4; i++ {
+		factor[2*i] = pp.paramNTTAFactors[i] + pp.paramZetaAOrder/2
+		factor[2*i+1] = pp.paramNTTAFactors[i]
+	}
+	//fmt.Println(factor)
 	groupSize := 2 * pp.paramDA / pp.paramZetaAOrder
-	groupLen := pp.paramDA / groupSize
+	groupNum := pp.paramDA / groupSize
 	left := make([]int64, groupSize)
 	right := make([]int64, groupSize)
-	for i := 0; i < groupLen; i++ {
+	for i := 0; i < groupNum; i++ {
 		for j := 0; j < groupSize; j++ {
 			left[j] = a.coeffs[i*groupSize+j]
 			right[j] = b.coeffs[i*groupSize+j]
 		}
-		tr := pp.MulKaratsuba(left, right, groupSize/2)
+		tr := pp.Mul(left, right)
 		// reduce with zetasA[i]
 		var op1, op2 *big.Int
 		for j := 0; j < groupSize; j++ {
 			op1 = big.NewInt(tr[j+groupSize])
-			op2 = big.NewInt(pp.paramZetasA[i])
+			op2 = big.NewInt(pp.paramZetasA[factor[i]])
 			op1.Mul(op1, op2)
 			op1.Mod(op1, bigQA)
 			tr[j] = reduceInt64(tr[j]+op1.Int64(), pp.paramQA)
@@ -488,8 +510,8 @@ func (pp *PublicParameter) MulKaratsuba(a, b []int64, n int) []int64 {
 		f[i] = make([]int64, n)
 		g[i] = make([]int64, n)
 		for j := 0; j < n; j++ {
-			f[i][j] = a[i+i*n]
-			g[i][j] = b[i+i*n]
+			f[i][j] = a[j+i*n]
+			g[i][j] = b[j+i*n]
 		}
 	}
 	fg := make([][][]int64, 2)
@@ -505,12 +527,12 @@ func (pp *PublicParameter) MulKaratsuba(a, b []int64, n int) []int64 {
 	for i := 0; i < 2; i++ {
 		for j := 0; j < 2; j++ {
 			for ii := 0; ii < n; ii++ {
+				left = big.NewInt(f[i][ii])
 				for jj := 0; jj < n; jj++ {
-					left = big.NewInt(f[i][ii])
 					right = big.NewInt(g[j][jj])
 					tmp.Mul(left, right)
 					tmp.Mod(tmp, bigQA)
-					fg[i][j][ii+jj] = reduceInt64(fg[i][j][ii+jj]+tmp.Int64(), pp.paramQA)
+					fg[i][j][ii+jj] = reduceInt64(fg[i][j][ii+jj]+reduceInt64(tmp.Int64(), pp.paramQA), pp.paramQA)
 				}
 			}
 		}

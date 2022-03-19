@@ -27,3 +27,36 @@ func TestPublicParameterv2_NTTPolyC_NTTInvPolyC(t *testing.T) {
 	fmt.Println(got.coeffs)
 
 }
+
+func TestPublicParameter_NTTPolyC(t *testing.T) {
+	pp := DefaultPPV2
+
+	//bigQa := new(big.Int).SetInt64(pp.paramQA)
+	//for i := 1; i < pp.paramZetaAOrder; i++ {
+	//	a := new(big.Int).SetInt64(pp.paramZetasA[i])
+	//	b := new(big.Int).SetInt64(pp.paramZetasA[pp.paramZetaAOrder-i])
+	//	a.Mul(a, b)
+	//	a.Mod(a, bigQa)
+	//	fmt.Println(a.Int64())
+	//}
+
+	seed := RandomBytes(pp.paramSeedBytesLen)
+	tmpC := rejectionUniformWithQc(seed, pp.paramDC)
+	//tmpA := make([]int64, pp.paramDA)
+	//for i := 0; i < pp.paramDA; i++ {
+	//	tmpA[i] = int64(1000 + i)
+	//}
+	//for i := 0; i < pp.paramDA; i++ {
+	//	if i&1 == 1 {
+	//		tmpA[i] = -tmpA[i]
+	//	}
+	//}
+	//tmpA[0] = (pp.paramQA-1)/2 - 1
+	nttc := pp.NTTPolyC(&PolyC{coeffs: tmpC})
+	got := pp.NTTInvPolyC(nttc)
+	for i := 0; i < pp.paramDC; i++ {
+		if got.coeffs[i] != tmpC[i] {
+			fmt.Println("i=", i, " got[i]=", got.coeffs[i], " origin[i]=", tmpC[i])
+		}
+	}
+}
