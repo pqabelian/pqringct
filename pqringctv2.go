@@ -1010,7 +1010,7 @@ ELRSSignRestartv2:
 	dA := pp.NTTPolyA(tmpA)
 	dC := pp.NTTPolyC(tmpC)
 
-	z_as[sindex] = pp.PolyANTTVecAdd(y_a, pp.PolyANTTVecScaleMul(dA, sa, pp.paramLA), pp.paramKA)
+	z_as[sindex] = pp.PolyANTTVecAdd(y_a, pp.PolyANTTVecScaleMul(dA, sa, pp.paramLA), pp.paramLA)
 	z_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
 	z_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
 	for tao := 0; tao < pp.paramK; tao++ {
