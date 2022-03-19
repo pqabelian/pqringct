@@ -1644,6 +1644,96 @@ func WriteElrsSignaturev2(w io.Writer, elrsSig *elrsSignaturev2) error {
 	return nil
 }
 
+func ReadElrsSignaturev2(r io.Reader) (*elrsSignaturev2, error) {
+	// read chseed
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	var chseed0 [][]byte
+	if count > 0 {
+		chseed0 = make([][]byte, count)
+		for i := 0; i < int(count); i++ {
+			chseed0[i], err = ReadVarBytes(r, MAXALLOWED, "ReadElrsSignature")
+			if err != nil {
+				return nil, err
+			}
+		}
+
+	}
+
+	// read z_as
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	var z_as0 []*PolyANTTVec = nil
+	if count > 0 {
+		z_as0 = make([]*PolyANTTVec, count)
+		for i := 0; i < int(count); i++ {
+			z_as0[i], err = ReadPolyANTTVec(r)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// read z_cs
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	var z_cs0 [][]*PolyCNTTVec = nil
+	if count > 0 {
+		z_cs0 = make([][]*PolyCNTTVec, count)
+		for i := 0; i < int(count); i++ {
+			count2, err := ReadVarInt(r)
+			if err != nil {
+				return nil, err
+			}
+			z_cs0[i] = make([]*PolyCNTTVec, count2)
+			for j := 0; j < int(count2); j++ {
+				z_cs0[i][j], err = ReadPolyCNTTVec(r)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	// read z_cps
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	var z_cps0 [][]*PolyCNTTVec = nil
+	if count > 0 {
+		z_cps0 = make([][]*PolyCNTTVec, count)
+		for i := 0; i < int(count); i++ {
+			count2, err := ReadVarInt(r)
+			if err != nil {
+				return nil, err
+			}
+			z_cps0[i] = make([]*PolyCNTTVec, count2)
+			for j := 0; j < int(count2); j++ {
+				z_cps0[i][j], err = ReadPolyCNTTVec(r)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	ret := &elrsSignaturev2{
+		seeds: chseed0,
+		z_as:  z_as0,
+		z_cs:  z_cs0,
+		z_cps: z_cps0,
+	}
+
+	return ret, nil
+}
+
 //func ReadElrsSignature(r io.Reader) (*elrsSignature, error) {
 //	// read chseed
 //	count, err := ReadVarInt(r)
@@ -2752,6 +2842,57 @@ func (txo *Txo) Deserialize(r io.Reader) error {
 //}
 
 func (trTxWitness *TrTxWitnessv2) Serialize0(w io.Writer) error {
+	// write ma_ps
+	if trTxWitness.ma_ps != nil {
+		count := len(trTxWitness.ma_ps)
+		err := WriteVarInt(w, uint64(count))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < count; i++ {
+			err = WritePolyANTT(w, trTxWitness.ma_ps[i])
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		WriteNULL(w)
+	}
+
+	// write cmtps
+	if trTxWitness.cmt_ps != nil {
+		count := len(trTxWitness.cmt_ps)
+		err := WriteVarInt(w, uint64(count))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < count; i++ {
+			err = WriteCommitmentv2(w, trTxWitness.cmt_ps[i])
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		WriteNULL(w)
+	}
+
+	// write elrsSigs
+	if trTxWitness.elrsSigs != nil {
+		count := len(trTxWitness.elrsSigs)
+		err := WriteVarInt(w, uint64(count))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < count; i++ {
+			err = WriteElrsSignaturev2(w, trTxWitness.elrsSigs[i])
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		WriteNULL(w)
+	}
+
 	// write b_hat
 	if trTxWitness.b_hat != nil {
 		WriteNotNULL(w)
@@ -2808,39 +2949,121 @@ func (trTxWitness *TrTxWitnessv2) Serialize0(w io.Writer) error {
 		WriteNULL(w)
 	}
 
-	// write cmtps
-	if trTxWitness.cmt_ps != nil {
-		count := len(trTxWitness.cmt_ps)
-		err := WriteVarInt(w, uint64(count))
-		if err != nil {
-			return err
-		}
-		for i := 0; i < count; i++ {
-			err = WriteCommitmentv2(w, trTxWitness.cmt_ps[i])
+	return nil
+}
+
+func (trTxWitness *TrTxWitnessv2) Deserialize(r io.Reader) error {
+	count, err := ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var ma_ps0 []*PolyANTT
+	if count > 0 {
+		ma_ps0 = make([]*PolyANTT, count)
+		for i := 0; i < int(count); i++ {
+			ma_ps0[i], err = ReadPolyANTT(r)
 			if err != nil {
 				return err
 			}
 		}
-	} else {
-		WriteNULL(w)
 	}
 
-	// write elrsSigs
-	if trTxWitness.elrsSigs != nil {
-		count := len(trTxWitness.elrsSigs)
-		err := WriteVarInt(w, uint64(count))
-		if err != nil {
-			return err
-		}
-		for i := 0; i < count; i++ {
-			err = WriteElrsSignaturev2(w, trTxWitness.elrsSigs[i])
+	// read cmtps
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var cmtps0 []*ValueCommitment = nil
+	if count > 0 {
+		cmtps0 = make([]*ValueCommitment, count)
+		for i := 0; i < int(count); i++ {
+			cmtps0[i], err = ReadCommitmentv2(r)
 			if err != nil {
 				return err
 			}
 		}
-	} else {
-		WriteNULL(w)
 	}
+
+	// read elrsSigs
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var elrsSigs0 []*elrsSignaturev2 = nil
+	if count > 0 {
+		elrsSigs0 = make([]*elrsSignaturev2, count)
+		for i := 0; i < int(count); i++ {
+			elrsSigs0[i], err = ReadElrsSignaturev2(r)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// read b_hat
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var b_hat0 *PolyCNTTVec = nil
+	if count > 0 {
+		b_hat0, err = ReadPolyCNTTVec(r)
+		if err != nil {
+			return err
+		}
+	}
+
+	// read c_hats
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var c_hats0 []*PolyCNTT = nil
+	if count > 0 {
+		c_hats0 = make([]*PolyCNTT, count)
+		for i := 0; i < int(count); i++ {
+			c_hats0[i], err = ReadPolyCNTT(r)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// read u_p
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var u_p0 []int64 = nil
+	if count > 0 {
+		u_p0 = make([]int64, count)
+		for i := 0; i < int(count); i++ {
+			err = readElement(r, &u_p0[i])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// read rpulpproof
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	var rpulpproof0 *rpulpProofv2 = nil
+	if count > 0 {
+		rpulpproof0, err = ReadRpulpProofv2(r)
+		if err != nil {
+			return err
+		}
+	}
+
+	trTxWitness.b_hat = b_hat0
+	trTxWitness.c_hats = c_hats0
+	trTxWitness.u_p = u_p0
+	trTxWitness.rpulpproof = rpulpproof0
+	trTxWitness.cmt_ps = cmtps0
+	trTxWitness.elrsSigs = elrsSigs0
 
 	return nil
 }

@@ -80,6 +80,19 @@ type TxInputDescv2 struct {
 	serializedVSk []byte
 	value         uint64
 }
+
+func NewTxInputDescv2(txoList []*LgrTxo, sidx int, serializedASk []byte, serializedVPk []byte, serializedVSk []byte, value uint64,
+) *TxInputDescv2 {
+	return &TxInputDescv2{
+		txoList:       txoList,
+		sidx:          sidx,
+		serializedASk: serializedASk,
+		serializedVPk: serializedVPk,
+		serializedVSk: serializedVSk,
+		value:         value,
+	}
+}
+
 type TxOutputDescv2 struct {
 	serializedAPk []byte
 	serializedVPk []byte
