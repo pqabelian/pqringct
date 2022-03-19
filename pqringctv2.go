@@ -73,17 +73,17 @@ type CbTxWitnessv2 struct {
 }
 
 type TxInputDescv2 struct {
-	txoList []*LgrTxo // todo: refactor lgrTxoList
-	sidx    int
-	ask     *AddressSecretKey
-	vpk     []byte
-	vsk     []byte
-	value   uint64
+	txoList       []*LgrTxo // todo: refactor lgrTxoList
+	sidx          int
+	serializedASk []byte
+	serializedVPk []byte
+	serializedVSk []byte
+	value         uint64
 }
 type TxOutputDescv2 struct {
-	apk   *AddressPublicKey
-	vpk   []byte
-	value uint64
+	serializedAPk []byte
+	serializedVPk []byte
+	value         uint64
 }
 
 type TransferTxv2 struct {
@@ -119,7 +119,7 @@ type elrsSignaturev2 struct {
 	z_cps [][]*PolyCNTTVec
 }
 
-func AddressKeyGen(pp *PublicParameter, seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
+func (pp *PublicParameter) AddressKeyGen(seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
 	var s *PolyANTTVec
 
 	// check the validity of the length of seed
@@ -166,29 +166,8 @@ func AddressKeyGen(pp *PublicParameter, seed []byte) (apk *AddressPublicKey, ask
 	return apk, ask, nil
 }
 
-func (pp *PublicParameter) AddressKeyGen(seed []byte) ([]byte, []byte, []byte, error) {
-	apk, ask, err := AddressKeyGen(pp, seed)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	serializedAPk := make([]byte, 0, 4+(len(apk.t.polyANTTs)+1)*pp.paramDA*8)
-	length := int32(len(apk.t.polyANTTs) + 1)
-	serializedAPk = append(serializedAPk, byte(length>>0))
-	serializedAPk = append(serializedAPk, byte(length>>1))
-	serializedAPk = append(serializedAPk, byte(length>>2))
-	serializedAPk = append(serializedAPk, byte(length>>3))
-	serializedAPk = append(serializedAPk, pp.SerializePolyANTTVec(apk.t)...)
-	serializedAPk = append(serializedAPk, pp.SerializePolyANTT(apk.e)...)
-
-	return serializedAPk, pp.SerializePolyANTT(ask.ma), pp.SerializePolyANTTVec(ask.s), nil
-}
-
-func ValueKeyGen(pp *PublicParameter, seed []byte) (vpk []byte, vsk []byte, err error) {
-	return pqringctkem.KeyGen(pp.paramKem, seed, pp.paramSeedBytesLen)
-}
-
 func (pp *PublicParameter) ValueKeyGen(seed []byte) ([]byte, []byte, error) {
-	return ValueKeyGen(pp, seed)
+	return pqringctkem.KeyGen(pp.paramKem, seed, pp.paramSeedBytesLen)
 }
 
 // txoGen returns an transaction output and a random polynomial related to the corresponding transaction output with the master public key and value
@@ -1288,7 +1267,12 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			return nil, errors.New("the output value is not in [0, V]") // todo: more accurate info, including the i
 		}
 
-		txo, cmtr, err := pp.txoGen(txOutputDesc.apk, txOutputDesc.vpk, txOutputDesc.value)
+		// restore the apk from serializedAPk
+		apk, err := pp.DeserializeAddressPublicKey(txOutputDesc.serializedAPk)
+		if err != nil {
+			return nil, err
+		}
+		txo, cmtr, err := pp.txoGen(apk, txOutputDesc.serializedVPk, txOutputDesc.value)
 		if err != nil {
 			return nil, err
 		}
@@ -1739,7 +1723,8 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 
 	//	check on the outputDesc is simple, so check it first
 	outputTotal := fee
-	for _, outputDescItem := range outputDescs {
+	apks := make([]*AddressPublicKey, len(outputDescs))
+	for i, outputDescItem := range outputDescs {
 		if outputDescItem.value > V {
 			return nil, errors.New("the value is more than max value")
 		}
@@ -1748,10 +1733,11 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 			return nil, errors.New("the value is more than max value")
 		}
 
-		if outputDescItem.apk == nil || outputDescItem.vpk == nil {
+		if outputDescItem.serializedAPk == nil || outputDescItem.serializedVPk == nil {
 			return nil, errors.New("the address public key or value publci key is nil")
 		}
-		if !outputDescItem.apk.WellformCheck(pp) {
+		apks[i], err = pp.DeserializeAddressPublicKey(outputDescItem.serializedAPk)
+		if err != nil || apks[i] == nil {
 			return nil, errors.New("the apk is not well-form")
 		}
 	}
@@ -1762,7 +1748,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 	msgs_in := make([][]int64, I)
 
 	inputTotal := uint64(0)
-	//dpkMap := make(map[*PublicKey]struct{})
+	asks := make([]*AddressSecretKey, len(outputDescs))
 	for i, inputDescItem := range inputDescs {
 		if inputDescItem.value > V {
 			return nil, errors.New("the value is more than max value")
@@ -1781,20 +1767,20 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		/*		if inputDescItem.txoList[inputDescItem.sidx].ask == nil || inputDescItem.sk == nil {
 				return nil, errors.New("some information is empty")
 			}*/
-		if inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey == nil || inputDescItem.ask == nil || inputDescItem.txoList[inputDescItem.sidx].ValueCommitment == nil {
+		if inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey == nil || inputDescItem.serializedASk == nil || inputDescItem.txoList[inputDescItem.sidx].ValueCommitment == nil {
 			return nil, errors.New("some information is empty")
 		}
-
-		if inputDescItem.ask.WellformCheck(pp) == false {
-			return nil, errors.New("the address secret key is not well-formed")
+		asks[i], err = pp.DeserializeAddressSecretKey(inputDescItem.serializedASk)
+		if err != nil || asks[i] == nil {
+			return nil, err
 		}
 
-		if inputDescItem.ask.CheckMatchPublciKey(inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey, pp) == false {
+		if asks[i].CheckMatchPublciKey(inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey, pp) == false {
 			return nil, errors.New("the address secret key and correspdong public key does not match")
 		}
 
 		// run kem.decaps to get kappa
-		kappa, err := pqringctkem.Decaps(pp.paramKem, inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed, inputDescItem.vsk)
+		kappa, err := pqringctkem.Decaps(pp.paramKem, inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed, inputDescItem.serializedVSk)
 		if err != nil {
 			return nil, err
 		}
@@ -1834,7 +1820,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 
 	cmtrs_out := make([]*PolyCNTTVec, J)
 	for j := 0; j < J; j++ {
-		txo, cmtr, err := pp.txoGen(outputDescs[j].apk, outputDescs[j].vpk, outputDescs[j].value)
+		txo, cmtr, err := pp.txoGen(apks[j], outputDescs[j].serializedVPk, outputDescs[j].value)
 		if err != nil {
 			return nil, err
 		}
@@ -1848,7 +1834,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 	for i := 0; i < I; i++ {
 		// extract this as a function named SerialNumberCompute
 		m_r := pp.ExpandKIDR(inputDescs[i].txoList[inputDescs[i].sidx])
-		ma_ps[i] = pp.PolyANTTAdd(inputDescs[i].ask.ma, m_r)
+		ma_ps[i] = pp.PolyANTTAdd(asks[i].ma, m_r)
 		sn := pp.SerialNumberCompute(ma_ps[i])
 
 		rettrTx.Inputs[i] = &TrTxInputv2{
@@ -1891,7 +1877,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 	elrsSigs := make([]*elrsSignaturev2, I)
 	for i := 0; i < I; i++ {
 		elrsSigs[i], err = pp.ELRSSign(inputDescs[i].txoList, ma_ps[i], cmt_ps[i], msgTrTxCon,
-			inputDescs[i].sidx, inputDescs[i].ask.s, cmtrs_in[i], cmtr_ps[i])
+			inputDescs[i].sidx, asks[i].s, cmtrs_in[i], cmtr_ps[i])
 		if err != nil {
 			return nil, errors.New("fail to generate the extend linkable signature")
 		}

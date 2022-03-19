@@ -22,7 +22,6 @@ func (pp *PublicParameter) SerializePolyCNTT(a *PolyCNTT) []byte {
 	}
 	return tmp
 }
-
 func (pp *PublicParameter) SerializePolyCNTTVec(a *PolyCNTTVec) []byte {
 	tmp := make([]byte, 0, 4+len(a.polyCNTTs)*pp.paramDC*8)
 	w := bytes.NewBuffer(tmp)
@@ -45,7 +44,6 @@ func (pp *PublicParameter) SerializePolyCNTTVec(a *PolyCNTTVec) []byte {
 	}
 	return tmp
 }
-
 func (pp *PublicParameter) SerializePolyANTT(a *PolyANTT) []byte {
 	tmp := make([]byte, 0, pp.paramDA*8)
 	w := bytes.NewBuffer(tmp)
@@ -76,7 +74,6 @@ func (pp *PublicParameter) DeserializePolyANTT(a []byte) *PolyANTT {
 	}
 	return &PolyANTT{coeffs: tmp}
 }
-
 func (pp *PublicParameter) SerializePolyANTTVec(a *PolyANTTVec) []byte {
 	// length
 	tmp := make([]byte, 0, 4+len(a.polyANTTs)*pp.paramDA*8)
@@ -99,6 +96,285 @@ func (pp *PublicParameter) SerializePolyANTTVec(a *PolyANTTVec) []byte {
 		}
 	}
 	return tmp
+}
+
+func (pp *PublicParameter) writePolyANTT(w io.Writer, a *PolyANTT) error {
+	var err error
+	for i := 0; i < pp.paramDA; i++ {
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 0)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 8)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 16)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 24)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 32)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 40)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 48)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 56)})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
+	var n int
+	var err error
+	res := pp.NewPolyANTT()
+	buf := make([]byte, 8)
+	for i := 0; i < pp.paramDA; i++ {
+		n, err = r.Read(buf)
+		if n != 8 || err != nil {
+			return nil, err
+		}
+		res.coeffs[i] = int64(buf[0]) << 0
+		res.coeffs[i] |= int64(buf[1]) << 8
+		res.coeffs[i] |= int64(buf[2]) << 16
+		res.coeffs[i] |= int64(buf[3]) << 24
+		res.coeffs[i] |= int64(buf[4]) << 32
+		res.coeffs[i] |= int64(buf[5]) << 40
+		res.coeffs[i] |= int64(buf[6]) << 48
+		res.coeffs[i] |= int64(buf[7]) << 56
+	}
+	return res, nil
+}
+func (pp *PublicParameter) writePolyANTTVec(w io.Writer, a *PolyANTTVec) error {
+	var err error
+	length := len(a.polyANTTs)
+	err = writeElement(w, int32(length))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < length; i++ {
+		err = pp.writePolyANTT(w, a.polyANTTs[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (pp *PublicParameter) readPolyANTTVec(r io.Reader) (*PolyANTTVec, error) {
+	var err error
+	var lengthI32 int32
+	err = readElement(r, &lengthI32)
+	if err != nil {
+		return nil, err
+	}
+	length := int(lengthI32)
+	res := pp.NewPolyANTTVec(length)
+	for i := 0; i < length; i++ {
+		res.polyANTTs[i], err = pp.readPolyANTT(r)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (pp *PublicParameter) writePolyCNTT(w io.Writer, a *PolyCNTT) error {
+	var err error
+	for i := 0; i < len(a.coeffs); i++ {
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 0)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 8)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 16)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 24)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 32)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 40)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 48)})
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte{byte(a.coeffs[i] >> 56)})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (pp *PublicParameter) readPolyCNTT(r io.Reader) (*PolyCNTT, error) {
+	var n int
+	var err error
+	res := pp.NewPolyCNTT()
+	buf := make([]byte, 8)
+	for i := 0; i < pp.paramDC; i++ {
+		n, err = r.Read(buf)
+		if n != 8 || err != nil {
+			return nil, err
+		}
+		res.coeffs[i] = int64(buf[0]) << 0
+		res.coeffs[i] |= int64(buf[1]) << 8
+		res.coeffs[i] |= int64(buf[2]) << 16
+		res.coeffs[i] |= int64(buf[3]) << 24
+		res.coeffs[i] |= int64(buf[4]) << 32
+		res.coeffs[i] |= int64(buf[5]) << 40
+		res.coeffs[i] |= int64(buf[6]) << 48
+		res.coeffs[i] |= int64(buf[7]) << 56
+	}
+	return res, nil
+}
+func (pp *PublicParameter) writePolyCNTTVec(w io.Writer, a *PolyCNTTVec) error {
+	var err error
+	length := len(a.polyCNTTs)
+	err = writeElement(w, int32(length))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(a.polyCNTTs); i++ {
+		err = pp.writePolyCNTT(w, a.polyCNTTs[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (pp *PublicParameter) readPolyCNTTVec(r io.Reader) (*PolyCNTTVec, error) {
+	var err error
+	var lengthI32 int32
+	err = readElement(r, &lengthI32)
+	if err != nil {
+		return nil, err
+	}
+	length := int(lengthI32)
+	res := pp.NewPolyCNTTVec(length)
+	for i := 0; i < length; i++ {
+		res.polyCNTTs[i], err = pp.readPolyCNTT(r)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (pp *PublicParameter) SerializeAddressPublicKey(apk *AddressPublicKey) ([]byte, error) {
+	var err error
+	length := (len(apk.t.polyANTTs) + 1) * pp.paramDA * 8
+	buf := make([]byte, 0, 4+length)
+	w := bytes.NewBuffer(buf)
+	// length
+	err = writeElement(w, int32(4+length))
+	if err != nil {
+		return nil, err
+	}
+	// t
+	err = pp.writePolyANTTVec(w, apk.t)
+	if err != nil {
+		return nil, err
+	}
+	// e
+	err = pp.writePolyANTT(w, apk.e)
+	if err != nil {
+		return nil, err
+	}
+	return w.Bytes(), nil
+}
+func (pp *PublicParameter) DeserializeAddressPublicKey(serialziedAPk []byte) (*AddressPublicKey, error) {
+	r := bytes.NewReader(serialziedAPk)
+	var err error
+	var lengthI32 int32
+	err = readElement(r, &lengthI32)
+	if err != nil {
+		return nil, err
+	}
+	length := int(lengthI32)
+	if len(serialziedAPk) != length+4 {
+		return nil, err
+	}
+	t, err := pp.readPolyANTTVec(r)
+	if err != nil {
+		return nil, err
+	}
+	e, err := pp.readPolyANTT(r)
+	if err != nil {
+		return nil, err
+	}
+	return &AddressPublicKey{
+		t: t,
+		e: e,
+	}, nil
+}
+func (pp *PublicParameter) SerializeAddressSecretKey(ask *AddressSecretKey) ([]byte, error) {
+	var err error
+	length := (len(ask.s.polyANTTs) + 1) * pp.paramDA * 8
+	buf := make([]byte, 0, 4+length)
+	w := bytes.NewBuffer(buf)
+	// length
+	err = writeElement(w, int32(4+length))
+	if err != nil {
+		return nil, err
+	}
+
+	err = pp.writePolyANTTVec(w, ask.s)
+	if err != nil {
+		return nil, err
+	}
+
+	err = pp.writePolyANTT(w, ask.ma)
+	if err != nil {
+		return nil, err
+	}
+	return w.Bytes(), nil
+}
+func (pp *PublicParameter) DeserializeAddressSecretKey(serialziedASk []byte) (*AddressSecretKey, error) {
+	r := bytes.NewReader(serialziedASk)
+	var err error
+	var lengthI32 int32
+	err = readElement(r, &lengthI32)
+	if err != nil {
+		return nil, err
+	}
+	length := int(lengthI32)
+	if len(serialziedASk) != length+4 {
+		return nil, err
+	}
+	s, err := pp.readPolyANTTVec(r)
+	if err != nil {
+		return nil, err
+	}
+	ma, err := pp.readPolyANTT(r)
+	if err != nil {
+		return nil, err
+	}
+	return &AddressSecretKey{
+		s:  s,
+		ma: ma,
+	}, nil
 }
 
 const (

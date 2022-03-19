@@ -15,12 +15,13 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 	//}
 	pp := DefaultPPV2
 	seed1 := RandomBytes(pp.paramSeedBytesLen)
-	apk1, _, _ := AddressKeyGen(pp, seed1)
-	vpk1, _, _ := ValueKeyGen(pp, seed1)
-
+	apk1, _, _ := pp.AddressKeyGen(seed1)
+	serializedVPk1, _, _ := pp.ValueKeyGen(seed1)
+	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
 	seed2 := RandomBytes(pp.paramSeedBytesLen)
-	apk2, _, _ := AddressKeyGen(pp, seed2)
-	vpk2, _, _ := ValueKeyGen(pp, seed2)
+	apk2, _, _ := pp.AddressKeyGen(seed2)
+	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
+	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)
 
 	type cbtxGenArgs struct {
 		vin           uint64
@@ -38,9 +39,9 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 				vin: 512,
 				txOutputDescs: []*TxOutputDescv2{
 					{
-						apk:   apk1,
-						vpk:   vpk1,
-						value: 512,
+						serializedAPk: serializedAPk1,
+						serializedVPk: serializedVPk1,
+						value:         512,
 					},
 				},
 			},
@@ -53,14 +54,14 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 				vin: 512,
 				txOutputDescs: []*TxOutputDescv2{
 					{
-						apk:   apk1,
-						vpk:   vpk1,
-						value: 500,
+						serializedAPk: serializedAPk1,
+						serializedVPk: serializedVPk1,
+						value:         500,
 					},
 					{
-						apk:   apk2,
-						vpk:   vpk2,
-						value: 12,
+						serializedAPk: serializedAPk2,
+						serializedVPk: serializedVPk2,
+						value:         12,
 					},
 				},
 			},
@@ -100,34 +101,37 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	//	33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 	//}
 	seed1 := RandomBytes(pp.paramSeedBytesLen)
-	apk1, ask1, _ := AddressKeyGen(pp, seed1)
-	vpk1, vsk1, _ := ValueKeyGen(pp, seed1)
-
+	apk1, ask1, _ := pp.AddressKeyGen(seed1)
+	serializedVPk1, serializedVSk1, _ := pp.ValueKeyGen(seed1)
+	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
+	serializedASk1, _ := pp.SerializeAddressSecretKey(ask1)
 	seed2 := RandomBytes(pp.paramSeedBytesLen)
-	apk2, _, _ := AddressKeyGen(pp, seed2)
-	vpk2, _, _ := ValueKeyGen(pp, seed2)
+	apk2, _, _ := pp.AddressKeyGen(seed2)
+	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
+	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)
+
 	cbTx1, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
 		{
-			apk:   apk1,
-			vpk:   vpk1,
-			value: 500,
+			serializedAPk: serializedAPk1,
+			serializedVPk: serializedVPk1,
+			value:         500,
 		},
 		{
-			apk:   apk2,
-			vpk:   vpk2,
-			value: 12,
+			serializedAPk: serializedAPk2,
+			serializedVPk: serializedVPk2,
+			value:         12,
 		},
 	})
 	cbTx2, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
 		{
-			apk:   apk1,
-			vpk:   vpk1,
-			value: 500,
+			serializedAPk: serializedAPk1,
+			serializedVPk: serializedVPk1,
+			value:         500,
 		},
 		{
-			apk:   apk2,
-			vpk:   vpk2,
-			value: 12,
+			serializedAPk: serializedAPk2,
+			serializedVPk: serializedVPk2,
+			value:         12,
 		},
 	})
 
@@ -156,23 +160,23 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 								Id:  []byte{2},
 							},
 						},
-						sidx:  0,
-						ask:   ask1,
-						vpk:   vpk1,
-						vsk:   vsk1,
-						value: 500,
+						sidx:          0,
+						serializedASk: serializedASk1,
+						serializedVPk: serializedVPk1,
+						serializedVSk: serializedVSk1,
+						value:         500,
 					},
 				},
 				outputDescs: []*TxOutputDescv2{
 					{
-						apk:   apk1,
-						vpk:   vpk1,
-						value: 400,
+						serializedAPk: serializedAPk1,
+						serializedVPk: serializedVPk1,
+						value:         400,
 					},
 					{
-						apk:   apk2,
-						vpk:   vpk2,
-						value: 90,
+						serializedAPk: serializedAPk2,
+						serializedVPk: serializedVPk2,
+						value:         90,
 					},
 				},
 				fee:    10,
@@ -196,11 +200,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 								Id:  []byte{2},
 							},
 						},
-						sidx:  0,
-						ask:   ask1,
-						vpk:   vpk1,
-						vsk:   vsk1,
-						value: 500,
+						sidx:          0,
+						serializedASk: serializedASk1,
+						serializedVPk: serializedVPk1,
+						serializedVSk: serializedVSk1,
+						value:         500,
 					},
 					{
 						txoList: []*LgrTxo{
@@ -213,23 +217,23 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 								Id:  []byte{2},
 							},
 						},
-						sidx:  0,
-						ask:   ask1,
-						vpk:   vpk1,
-						vsk:   vsk1,
-						value: 500,
+						sidx:          0,
+						serializedASk: serializedASk1,
+						serializedVPk: serializedVPk1,
+						serializedVSk: serializedVSk1,
+						value:         500,
 					},
 				},
 				outputDescs: []*TxOutputDescv2{
 					{
-						apk:   apk1,
-						vpk:   vpk1,
-						value: 800,
+						serializedAPk: serializedAPk1,
+						serializedVPk: serializedVPk1,
+						value:         800,
 					},
 					{
-						apk:   apk2,
-						vpk:   vpk2,
-						value: 190,
+						serializedAPk: serializedAPk2,
+						serializedVPk: serializedVPk2,
+						value:         190,
 					},
 				},
 				fee:    10,
