@@ -104,7 +104,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	apk1, ask1, _ := pp.AddressKeyGen(seed1)
 	serializedVPk1, serializedVSk1, _ := pp.ValueKeyGen(seed1)
 	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
-	serializedASk1, _ := pp.SerializeAddressSecretKey(ask1)
+	serializedASksp1, serializedASksn1, _ := pp.SerializeAddressSecretKey(ask1)
 	seed2 := RandomBytes(pp.paramSeedBytesLen)
 	apk2, _, _ := pp.AddressKeyGen(seed2)
 	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
@@ -160,11 +160,12 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 								Id:  []byte{2},
 							},
 						},
-						sidx:          0,
-						serializedASk: serializedASk1,
-						serializedVPk: serializedVPk1,
-						serializedVSk: serializedVSk1,
-						value:         500,
+						sidx:            0,
+						serializedASksp: serializedASksp1,
+						serializedASksn: serializedASksn1,
+						serializedVPk:   serializedVPk1,
+						serializedVSk:   serializedVSk1,
+						value:           500,
 					},
 				},
 				outputDescs: []*TxOutputDescv2{
@@ -200,11 +201,12 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 								Id:  []byte{2},
 							},
 						},
-						sidx:          0,
-						serializedASk: serializedASk1,
-						serializedVPk: serializedVPk1,
-						serializedVSk: serializedVSk1,
-						value:         500,
+						sidx:            0,
+						serializedASksp: serializedASksp1,
+						serializedASksn: serializedASksn1,
+						serializedVPk:   serializedVPk1,
+						serializedVSk:   serializedVSk1,
+						value:           500,
 					},
 					{
 						txoList: []*LgrTxo{
@@ -217,11 +219,12 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 								Id:  []byte{2},
 							},
 						},
-						sidx:          0,
-						serializedASk: serializedASk1,
-						serializedVPk: serializedVPk1,
-						serializedVSk: serializedVSk1,
-						value:         500,
+						sidx:            0,
+						serializedASksp: serializedASksp1,
+						serializedASksn: serializedASksn1,
+						serializedVPk:   serializedVPk1,
+						serializedVSk:   serializedVSk1,
+						value:           500,
 					},
 				},
 				outputDescs: []*TxOutputDescv2{

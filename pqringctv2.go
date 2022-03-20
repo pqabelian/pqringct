@@ -13,9 +13,15 @@ type AddressPublicKey struct {
 	t *PolyANTTVec // directly in NTT form
 	e *PolyANTT
 }
-
 type AddressSecretKey struct {
-	s  *PolyANTTVec
+	*AddressSecretKeySp
+	*AddressSecretKeySn
+}
+
+type AddressSecretKeySp struct {
+	s *PolyANTTVec
+}
+type AddressSecretKeySn struct {
 	ma *PolyANTT
 }
 
@@ -92,12 +98,13 @@ type CbTxWitnessv2 struct {
 }
 
 type TxInputDescv2 struct {
-	txoList       []*LgrTxo // todo: refactor lgrTxoList
-	sidx          int
-	serializedASk []byte
-	serializedVPk []byte
-	serializedVSk []byte
-	value         uint64
+	txoList         []*LgrTxo // todo: refactor lgrTxoList
+	sidx            int
+	serializedASksp []byte
+	serializedASksn []byte
+	serializedVPk   []byte
+	serializedVSk   []byte
+	value           uint64
 }
 
 //func (pp *PublicParameter) SerializeTxInputDescv2(inputDesc *TxInputDescv2) []byte {
@@ -206,14 +213,15 @@ type TxInputDescv2 struct {
 //	}, nil
 //}
 
-func NewTxInputDescv2(txoList []*LgrTxo, sidx int, serializedASk []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDescv2 {
+func NewTxInputDescv2(txoList []*LgrTxo, sidx int, serializedASksp []byte, serializedASksn []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDescv2 {
 	return &TxInputDescv2{
-		txoList:       txoList,
-		sidx:          sidx,
-		serializedASk: serializedASk,
-		serializedVPk: serializedVPk,
-		serializedVSk: serializedVSk,
-		value:         value,
+		txoList:         txoList,
+		sidx:            sidx,
+		serializedASksp: serializedASksp,
+		serializedASksn: serializedASksn,
+		serializedVPk:   serializedVPk,
+		serializedVSk:   serializedVSk,
+		value:           value,
 	}
 }
 
@@ -408,8 +416,8 @@ func (pp *PublicParameter) AddressKeyGen(seed []byte) (apk *AddressPublicKey, as
 		e: e,
 	}
 	ask = &AddressSecretKey{
-		s:  s,
-		ma: ma,
+		AddressSecretKeySp: &AddressSecretKeySp{s: s},
+		AddressSecretKeySn: &AddressSecretKeySn{ma: ma},
 	}
 	return apk, ask, nil
 }
@@ -2015,10 +2023,15 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		/*		if inputDescItem.txoList[inputDescItem.sidx].ask == nil || inputDescItem.sk == nil {
 				return nil, errors.New("some information is empty")
 			}*/
-		if inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey == nil || inputDescItem.serializedASk == nil || inputDescItem.txoList[inputDescItem.sidx].ValueCommitment == nil {
+		if inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey == nil || inputDescItem.serializedASksp == nil || inputDescItem.txoList[inputDescItem.sidx].ValueCommitment == nil {
 			return nil, errors.New("some information is empty")
 		}
-		asks[i], err = pp.DeserializeAddressSecretKey(inputDescItem.serializedASk)
+		asks[i] = &AddressSecretKey{}
+		asks[i].AddressSecretKeySp, err = pp.DeserializeAddressSecretKeySp(inputDescItem.serializedASksp)
+		if err != nil {
+			return nil, err
+		}
+		asks[i].AddressSecretKeySn, err = pp.DeserializeAddressSecretKeySn(inputDescItem.serializedASksn)
 		if err != nil || asks[i] == nil {
 			return nil, err
 		}

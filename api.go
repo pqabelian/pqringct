@@ -2,31 +2,36 @@ package pqringct
 
 import "bytes"
 
-func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
+func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, error) {
 	apk, ask, err := pp.AddressKeyGen(seed)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	serializedAPk, err := pp.SerializeAddressPublicKey(apk)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	serializedASk, err := pp.SerializeAddressSecretKey(ask)
+
+	serializedASksp, err := pp.SerializeAddressSecretKeySp(ask.AddressSecretKeySp)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return serializedAPk, serializedASk, nil
+	serializedASksn, err := pp.SerializeAddressSecretKeySn(ask.AddressSecretKeySn)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return serializedAPk, serializedASksp, serializedASksn, nil
 }
 
 // TODO: split the ask to two parts as asksn and asksp? but how to do this?
 //	ask = (s, m_a), apk = (t = As, e = <a,s>+m_a). s is asksp, m_a is asksn
-func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, error) {
+func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 	vpk, vsk, err := pp.ValueKeyGen(seed)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	return vpk, vsk[:], vsk[:], nil
+	return vpk, vsk, nil
 }
 
 func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDescv2) (cbTx *CoinbaseTxv2, err error) {
@@ -42,7 +47,9 @@ func TransferTxGen(pp *PublicParameter, inputDescs []*TxInputDescv2, outputDescs
 func TransferTxVerify(pp *PublicParameter, trTx *TransferTxv2) bool {
 	return pp.TransferTxVerify(trTx)
 }
-
+func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedSkvalue []byte) (valid bool, v uint64) {
+	panic("implement me")
+}
 func SerialNumberGen(pp *PublicParameter, serializedLgrTxo []byte, serializedSksn []byte) []byte {
 	r := bytes.NewReader(serializedLgrTxo)
 	txo, err := pp.ReadLgrTxo(r)
@@ -63,35 +70,35 @@ func (pp *PublicParameter) GetPublicKeyByteLen() int {
 	return -1
 }
 
-func (pp *PublicParameter) GetTxoSerializeSize(version uint32) int {
+func (pp *PublicParameter) GetTxoSerializeSize() int {
 	panic("GetTxoSerializeSize implement me")
 	return -1
 }
-func (pp *PublicParameter) GetCbTxWitnessMaxLen(version uint32, num int) int {
+func (pp *PublicParameter) GetCbTxWitnessMaxLen(num int) int {
 	panic("GetCoinbaseTxWitnessLen implement me")
 	return -1
 }
 
-func (pp *PublicParameter) GetTrTxWitnessMaxLen(version uint32) int {
+func (pp *PublicParameter) GetTrTxWitnessMaxLen() int {
 	panic("GetNullSerialNumber implement me")
 	return -1
 }
 
-func (pp *PublicParameter) GetTrTxWitnessSerializeSize(txVersion uint32, inputRingVersion uint32, inputRingSizes []int, outputTxoNum uint8) int {
+func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, outputTxoNum uint8) int {
 	panic("GetNullSerialNumber implement me")
 	return -1
 }
 
-func (pp *PublicParameter) GetTxMemoMaxLen(version uint32) int {
+func (pp *PublicParameter) GetTxMemoMaxLen() int {
 	panic("GetNullSerialNumber implement me")
 	return -1
 }
 
-func (pp *PublicParameter) GetTxoSerialNumberLen(version uint32) int {
+func (pp *PublicParameter) GetTxoSerialNumberLen() int {
 	panic("GetTxoSerialNumberLen implement me")
 	return -1
 }
-func (pp *PublicParameter) GetNullSerialNumber(version uint32) []byte {
+func (pp *PublicParameter) GetNullSerialNumber() []byte {
 	panic("GetNullSerialNumber implement me")
 	return nil
 }

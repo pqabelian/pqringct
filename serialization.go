@@ -393,29 +393,37 @@ func (pp *PublicParameter) ReadAddressPublicKey(r io.Reader) (*AddressPublicKey,
 	return pp.DeserializeAddressPublicKey(tmp)
 }
 
-func (pp *PublicParameter) AddressSecretKeySize(a *AddressSecretKey) int {
-	return 4 + pp.PolyANTTVecSize(a.s) + pp.PolyANTTSize()
+func (pp *PublicParameter) AddressSecretKeySize(ask *AddressSecretKey) (int, int) {
+	return 4 + pp.PolyANTTVecSize(ask.s), 4 + pp.PolyANTTSize()
 }
-func (pp *PublicParameter) SerializeAddressSecretKey(ask *AddressSecretKey) ([]byte, error) {
+func (pp *PublicParameter) SerializeAddressSecretKey(ask *AddressSecretKey) ([]byte, []byte, error) {
 	var err error
 	if ask == nil || ask.s == nil || ask.ma == nil {
-		return nil, errors.New(ErrNilPointer)
+		return nil, nil, errors.New(ErrNilPointer)
 	}
-	length := pp.AddressSecretKeySize(ask)
-	w := bytes.NewBuffer(make([]byte, 0, length))
-	w.WriteByte(byte(int32(length) >> 0))
-	w.WriteByte(byte(int32(length) >> 8))
-	w.WriteByte(byte(int32(length) >> 16))
-	w.WriteByte(byte(int32(length) >> 24))
+	spLength, snLength := pp.AddressSecretKeySize(ask)
+	w := bytes.NewBuffer(make([]byte, 0, spLength))
+	err = writeLength(w, spLength)
+	if err != nil {
+		return nil, nil, err
+	}
 	err = pp.WritePolyANTTVec(w, ask.s)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	serializedSp := w.Bytes()
+
+	w = bytes.NewBuffer(make([]byte, 0, snLength))
+	err = writeLength(w, snLength)
+	if err != nil {
+		return nil, nil, err
 	}
 	err = pp.WritePolyANTT(w, ask.ma)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return w.Bytes(), nil
+	serializedSn := w.Bytes()
+	return serializedSp, serializedSn, nil
 }
 func (pp *PublicParameter) DeserializeAddressSecretKey(serialziedASk []byte) (*AddressSecretKey, error) {
 	var err error
@@ -441,7 +449,93 @@ func (pp *PublicParameter) DeserializeAddressSecretKey(serialziedASk []byte) (*A
 		return nil, err
 	}
 	return &AddressSecretKey{
-		s:  s,
+		AddressSecretKeySp: &AddressSecretKeySp{s},
+		AddressSecretKeySn: &AddressSecretKeySn{ma},
+	}, nil
+}
+func (pp *PublicParameter) AddressSecretKeySpSize(ask *AddressSecretKeySp) int {
+	return 4 + pp.PolyANTTVecSize(ask.s)
+}
+func (pp *PublicParameter) SerializeAddressSecretKeySp(asksp *AddressSecretKeySp) ([]byte, error) {
+	var err error
+	if asksp.s == nil {
+		return nil, errors.New(ErrNilPointer)
+	}
+	spLength := pp.AddressSecretKeySpSize(asksp)
+	w := bytes.NewBuffer(make([]byte, 0, spLength))
+	err = writeLength(w, spLength)
+	if err != nil {
+		return nil, err
+	}
+	err = pp.WritePolyANTTVec(w, asksp.s)
+	if err != nil {
+		return nil, err
+	}
+	serializedSp := w.Bytes()
+	return serializedSp, nil
+}
+func (pp *PublicParameter) DeserializeAddressSecretKeySp(serialziedASkSp []byte) (*AddressSecretKeySp, error) {
+	var err error
+	if len(serialziedASkSp) < 4 {
+		return nil, errors.New(ErrInvalidLength)
+	}
+	length := int32(serialziedASkSp[0]) << 0
+	length |= int32(serialziedASkSp[1]) << 1
+	length |= int32(serialziedASkSp[2]) << 2
+	length |= int32(serialziedASkSp[3]) << 3
+	if len(serialziedASkSp) < int(length) {
+		return nil, errors.New(ErrInvalidLength)
+	}
+	r := bytes.NewReader(serialziedASkSp[4:])
+	var s *PolyANTTVec
+	s, err = pp.ReadPolyANTTVec(r)
+	if err != nil {
+		return nil, err
+	}
+	return &AddressSecretKeySp{
+		s: s,
+	}, nil
+}
+func (pp *PublicParameter) AddressSecretKeySnSize() int {
+	return 4 + pp.PolyANTTSize()
+}
+func (pp *PublicParameter) SerializeAddressSecretKeySn(asksn *AddressSecretKeySn) ([]byte, error) {
+	var err error
+	if asksn.ma == nil {
+		return nil, errors.New(ErrNilPointer)
+	}
+	spLength := pp.AddressSecretKeySnSize()
+	w := bytes.NewBuffer(make([]byte, 0, spLength))
+	err = writeLength(w, spLength)
+	if err != nil {
+		return nil, err
+	}
+	err = pp.WritePolyANTT(w, asksn.ma)
+	if err != nil {
+		return nil, err
+	}
+	serializedSn := w.Bytes()
+	return serializedSn, nil
+}
+func (pp *PublicParameter) DeserializeAddressSecretKeySn(serialziedASkSn []byte) (*AddressSecretKeySn, error) {
+	var err error
+	if len(serialziedASkSn) < 4 {
+		return nil, errors.New(ErrInvalidLength)
+	}
+	length := int32(serialziedASkSn[0]) << 0
+	length |= int32(serialziedASkSn[1]) << 1
+	length |= int32(serialziedASkSn[2]) << 2
+	length |= int32(serialziedASkSn[3]) << 3
+	if len(serialziedASkSn) < int(length) {
+		return nil, errors.New(ErrInvalidLength)
+	}
+	r := bytes.NewReader(serialziedASkSn[4:])
+	var ma *PolyANTT
+	ma, err = pp.ReadPolyANTT(r)
+	if err != nil {
+		return nil, err
+	}
+	return &AddressSecretKeySn{
 		ma: ma,
 	}, nil
 }
@@ -1726,15 +1820,17 @@ func (pp *PublicParameter) ReadTrTxWitness(r io.Reader) (*TrTxWitnessv2, error) 
 	}, nil
 }
 
+// TODO(20220320): using ReadVarInt/WriteVarInt to replace all length
 func writeLength(w io.Writer, length int) error {
 	lengthBytes := make([]byte, 4)
+	// [32-24][23-16][15-8][7-0]
 	lengthBytes[0] = byte(int32(length) >> 0)
 	lengthBytes[1] = byte(int32(length) >> 8)
 	lengthBytes[2] = byte(int32(length) >> 16)
 	lengthBytes[3] = byte(int32(length) >> 24)
 	n, err := w.Write(lengthBytes)
 	if n != 4 || err != nil {
-		return errors.New("write error in WriteValueCommitment()")
+		return errors.New("write error in writeLength()")
 	}
 	return nil
 }
