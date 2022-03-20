@@ -1,5 +1,7 @@
 package pqringct
 
+import "bytes"
+
 func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 	apk, ask, err := pp.AddressKeyGen(seed)
 	if err != nil {
@@ -30,14 +32,28 @@ func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDes
 	return pp.CoinbaseTxGen(vin, txOutputDescs)
 }
 func CoinbaseTxVerify(pp *PublicParameter, cbTx *CoinbaseTxv2) bool {
-	panic("CoinbaseTxVerify implement me")
-	return true
+	return pp.CoinbaseTxVerify(cbTx)
 }
+
 func TransferTxGen(pp *PublicParameter, inputDescs []*TxInputDescv2, outputDescs []*TxOutputDescv2, fee uint64, txMemo []byte) (trTx *TransferTxv2, err error) {
-	panic("TransferTxGen implement me")
-	return nil, nil
+	return pp.TransferTxGen(inputDescs, outputDescs, fee, txMemo)
 }
 func TransferTxVerify(pp *PublicParameter, trTx *TransferTxv2) bool {
-	panic("TransferTxVerify implement me")
-	return true
+	return pp.TransferTxVerify(trTx)
+}
+
+func SerialNumberGen(pp *PublicParameter, serializedLgrTxo []byte, serializedSksn []byte) []byte {
+	r := bytes.NewReader(serializedLgrTxo)
+	txo, err := pp.ReadLgrTxo(r)
+	if err != nil {
+		return nil
+	}
+	tmp := pp.ExpandKIDR(txo)
+	r = bytes.NewReader(serializedSksn)
+	ma, err := pp.ReadPolyANTT(r)
+	if err != nil {
+		return nil
+	}
+	sn := pp.PolyANTTAdd(tmp, ma)
+	return pp.SerialNumberCompute(sn)
 }

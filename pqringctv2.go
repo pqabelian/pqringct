@@ -40,10 +40,29 @@ type Txo struct {
 	Vct           []byte
 	CkemSerialzed []byte
 }
+
+func NewTxo(apk *AddressPublicKey, cmt *ValueCommitment, vct []byte, ckem []byte) *Txo {
+	return &Txo{
+		AddressPublicKey: apk,
+		ValueCommitment:  cmt,
+		Vct:              vct,
+		CkemSerialzed:    ckem,
+	}
+
+}
+
 type LgrTxo struct {
 	Txo
 	Id []byte
 }
+
+func NewLgrTxo(txo *Txo, id []byte) *LgrTxo {
+	return &LgrTxo{
+		Txo: *txo,
+		Id:  id,
+	}
+}
+
 type ValueCommitment struct {
 	b *PolyCNTTVec
 	c *PolyCNTT
@@ -81,8 +100,113 @@ type TxInputDescv2 struct {
 	value         uint64
 }
 
-func NewTxInputDescv2(txoList []*LgrTxo, sidx int, serializedASk []byte, serializedVPk []byte, serializedVSk []byte, value uint64,
-) *TxInputDescv2 {
+//func (pp *PublicParameter) SerializeTxInputDescv2(inputDesc *TxInputDescv2) []byte {
+//
+//	length := len(inputDesc.txoList)*(pp.SerializeSizeTxo()+len(inputDesc.txoList[0].Id)) + 4
+//	bytes.NewBuffer(make([]byte, 0, length))
+//	lengthOfAPk := len(inputDesc.serializedAPk)
+//	lengthOfVPk := len(inputDesc.serializedVPk)
+//	totalLength := 4 + 4 + lengthOfAPk + 4 + lengthOfVPk + 8
+//	w := bytes.NewBuffer(make([]byte, 0, totalLength))
+//	// total length
+//	w.WriteByte(byte(int32(totalLength) >> 0))
+//	w.WriteByte(byte(int32(totalLength) >> 8))
+//	w.WriteByte(byte(int32(totalLength) >> 16))
+//	w.WriteByte(byte(int32(totalLength) >> 24))
+//	// length of apk
+//	w.WriteByte(byte(int32(lengthOfAPk) >> 0))
+//	w.WriteByte(byte(int32(lengthOfAPk) >> 8))
+//	w.WriteByte(byte(int32(lengthOfAPk) >> 16))
+//	w.WriteByte(byte(int32(lengthOfAPk) >> 24))
+//	// apk
+//	w.Write(inputDesc.serializedAPk)
+//	//length of vpk
+//	w.WriteByte(byte(int32(lengthOfVPk) >> 0))
+//	w.WriteByte(byte(int32(lengthOfVPk) >> 8))
+//	w.WriteByte(byte(int32(lengthOfVPk) >> 16))
+//	w.WriteByte(byte(int32(lengthOfVPk) >> 24))
+//	w.Write(inputDesc.serializedVPk)
+//	// value
+//	w.WriteByte(byte(inputDesc.value >> 0))
+//	w.WriteByte(byte(inputDesc.value >> 8))
+//	w.WriteByte(byte(inputDesc.value >> 16))
+//	w.WriteByte(byte(inputDesc.value >> 24))
+//	w.WriteByte(byte(inputDesc.value >> 32))
+//	w.WriteByte(byte(inputDesc.value >> 40))
+//	w.WriteByte(byte(inputDesc.value >> 48))
+//	w.WriteByte(byte(inputDesc.value >> 56))
+//	return w.Bytes()
+//}
+
+//func (pp *PublicParameter) DeserializeTxInputDescv2(b []byte) (*TxInputDescv2, error) {
+//	var err error
+//	var n int
+//	r := bytes.NewReader(b)
+//	// total length
+//	lengthBytes := make([]byte, 4)
+//	n, err = r.Read(lengthBytes)
+//	if n != 4 || err != nil {
+//		return nil, err
+//	}
+//	totalLength := int32(lengthBytes[0]) << 0
+//	totalLength |= int32(lengthBytes[1]) << 8
+//	totalLength |= int32(lengthBytes[2]) << 16
+//	totalLength |= int32(lengthBytes[3]) << 24
+//	// check the total length
+//	if len(b) < int(totalLength) {
+//		return nil, errors.New("the byte array with invalid length")
+//	}
+//
+//	n, err = r.Read(lengthBytes)
+//	if n != 4 || err != nil {
+//		return nil, err
+//	}
+//	lengthOfAPk := int32(lengthBytes[0]) << 0
+//	lengthOfAPk |= int32(lengthBytes[1]) << 8
+//	lengthOfAPk |= int32(lengthBytes[2]) << 16
+//	lengthOfAPk |= int32(lengthBytes[3]) << 24
+//	serializedAPk := make([]byte, lengthOfAPk)
+//	n, err = r.Read(serializedAPk)
+//	if n != int(lengthOfAPk) || err != nil {
+//		return nil, err
+//	}
+//
+//	n, err = r.Read(lengthBytes)
+//	if n != 4 || err != nil {
+//		return nil, err
+//	}
+//	lengthOfVPk := int32(lengthBytes[0]) << 0
+//	lengthOfVPk |= int32(lengthBytes[1]) << 8
+//	lengthOfVPk |= int32(lengthBytes[2]) << 16
+//	lengthOfVPk |= int32(lengthBytes[3]) << 24
+//	serializedVPk := make([]byte, lengthOfVPk)
+//	n, err = r.Read(serializedVPk)
+//	if n != int(lengthOfVPk) || err != nil {
+//		return nil, err
+//	}
+//
+//	lengthBytes = make([]byte, 8)
+//	n, err = r.Read(lengthBytes)
+//	if n != 4 || err != nil {
+//		return nil, err
+//	}
+//	value := uint64(lengthBytes[0]) << 0
+//	value |= uint64(lengthBytes[1]) << 8
+//	value |= uint64(lengthBytes[2]) << 16
+//	value |= uint64(lengthBytes[3]) << 24
+//	value |= uint64(lengthBytes[4]) << 32
+//	value |= uint64(lengthBytes[5]) << 40
+//	value |= uint64(lengthBytes[6]) << 48
+//	value |= uint64(lengthBytes[7]) << 56
+//
+//	return &TxOutputDescv2{
+//		serializedAPk: serializedAPk,
+//		serializedVPk: serializedVPk,
+//		value:         value,
+//	}, nil
+//}
+
+func NewTxInputDescv2(txoList []*LgrTxo, sidx int, serializedASk []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDescv2 {
 	return &TxInputDescv2{
 		txoList:       txoList,
 		sidx:          sidx,
@@ -97,6 +221,109 @@ type TxOutputDescv2 struct {
 	serializedAPk []byte
 	serializedVPk []byte
 	value         uint64
+}
+
+func (pp *PublicParameter) SerializeTxOutputDescv2(outputDesc *TxOutputDescv2) []byte {
+	lengthOfAPk := len(outputDesc.serializedAPk)
+	lengthOfVPk := len(outputDesc.serializedVPk)
+	totalLength := 4 + 4 + lengthOfAPk + 4 + lengthOfVPk + 8
+	w := bytes.NewBuffer(make([]byte, 0, totalLength))
+	// total length
+	w.WriteByte(byte(int32(totalLength) >> 0))
+	w.WriteByte(byte(int32(totalLength) >> 8))
+	w.WriteByte(byte(int32(totalLength) >> 16))
+	w.WriteByte(byte(int32(totalLength) >> 24))
+	// length of apk
+	w.WriteByte(byte(int32(lengthOfAPk) >> 0))
+	w.WriteByte(byte(int32(lengthOfAPk) >> 8))
+	w.WriteByte(byte(int32(lengthOfAPk) >> 16))
+	w.WriteByte(byte(int32(lengthOfAPk) >> 24))
+	// apk
+	w.Write(outputDesc.serializedAPk)
+	//length of vpk
+	w.WriteByte(byte(int32(lengthOfVPk) >> 0))
+	w.WriteByte(byte(int32(lengthOfVPk) >> 8))
+	w.WriteByte(byte(int32(lengthOfVPk) >> 16))
+	w.WriteByte(byte(int32(lengthOfVPk) >> 24))
+	w.Write(outputDesc.serializedVPk)
+	// value
+	w.WriteByte(byte(outputDesc.value >> 0))
+	w.WriteByte(byte(outputDesc.value >> 8))
+	w.WriteByte(byte(outputDesc.value >> 16))
+	w.WriteByte(byte(outputDesc.value >> 24))
+	w.WriteByte(byte(outputDesc.value >> 32))
+	w.WriteByte(byte(outputDesc.value >> 40))
+	w.WriteByte(byte(outputDesc.value >> 48))
+	w.WriteByte(byte(outputDesc.value >> 56))
+	return w.Bytes()
+}
+
+func (pp *PublicParameter) DeserializeTxOutputDescv2(b []byte) (*TxOutputDescv2, error) {
+	var err error
+	var n int
+	r := bytes.NewReader(b)
+	// total length
+	lengthBytes := make([]byte, 4)
+	n, err = r.Read(lengthBytes)
+	if n != 4 || err != nil {
+		return nil, err
+	}
+	totalLength := int32(lengthBytes[0]) << 0
+	totalLength |= int32(lengthBytes[1]) << 8
+	totalLength |= int32(lengthBytes[2]) << 16
+	totalLength |= int32(lengthBytes[3]) << 24
+	// check the total length
+	if len(b) < int(totalLength) {
+		return nil, errors.New("the byte array with invalid length")
+	}
+
+	n, err = r.Read(lengthBytes)
+	if n != 4 || err != nil {
+		return nil, err
+	}
+	lengthOfAPk := int32(lengthBytes[0]) << 0
+	lengthOfAPk |= int32(lengthBytes[1]) << 8
+	lengthOfAPk |= int32(lengthBytes[2]) << 16
+	lengthOfAPk |= int32(lengthBytes[3]) << 24
+	serializedAPk := make([]byte, lengthOfAPk)
+	n, err = r.Read(serializedAPk)
+	if n != int(lengthOfAPk) || err != nil {
+		return nil, err
+	}
+
+	n, err = r.Read(lengthBytes)
+	if n != 4 || err != nil {
+		return nil, err
+	}
+	lengthOfVPk := int32(lengthBytes[0]) << 0
+	lengthOfVPk |= int32(lengthBytes[1]) << 8
+	lengthOfVPk |= int32(lengthBytes[2]) << 16
+	lengthOfVPk |= int32(lengthBytes[3]) << 24
+	serializedVPk := make([]byte, lengthOfVPk)
+	n, err = r.Read(serializedVPk)
+	if n != int(lengthOfVPk) || err != nil {
+		return nil, err
+	}
+
+	lengthBytes = make([]byte, 8)
+	n, err = r.Read(lengthBytes)
+	if n != 4 || err != nil {
+		return nil, err
+	}
+	value := uint64(lengthBytes[0]) << 0
+	value |= uint64(lengthBytes[1]) << 8
+	value |= uint64(lengthBytes[2]) << 16
+	value |= uint64(lengthBytes[3]) << 24
+	value |= uint64(lengthBytes[4]) << 32
+	value |= uint64(lengthBytes[5]) << 40
+	value |= uint64(lengthBytes[6]) << 48
+	value |= uint64(lengthBytes[7]) << 56
+
+	return &TxOutputDescv2{
+		serializedAPk: serializedAPk,
+		serializedVPk: serializedVPk,
+		value:         value,
+	}, nil
 }
 
 func NewTxOutputDescv2(serializedAPk []byte, serializedVPk []byte, value uint64) *TxOutputDescv2 {
@@ -2367,7 +2594,11 @@ func (pp *PublicParameter) LedgerTXOSerialNumberGen(txo []byte, txolid []byte, s
 	got := rejectionUniformWithQa(seed, pp.paramDA, pp.paramQA)
 	m_r := &PolyANTT{coeffs: got}
 
-	ma := pp.DeserializePolyANTT(skma)
+	r := bytes.NewReader(skma)
+	ma, err := pp.ReadPolyANTT(r)
+	if err != nil {
+		return nil
+	}
 	ma_ps := pp.PolyANTTAdd(ma, m_r)
 	sn := pp.SerialNumberCompute(ma_ps)
 	return sn[:]
