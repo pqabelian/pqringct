@@ -20,6 +20,7 @@ func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 }
 
 // TODO: split the ask to two parts as asksn and asksp? but how to do this?
+//	ask = (s, m_a), apk = (t = As, e = <a,s>+m_a). s is asksp, m_a is asksn
 func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, error) {
 	vpk, vsk, err := pp.ValueKeyGen(seed)
 	if err != nil {
