@@ -58,3 +58,40 @@ func SerialNumberGen(pp *PublicParameter, serializedLgrTxo []byte, serializedSks
 	sn := pp.PolyANTTAdd(tmp, ma)
 	return pp.SerialNumberCompute(sn)
 }
+func (pp *PublicParameter) GetPublicKeyByteLen() int {
+	panic("GetPublicKeyByteLen implement me")
+	return -1
+}
+
+func (pp *PublicParameter) GetTxoSerializeSize(version uint32) int {
+	panic("GetTxoSerializeSize implement me")
+	return -1
+}
+func (pp *PublicParameter) GetCbTxWitnessMaxLen(version uint32, num int) int {
+	panic("GetCoinbaseTxWitnessLen implement me")
+	return -1
+}
+
+func (pp *PublicParameter) GetTrTxWitnessMaxLen(version uint32) int {
+	panic("GetNullSerialNumber implement me")
+	return -1
+}
+
+func (pp *PublicParameter) GetTrTxWitnessSerializeSize(txVersion uint32, inputRingVersion uint32, inputRingSizes []int, outputTxoNum uint8) int {
+	panic("GetNullSerialNumber implement me")
+	return -1
+}
+
+func (pp *PublicParameter) GetTxMemoMaxLen(version uint32) int {
+	panic("GetNullSerialNumber implement me")
+	return -1
+}
+
+func (pp *PublicParameter) GetTxoSerialNumberLen(version uint32) int {
+	panic("GetTxoSerialNumberLen implement me")
+	return -1
+}
+func (pp *PublicParameter) GetNullSerialNumber(version uint32) []byte {
+	panic("GetNullSerialNumber implement me")
+	return nil
+}
