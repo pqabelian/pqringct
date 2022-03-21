@@ -1913,7 +1913,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		}
 
 		n1 := n
-		flag := pp.rpulpVerify(cbTxCon, cmts, n, cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats, cbTx.TxWitness.rpulpproof)
+		flag := pp.rpulpVerify(cbTxCon, cmts, n, cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats, cbTx.TxWitnessJ2.rpulpproof)
 		return flag
 	}
 
@@ -2044,7 +2044,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		/*		if inputDescItem.txoList[inputDescItem.sidx].ask == nil || inputDescItem.sk == nil {
 				return nil, errors.New("some information is empty")
 			}*/
-		if inputDescItem.txoList[inputDescItem.sidx].Txo.AddressPublicKey == nil || inputDescItem.serializedASksp == nil || inputDescItem.txoList[inputDescItem.sidx].ValueCommitment == nil {
+		if inputDescItem.txoList[inputDescItem.sidx].Txo.AddressPublicKey == nil || inputDescItem.serializedASksp == nil || inputDescItem.txoList[inputDescItem.sidx].Txo.ValueCommitment == nil {
 			return nil, errors.New("some information is empty")
 		}
 		asks[i] = &AddressSecretKey{}
