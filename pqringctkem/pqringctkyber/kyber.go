@@ -51,3 +51,6 @@ func Decaps(kpp *kyber.ParameterSet, cipher []byte, sk []byte) ([]byte, error) {
 	}
 	return got, nil
 }
+func GetKemCiphertextBytesLen(kpp *kyber.ParameterSet) int {
+	return kpp.CryptoCiphertextBytes()
+}
