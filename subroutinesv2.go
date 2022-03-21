@@ -15,6 +15,7 @@ const (
 	RpUlpTypeTrTx2 RpUlpType = 3
 )
 
+// todo: 8 byte, to support at most 64 bits
 func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte, err error) {
 	if len(seed) == 0 {
 		return nil, ErrLength

@@ -13,13 +13,13 @@ func TestPublicParameter_writePolyANTT_readPolyANTT(t *testing.T) {
 	tmp := rejectionUniformWithQa(seed, pp.paramDA, pp.paramQA)
 	a := &PolyANTT{coeffs: tmp}
 	w := bytes.NewBuffer(make([]byte, 0, pp.paramDA*8))
-	err := pp.WritePolyANTT(w, a)
+	err := pp.writePolyANTT(w, a)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	serializedA := w.Bytes()
 	r := bytes.NewReader(serializedA)
-	got, err := pp.ReadPolyANTT(r)
+	got, err := pp.readPolyANTT(r)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -35,13 +35,13 @@ func TestPublicParameter_writePolyCNTT_readPolyCNTT(t *testing.T) {
 	tmp := rejectionUniformWithQc(seed, pp.paramDC)
 	a := &PolyCNTT{coeffs: tmp}
 	w := bytes.NewBuffer(make([]byte, 0, pp.paramDC*8))
-	err := pp.WritePolyCNTT(w, a)
+	err := pp.writePolyCNTT(w, a)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	serializedA := w.Bytes()
 	r := bytes.NewReader(serializedA)
-	got, err := pp.ReadPolyCNTT(r)
+	got, err := pp.readPolyCNTT(r)
 	if err != nil {
 		log.Fatalln(err)
 	}

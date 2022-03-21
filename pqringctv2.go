@@ -58,13 +58,13 @@ func NewTxo(apk *AddressPublicKey, cmt *ValueCommitment, vct []byte, ckem []byte
 }
 
 type LgrTxo struct {
-	Txo
-	Id []byte
+	Txo *Txo
+	Id  []byte
 }
 
 func NewLgrTxo(txo *Txo, id []byte) *LgrTxo {
 	return &LgrTxo{
-		Txo: *txo,
+		Txo: txo,
 		Id:  id,
 	}
 }
@@ -85,12 +85,18 @@ type rpulpProofv2 struct {
 }
 
 type CoinbaseTxv2 struct {
-	Vin        uint64
-	OutputTxos []*Txo
-	TxWitness  *CbTxWitnessv2
+	Vin         uint64
+	OutputTxos  []*Txo
+	TxWitnessJ1 *CbTxWitnessJ1
+	TxWitnessJ2 *CbTxWitnessJ2
 }
 
-type CbTxWitnessv2 struct {
+type CbTxWitnessJ1 struct {
+	chseed []byte
+	zs     []*PolyCNTTVec
+}
+
+type CbTxWitnessJ2 struct {
 	b_hat      *PolyCNTTVec
 	c_hats     []*PolyCNTT
 	u_p        []int64
@@ -1039,9 +1045,9 @@ func (pp *PublicParameter) ExpandKIDR(lgrtxo *LgrTxo) *PolyANTT {
 	buf := make([]byte, 0, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
-	serialize, err := pp.LgrTxoSerialize(lgrtxo)
+	serialize, err := pp.SerializeLgrTxo(lgrtxo)
 	if err != nil {
-		log.Fatalln("error for pp.LgrTxoSerialize()")
+		log.Fatalln("error for pp.SerializeLgrTxo()")
 		return nil
 	}
 	_, err = w.Write(serialize)
@@ -1331,9 +1337,9 @@ func (pp *PublicParameter) collectBytesForELRv2(
 	w.Write(msg)
 	// txoList=[(pk,cmt)]
 	for i := 0; i < len(lgxTxoList); i++ {
-		serialize, err := pp.LgrTxoSerialize(lgxTxoList[i])
+		serialize, err := pp.SerializeLgrTxo(lgxTxoList[i])
 		if err != nil {
-			log.Fatalln("error for pp.LgrTxoSerialize()")
+			log.Fatalln("error for pp.SerializeLgrTxo()")
 			return nil
 		}
 		_, err = w.Write(serialize)
@@ -1537,7 +1543,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		}
 
 		// restore the apk from serializedAPk
-		apk, err := pp.AddressPublicKeyDeserialize(txOutputDesc.serializedAPk)
+		apk, err := pp.DeserializeAddressPublicKey(txOutputDesc.serializedAPk)
 		if err != nil {
 			return nil, err
 		}
@@ -1565,7 +1571,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 	tw.WriteByte(byte(vin >> 48))
 	tw.WriteByte(byte(vin >> 56))
 	for i := 0; i < J; i++ {
-		serializedTxo, err := pp.TxoSerialize(retcbTx.OutputTxos[i])
+		serializedTxo, err := pp.SerializeTxo(retcbTx.OutputTxos[i])
 		if err != nil {
 			return nil, err
 		}
@@ -1624,12 +1630,11 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			}
 		}
 
-		retcbTx.TxWitness = &CbTxWitnessv2{
-			rpulpproof: &rpulpProofv2{
-				chseed: chseed,
-				zs:     zs,
-			},
+		retcbTx.TxWitnessJ1 = &CbTxWitnessJ1{
+			chseed: chseed,
+			zs:     zs,
 		}
+		retcbTx.TxWitnessJ2 = nil
 	} else {
 		//	J >= 2
 		n := J
@@ -1734,7 +1739,8 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			return nil, pi_err
 		}
 
-		retcbTx.TxWitness = &CbTxWitnessv2{
+		retcbTx.TxWitnessJ1 = nil
+		retcbTx.TxWitnessJ2 = &CbTxWitnessJ2{
 			b_hat:      b_hat,
 			c_hats:     c_hats,
 			u_p:        u_p,
@@ -1761,7 +1767,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		return false
 	}
 
-	if cbTx.TxWitness == nil {
+	if cbTx.TxWitnessJ1 == nil && cbTx.TxWitnessJ2 == nil {
 		return false
 	}
 
@@ -1793,7 +1799,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 	tw.WriteByte(byte(cbTx.Vin >> 48))
 	tw.WriteByte(byte(cbTx.Vin >> 56))
 	for i := 0; i < J; i++ {
-		serializedTxo, err := pp.TxoSerialize(cbTx.OutputTxos[i])
+		serializedTxo, err := pp.SerializeTxo(cbTx.OutputTxos[i])
 		if err != nil {
 			log.Fatalln(err)
 			return false
@@ -1806,30 +1812,19 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 	}
 	// todo: call serializer end
 	if J == 1 {
-		if cbTx.TxWitness.b_hat != nil || cbTx.TxWitness.c_hats != nil || cbTx.TxWitness.u_p != nil {
-			return false
-		}
-		if cbTx.TxWitness.rpulpproof == nil {
-			return false
-		}
-		if cbTx.TxWitness.rpulpproof.c_waves != nil || cbTx.TxWitness.rpulpproof.c_hat_g != nil ||
-			cbTx.TxWitness.rpulpproof.psi != nil || cbTx.TxWitness.rpulpproof.phi != nil ||
-			cbTx.TxWitness.rpulpproof.cmt_zs != nil {
-			return false
-		}
-		if cbTx.TxWitness.rpulpproof.chseed == nil || cbTx.TxWitness.rpulpproof.zs == nil {
+		if cbTx.TxWitnessJ1.zs == nil || len(cbTx.TxWitnessJ1.chseed) == 0 {
 			return false
 		}
 		// todo check the well-form of chseed
 
 		// check the well-formof zs
-		if len(cbTx.TxWitness.rpulpproof.zs) != pp.paramK {
+		if len(cbTx.TxWitnessJ1.zs) != pp.paramK {
 			return false
 		}
 		// infNorm of z^t
 		bound := pp.paramEtaC - int64(pp.paramBetaC)
 		for t := 0; t < pp.paramK; t++ {
-			if pp.NTTInvPolyCVec(cbTx.TxWitness.rpulpproof.zs[t]).infNorm() > bound {
+			if pp.NTTInvPolyCVec(cbTx.TxWitnessJ1.zs[t]).infNorm() > bound {
 				return false
 			}
 		}
@@ -1837,7 +1832,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		ws := make([]*PolyCNTTVec, pp.paramK)
 		deltas := make([]*PolyCNTT, pp.paramK)
 
-		chtmp, err := pp.expandChallengeC(cbTx.TxWitness.rpulpproof.chseed)
+		chtmp, err := pp.expandChallengeC(cbTx.TxWitnessJ1.chseed)
 		if err != nil {
 			return false
 		}
@@ -1849,12 +1844,12 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 			sigma_t_ch := pp.sigmaPowerPolyCNTT(ch, t)
 
 			ws[t] = pp.PolyCNTTVecSub(
-				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitness.rpulpproof.zs[t], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitnessJ1.zs[t], pp.paramKC, pp.paramLC),
 				pp.PolyCNTTVecScaleMul(sigma_t_ch, cbTx.OutputTxos[0].ValueCommitment.b, pp.paramKC),
 				pp.paramKC,
 			)
 			deltas[t] = pp.PolyCNTTSub(
-				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], cbTx.TxWitness.rpulpproof.zs[t], pp.paramLC),
+				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], cbTx.TxWitnessJ1.zs[t], pp.paramLC),
 				pp.PolyCNTTMul(
 					sigma_t_ch,
 					pp.PolyCNTTSub(cbTx.OutputTxos[0].c, msg),
@@ -1866,29 +1861,29 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		if err != nil {
 			return false
 		}
-		if bytes.Compare(seed_ch, cbTx.TxWitness.rpulpproof.chseed) != 0 {
+		if bytes.Compare(seed_ch, cbTx.TxWitnessJ1.chseed) != 0 {
 			return false
 		}
 	} else {
 		// check the well-formness of cbTx.TxWitness
-		if cbTx.TxWitness.b_hat == nil || cbTx.TxWitness.c_hats == nil || cbTx.TxWitness.u_p == nil || cbTx.TxWitness.rpulpproof == nil {
+		if cbTx.TxWitnessJ2.b_hat == nil || cbTx.TxWitnessJ2.c_hats == nil || cbTx.TxWitnessJ2.u_p == nil || cbTx.TxWitnessJ2.rpulpproof == nil {
 			return false
 		}
 
 		n := J
 		n2 := J + 2
 
-		if len(cbTx.TxWitness.c_hats) != n2 {
+		if len(cbTx.TxWitnessJ2.c_hats) != n2 {
 			return false
 		}
 
 		//	infNorm of u'
 		infNorm := int64(0)
-		if len(cbTx.TxWitness.u_p) != pp.paramDC {
+		if len(cbTx.TxWitnessJ2.u_p) != pp.paramDC {
 			return false
 		}
 		for i := 0; i < pp.paramDC; i++ {
-			infNorm = cbTx.TxWitness.u_p[i]
+			infNorm = cbTx.TxWitnessJ2.u_p[i]
 			if infNorm < 0 {
 				infNorm = -infNorm
 			}
@@ -1898,7 +1893,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 			}
 		}
 
-		seed_binM, err := Hash(pp.collectBytesForCoinbase2(cbTxCon, cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		seed_binM, err := Hash(pp.collectBytesForCoinbase2(cbTxCon, cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
 			return false
 		}
@@ -1910,7 +1905,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		u_hats := make([][]int64, 3)
 		u_hats[0] = intToBinary(cbTx.Vin, pp.paramDC)
 		u_hats[1] = make([]int64, pp.paramDC)
-		u_hats[2] = cbTx.TxWitness.u_p
+		u_hats[2] = cbTx.TxWitnessJ2.u_p
 
 		cmts := make([]*ValueCommitment, n)
 		for i := 0; i < n; i++ {
@@ -1918,7 +1913,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		}
 
 		n1 := n
-		flag := pp.rpulpVerify(cbTxCon, cmts, n, cbTx.TxWitness.b_hat, cbTx.TxWitness.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats, cbTx.TxWitness.rpulpproof)
+		flag := pp.rpulpVerify(cbTxCon, cmts, n, cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats, cbTx.TxWitness.rpulpproof)
 		return flag
 	}
 
@@ -2018,7 +2013,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		if outputDescItem.serializedAPk == nil || outputDescItem.serializedVPk == nil {
 			return nil, errors.New("the address public key or value publci key is nil")
 		}
-		apks[i], err = pp.AddressPublicKeyDeserialize(outputDescItem.serializedAPk)
+		apks[i], err = pp.DeserializeAddressPublicKey(outputDescItem.serializedAPk)
 		if err != nil || apks[i] == nil {
 			return nil, errors.New("the apk is not well-form")
 		}
@@ -2049,25 +2044,25 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		/*		if inputDescItem.txoList[inputDescItem.sidx].ask == nil || inputDescItem.sk == nil {
 				return nil, errors.New("some information is empty")
 			}*/
-		if inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey == nil || inputDescItem.serializedASksp == nil || inputDescItem.txoList[inputDescItem.sidx].ValueCommitment == nil {
+		if inputDescItem.txoList[inputDescItem.sidx].Txo.AddressPublicKey == nil || inputDescItem.serializedASksp == nil || inputDescItem.txoList[inputDescItem.sidx].ValueCommitment == nil {
 			return nil, errors.New("some information is empty")
 		}
 		asks[i] = &AddressSecretKey{}
-		asks[i].AddressSecretKeySp, err = pp.AddressSecretKeySpDeserialize(inputDescItem.serializedASksp)
+		asks[i].AddressSecretKeySp, err = pp.DeserializeAddressSecretKeySp(inputDescItem.serializedASksp)
 		if err != nil {
 			return nil, err
 		}
-		asks[i].AddressSecretKeySn, err = pp.AddressSecretKeySnDeserialize(inputDescItem.serializedASksn)
+		asks[i].AddressSecretKeySn, err = pp.DeserializeAddressSecretKeySn(inputDescItem.serializedASksn)
 		if err != nil || asks[i] == nil {
 			return nil, err
 		}
 
-		if asks[i].CheckMatchPublciKey(inputDescItem.txoList[inputDescItem.sidx].AddressPublicKey, pp) == false {
+		if asks[i].CheckMatchPublciKey(inputDescItem.txoList[inputDescItem.sidx].Txo.AddressPublicKey, pp) == false {
 			return nil, errors.New("the address secret key and correspdong public key does not match")
 		}
 
 		// run kem.decaps to get kappa
-		kappa, err := pqringctkem.Decaps(pp.paramKem, inputDescItem.txoList[inputDescItem.sidx].CkemSerialzed, inputDescItem.serializedVSk)
+		kappa, err := pqringctkem.Decaps(pp.paramKem, inputDescItem.txoList[inputDescItem.sidx].Txo.CkemSerialzed, inputDescItem.serializedVSk)
 		if err != nil {
 			return nil, err
 		}
@@ -2086,11 +2081,11 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 			&PolyCNTT{msgs_in[i]})
 
 		// and check the validity
-		if !pp.PolyCNTTVecEqualCheck(b, inputDescItem.txoList[inputDescItem.sidx].b) {
+		if !pp.PolyCNTTVecEqualCheck(b, inputDescItem.txoList[inputDescItem.sidx].Txo.b) {
 			return nil, errors.New("fail to receive some transaction output : the computed commitment is not equal to input")
 		}
 
-		if !pp.PolyCNTTEqualCheck(c, inputDescItem.txoList[inputDescItem.sidx].c) {
+		if !pp.PolyCNTTEqualCheck(c, inputDescItem.txoList[inputDescItem.sidx].Txo.c) {
 			return nil, errors.New("fail to receive some transaction output : the computed commitment is not equal to input")
 		}
 	}
@@ -2631,7 +2626,7 @@ func (pp *PublicParameter) LedgerTXOSerialNumberGen(txo []byte, txolid []byte, s
 	m_r := &PolyANTT{coeffs: got}
 
 	r := bytes.NewReader(skma)
-	ma, err := pp.ReadPolyANTT(r)
+	ma, err := pp.readPolyANTT(r)
 	if err != nil {
 		return nil
 	}

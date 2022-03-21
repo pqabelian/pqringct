@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/cryptosuite/pqringct/pqringctkem/pqringctkyber"
 	"io"
 )
 
@@ -12,15 +13,16 @@ const (
 	ErrNilPointer    = "there are nil pointer"
 )
 
-func (pp *PublicParameter) PolyANTTSerializedSize() int {
+func (pp *PublicParameter) PolyANTTSerializeSize() int {
+	// todo: 37-bit int64 could be serialized to 5 bytes, that is pp.paramDA * 5
 	return pp.paramDA * 8
 }
-func (pp *PublicParameter) WritePolyANTT(w io.Writer, a *PolyANTT) error {
+func (pp *PublicParameter) writePolyANTT(w io.Writer, a *PolyANTT) error {
 	var err error
-	err = WriteVarInt(w, uint64(pp.paramDA))
-	if err != nil {
-		return err
-	}
+	/*	err = WriteVarInt(w, uint64(pp.paramDA))
+		if err != nil {
+			return err
+		}*/
 	for i := 0; i < pp.paramDA; i++ {
 		err = writeElement(w, a.coeffs[i])
 		if err != nil {
@@ -29,28 +31,27 @@ func (pp *PublicParameter) WritePolyANTT(w io.Writer, a *PolyANTT) error {
 	}
 	return nil
 }
-func (pp *PublicParameter) ReadPolyANTT(r io.Reader) (*PolyANTT, error) {
+func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
 	var err error
-	var count uint64
-	count, err = ReadVarInt(r)
-	if err != nil {
-		return nil, err
-	}
+	/*	var count uint64
+		count, err = ReadVarInt(r)
+		if err != nil {
+			return nil, err
+		}*/
 	res := pp.NewPolyANTT()
-	for i := uint64(0); i < count; i++ {
+	for i := 0; i < pp.paramDA; i++ {
 		err = readElement(r, &res.coeffs[i])
 		if err != nil {
 			return nil, err
 		}
 	}
 	return res, nil
-
 }
 
-func (pp *PublicParameter) PolyANTTVecSerializedSize(a *PolyANTTVec) int {
-	return VarIntSerializeSize2(uint64(len(a.polyANTTs))) + len(a.polyANTTs)*pp.paramDA*8
+func (pp *PublicParameter) PolyANTTVecSerializeSize(a *PolyANTTVec) int {
+	return VarIntSerializeSize2(uint64(len(a.polyANTTs))) + len(a.polyANTTs)*pp.PolyANTTSerializeSize()
 }
-func (pp *PublicParameter) WritePolyANTTVec(w io.Writer, a *PolyANTTVec) error {
+func (pp *PublicParameter) writePolyANTTVec(w io.Writer, a *PolyANTTVec) error {
 	var err error
 	// length
 	count := len(a.polyANTTs)
@@ -59,14 +60,14 @@ func (pp *PublicParameter) WritePolyANTTVec(w io.Writer, a *PolyANTTVec) error {
 		return err
 	}
 	for i := 0; i < count; i++ {
-		err = pp.WritePolyANTT(w, a.polyANTTs[i])
+		err = pp.writePolyANTT(w, a.polyANTTs[i])
 		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (pp *PublicParameter) ReadPolyANTTVec(r io.Reader) (*PolyANTTVec, error) {
+func (pp *PublicParameter) readPolyANTTVec(r io.Reader) (*PolyANTTVec, error) {
 	var err error
 	var count uint64
 	count, err = ReadVarInt(r)
@@ -75,7 +76,7 @@ func (pp *PublicParameter) ReadPolyANTTVec(r io.Reader) (*PolyANTTVec, error) {
 	}
 	res := make([]*PolyANTT, count)
 	for i := uint64(0); i < count; i++ {
-		res[i], err = pp.ReadPolyANTT(r)
+		res[i], err = pp.readPolyANTT(r)
 		if err != nil {
 			return nil, err
 		}
@@ -83,15 +84,16 @@ func (pp *PublicParameter) ReadPolyANTTVec(r io.Reader) (*PolyANTTVec, error) {
 	return &PolyANTTVec{polyANTTs: res}, nil
 }
 
-func (pp *PublicParameter) PolyCNTTSize() int {
+func (pp *PublicParameter) PolyCNTTSerializeSize() int {
+	//	todo: 53-bit int64 could be serialized to 7 bytes, that is pp.paramDA * 7
 	return pp.paramDC * 8
 }
-func (pp *PublicParameter) WritePolyCNTT(w io.Writer, c *PolyCNTT) error {
+func (pp *PublicParameter) writePolyCNTT(w io.Writer, c *PolyCNTT) error {
 	var err error
-	err = WriteVarInt(w, uint64(pp.paramDC))
-	if err != nil {
-		return err
-	}
+	/*	err = WriteVarInt(w, uint64(pp.paramDC))
+		if err != nil {
+			return err
+		}*/
 	for i := 0; i < pp.paramDC; i++ {
 		err = writeElement(w, c.coeffs[i])
 		if err != nil {
@@ -100,15 +102,15 @@ func (pp *PublicParameter) WritePolyCNTT(w io.Writer, c *PolyCNTT) error {
 	}
 	return nil
 }
-func (pp *PublicParameter) ReadPolyCNTT(r io.Reader) (*PolyCNTT, error) {
+func (pp *PublicParameter) readPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 	var err error
-	var count uint64
-	count, err = ReadVarInt(r)
-	if err != nil {
-		return nil, err
-	}
+	/*	var count uint64
+		count, err = ReadVarInt(r)
+		if err != nil {
+			return nil, err
+		}*/
 	res := pp.NewPolyCNTT()
-	for i := uint64(0); i < count; i++ {
+	for i := 0; i < pp.paramDC; i++ {
 		err = readElement(r, &res.coeffs[i])
 		if err != nil {
 			return nil, err
@@ -117,10 +119,16 @@ func (pp *PublicParameter) ReadPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 	return res, nil
 }
 
-func (pp *PublicParameter) PolyCNTTVecSize(c *PolyCNTTVec) int {
-	return VarIntSerializeSize2(uint64(len(c.polyCNTTs))) + len(c.polyCNTTs)*pp.paramDC*8
+func (pp *PublicParameter) PolyCNTTVecSerializeSize(c *PolyCNTTVec) int {
+	if c == nil || c.polyCNTTs == nil {
+		return 0
+	}
+	return VarIntSerializeSize2(uint64(len(c.polyCNTTs))) + len(c.polyCNTTs)*pp.PolyCNTTSerializeSize()
 }
-func (pp *PublicParameter) WritePolyCNTTVec(w io.Writer, c *PolyCNTTVec) error {
+func (pp *PublicParameter) writePolyCNTTVec(w io.Writer, c *PolyCNTTVec) error {
+	if c == nil || c.polyCNTTs == nil {
+		return errors.New("serialize nil PolyCNTTVec")
+	}
 	var err error
 	// length
 	count := len(c.polyCNTTs)
@@ -129,14 +137,14 @@ func (pp *PublicParameter) WritePolyCNTTVec(w io.Writer, c *PolyCNTTVec) error {
 		return err
 	}
 	for i := 0; i < count; i++ {
-		err = pp.WritePolyCNTT(w, c.polyCNTTs[i])
+		err = pp.writePolyCNTT(w, c.polyCNTTs[i])
 		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (pp *PublicParameter) ReadPolyCNTTVec(r io.Reader) (*PolyCNTTVec, error) {
+func (pp *PublicParameter) readPolyCNTTVec(r io.Reader) (*PolyCNTTVec, error) {
 	var err error
 	var count uint64
 	count, err = ReadVarInt(r)
@@ -145,7 +153,7 @@ func (pp *PublicParameter) ReadPolyCNTTVec(r io.Reader) (*PolyCNTTVec, error) {
 	}
 	res := make([]*PolyCNTT, count)
 	for i := uint64(0); i < count; i++ {
-		res[i], err = pp.ReadPolyCNTT(r)
+		res[i], err = pp.readPolyCNTT(r)
 		if err != nil {
 			return nil, err
 		}
@@ -153,209 +161,235 @@ func (pp *PublicParameter) ReadPolyCNTTVec(r io.Reader) (*PolyCNTTVec, error) {
 	return &PolyCNTTVec{polyCNTTs: res}, nil
 }
 
-func (pp *PublicParameter) AddressPublicKeySerializedSize(a *AddressPublicKey) int {
-	return pp.PolyANTTVecSerializedSize(a.t) + pp.PolyANTTSerializedSize()
+func (pp *PublicParameter) AddressPublicKeySerializeSize() int {
+	//return pp.PolyANTTVecSerializeSize(a.t) + pp.PolyANTTSerializeSize()
+	return (pp.paramKA + 1) * pp.PolyANTTSerializeSize()
 }
-func (pp *PublicParameter) AddressPublicKeySerialize(apk *AddressPublicKey) ([]byte, error) {
+func (pp *PublicParameter) SerializeAddressPublicKey(apk *AddressPublicKey) ([]byte, error) {
 	var err error
 	if apk == nil || apk.t == nil || apk.e == nil {
 		return nil, errors.New(ErrNilPointer)
 	}
-	length := pp.AddressPublicKeySerializedSize(apk)
+	if len(apk.t.polyANTTs) != pp.paramKA {
+		return nil, errors.New("the format of AddressPublicKey does not match the design")
+	}
+
+	length := pp.AddressPublicKeySerializeSize()
 	w := bytes.NewBuffer(make([]byte, 0, length))
-	err = pp.WritePolyANTTVec(w, apk.t)
+	for i := 0; i < pp.paramKA; i++ {
+		err = pp.writePolyANTT(w, apk.t.polyANTTs[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = pp.writePolyANTT(w, apk.e)
 	if err != nil {
 		return nil, err
 	}
-	err = pp.WritePolyANTT(w, apk.e)
-	if err != nil {
-		return nil, err
-	}
+
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) AddressPublicKeyDeserialize(serialziedAPk []byte) (*AddressPublicKey, error) {
+func (pp *PublicParameter) DeserializeAddressPublicKey(serialziedAPk []byte) (*AddressPublicKey, error) {
 	var err error
 	r := bytes.NewReader(serialziedAPk)
-	var t *PolyANTTVec
+
+	t := pp.NewPolyANTTVec(pp.paramKA)
 	var e *PolyANTT
-	t, err = pp.ReadPolyANTTVec(r)
+
+	for i := 0; i < pp.paramKA; i++ {
+		t.polyANTTs[i], err = pp.readPolyANTT(r)
+		if err != nil {
+			return nil, err
+		}
+	}
+	e, err = pp.readPolyANTT(r)
 	if err != nil {
 		return nil, err
 	}
-	e, err = pp.ReadPolyANTT(r)
-	if err != nil {
-		return nil, err
-	}
-	return &AddressPublicKey{
-		t: t,
-		e: e,
-	}, nil
+	return &AddressPublicKey{t, e}, nil
 }
 
-func (pp *PublicParameter) AddressSecretKeySpSerializedSize(ask *AddressSecretKeySp) int {
-	return pp.PolyANTTVecSerializedSize(ask.s)
+func (pp *PublicParameter) AddressSecretKeySpSerializeSize() int {
+	//	return pp.PolyANTTVecSerializeSize(ask.s)
+	return pp.paramLA * pp.PolyANTTSerializeSize()
 }
-func (pp *PublicParameter) AddressSecretKeySpSerialize(asksp *AddressSecretKeySp) ([]byte, error) {
+func (pp *PublicParameter) SerializeAddressSecretKeySp(asksp *AddressSecretKeySp) ([]byte, error) {
 	var err error
-	if asksp.s == nil {
+	if asksp == nil || asksp.s == nil {
 		return nil, errors.New(ErrNilPointer)
 	}
-	spLength := pp.AddressSecretKeySpSerializedSize(asksp)
+
+	if len(asksp.s.polyANTTs) != pp.paramLA {
+		return nil, errors.New("the format of AddressSecretKeySp does not match the design")
+	}
+
+	spLength := pp.AddressSecretKeySpSerializeSize()
 	w := bytes.NewBuffer(make([]byte, 0, spLength))
-	err = pp.WritePolyANTTVec(w, asksp.s)
-	if err != nil {
-		return nil, err
+	for i := 0; i < pp.paramLA; i++ {
+		err = pp.writePolyANTT(w, asksp.s.polyANTTs[i])
+		if err != nil {
+			return nil, err
+		}
 	}
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) AddressSecretKeySpDeserialize(serialziedASkSp []byte) (*AddressSecretKeySp, error) {
+func (pp *PublicParameter) DeserializeAddressSecretKeySp(serialziedASkSp []byte) (*AddressSecretKeySp, error) {
 	var err error
 	r := bytes.NewReader(serialziedASkSp)
-	var s *PolyANTTVec
-	s, err = pp.ReadPolyANTTVec(r)
-	if err != nil {
-		return nil, err
+	s := pp.NewPolyANTTVec(pp.paramLA)
+	for i := 0; i < pp.paramLA; i++ {
+		s.polyANTTs[i], err = pp.readPolyANTT(r)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return &AddressSecretKeySp{
-		s: s,
-	}, nil
+	return &AddressSecretKeySp{s}, nil
 }
 
-func (pp *PublicParameter) AddressSecretKeySnSize(asksn *AddressSecretKeySn) int {
-	return pp.PolyANTTSerializedSize()
+func (pp *PublicParameter) AddressSecretKeySnSerializeSize() int {
+	return pp.PolyANTTSerializeSize()
 }
-func (pp *PublicParameter) AddressSecretKeySnSerialize(asksn *AddressSecretKeySn) ([]byte, error) {
+func (pp *PublicParameter) SerializeAddressSecretKeySn(asksn *AddressSecretKeySn) ([]byte, error) {
 	var err error
 	if asksn.ma == nil {
 		return nil, errors.New(ErrNilPointer)
 	}
-	spLength := pp.AddressSecretKeySnSize(asksn)
+	spLength := pp.AddressSecretKeySnSerializeSize()
 	w := bytes.NewBuffer(make([]byte, 0, spLength))
-	err = pp.WritePolyANTT(w, asksn.ma)
+	err = pp.writePolyANTT(w, asksn.ma)
 	if err != nil {
 		return nil, err
 	}
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) AddressSecretKeySnDeserialize(serialziedASkSn []byte) (*AddressSecretKeySn, error) {
+func (pp *PublicParameter) DeserializeAddressSecretKeySn(serialziedASkSn []byte) (*AddressSecretKeySn, error) {
 	var err error
 	r := bytes.NewReader(serialziedASkSn)
 	var ma *PolyANTT
-	ma, err = pp.ReadPolyANTT(r)
+	ma, err = pp.readPolyANTT(r)
 	if err != nil {
 		return nil, err
 	}
-	return &AddressSecretKeySn{
-		ma: ma,
-	}, nil
+	return &AddressSecretKeySn{ma}, nil
 }
 
-func (pp *PublicParameter) AddressSecretKeySize(ask *AddressSecretKey) (int, int) {
-	return pp.AddressSecretKeySpSerializedSize(ask.AddressSecretKeySp), pp.AddressSecretKeySnSize(ask.AddressSecretKeySn)
+//
+//func (pp *PublicParameter) AddressSecretKeySize(ask *AddressSecretKey) (int, int) {
+//	return pp.AddressSecretKeySpSerializeSize(ask.AddressSecretKeySp), pp.AddressSecretKeySnSerializeSize(ask.AddressSecretKeySn)
+//}
+//func (pp *PublicParameter) AddressSecretKeySerialize(ask *AddressSecretKey) ([]byte, []byte, error) {
+//	var err error
+//	if ask == nil || ask.AddressSecretKeySp == nil || ask.AddressSecretKeySn == nil {
+//		return nil, nil, errors.New(ErrNilPointer)
+//	}
+//
+//	spLength, snLength := pp.AddressSecretKeySize(ask)
+//	serializedSecretKeySp := make([]byte, spLength)
+//	serializedSecretKeySn := make([]byte, snLength)
+//
+//	serializedSecretKeySp, err = pp.SerializeAddressSecretKeySp(ask.AddressSecretKeySp)
+//	if err != nil {
+//		return nil, nil, err
+//	}
+//	serializedSecretKeySn, err = pp.SerializeAddressSecretKeySn(ask.AddressSecretKeySn)
+//	if err != nil {
+//		return nil, nil, err
+//	}
+//
+//	return serializedSecretKeySp, serializedSecretKeySn, nil
+//}
+//func (pp *PublicParameter) AddressSecretKeyDeserialize(serialziedASkSp []byte, serialziedASkSn []byte) (*AddressSecretKey, error) {
+//	var err error
+//
+//	addressSecretKeySp, err := pp.DeserializeAddressSecretKeySp(serialziedASkSp)
+//	if err != nil {
+//		return nil, err
+//	}
+//	addressSecretKeySn, err := pp.DeserializeAddressSecretKeySn(serialziedASkSn)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return &AddressSecretKey{
+//		AddressSecretKeySp: addressSecretKeySp,
+//		AddressSecretKeySn: addressSecretKeySn,
+//	}, nil
+//}
+
+func (pp *PublicParameter) ValueCommitmentRandSerializeSize() int {
+	//	return pp.PolyCNTTVecSerializeSize(v.b) + pp.PolyCNTTSerializeSize()
+	return pp.paramLC * pp.PolyCNTTSerializeSize()
 }
-func (pp *PublicParameter) AddressSecretKeySerialize(ask *AddressSecretKey) ([]byte, []byte, error) {
+func (pp *PublicParameter) ValueCommitmentSerializeSize() int {
+	//	return pp.PolyCNTTVecSerializeSize(v.b) + pp.PolyCNTTSerializeSize()
+	return (pp.paramKC + 1) * pp.PolyCNTTSerializeSize()
+}
+func (pp *PublicParameter) SerializeValueCommitment(vcmt *ValueCommitment) ([]byte, error) {
 	var err error
-	if ask == nil || ask.AddressSecretKeySp == nil || ask.AddressSecretKeySn == nil {
-		return nil, nil, errors.New(ErrNilPointer)
+	if vcmt == nil || vcmt.b == nil || vcmt.c == nil {
+		return nil, errors.New(ErrNilPointer)
+	}
+	if len(vcmt.b.polyCNTTs) != pp.paramKC {
+		return nil, errors.New("the format of ValueCommitment does not match the design")
 	}
 
-	spLength, snLength := pp.AddressSecretKeySize(ask)
-	serializedSecretKeySp := make([]byte, spLength)
-	serializedSecretKeySn := make([]byte, snLength)
-
-	serializedSecretKeySp, err = pp.AddressSecretKeySpSerialize(ask.AddressSecretKeySp)
-	if err != nil {
-		return nil, nil, err
-	}
-	serializedSecretKeySn, err = pp.AddressSecretKeySnSerialize(ask.AddressSecretKeySn)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return serializedSecretKeySp, serializedSecretKeySn, nil
-}
-func (pp *PublicParameter) AddressSecretKeyDeserialize(serialziedASkSp []byte, serialziedASkSn []byte) (*AddressSecretKey, error) {
-	var err error
-
-	addressSecretKeySp, err := pp.AddressSecretKeySpDeserialize(serialziedASkSp)
-	if err != nil {
-		return nil, err
-	}
-	addressSecretKeySn, err := pp.AddressSecretKeySnDeserialize(serialziedASkSn)
-	if err != nil {
-		return nil, err
-	}
-
-	return &AddressSecretKey{
-		AddressSecretKeySp: addressSecretKeySp,
-		AddressSecretKeySn: addressSecretKeySn,
-	}, nil
-}
-
-func (pp *PublicParameter) ValueCommitmentSerializedSize(v *ValueCommitment) int {
-	return pp.PolyCNTTVecSize(v.b) + pp.PolyCNTTSize()
-}
-func (pp *PublicParameter) ValueCommitmentSerialize(v *ValueCommitment) ([]byte, error) {
-	var err error
-	length := pp.ValueCommitmentSerializedSize(v)
+	length := pp.ValueCommitmentSerializeSize()
 	w := bytes.NewBuffer(make([]byte, 0, length))
-	err = pp.WritePolyCNTTVec(w, v.b)
-	if err != nil {
-		return nil, err
+	for i := 0; i < pp.paramKC; i++ {
+		err = pp.writePolyCNTT(w, vcmt.b.polyCNTTs[i])
+		if err != nil {
+			return nil, err
+		}
 	}
-	err = pp.WritePolyCNTT(w, v.c)
+	err = pp.writePolyCNTT(w, vcmt.c)
 	if err != nil {
 		return nil, err
 	}
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) ValueCommitmentDeserialize(serialziedValueCommitment []byte) (*ValueCommitment, error) {
+func (pp *PublicParameter) DeserializeValueCommitment(serialziedValueCommitment []byte) (*ValueCommitment, error) {
 	var err error
 	r := bytes.NewReader(serialziedValueCommitment)
 
-	var b *PolyCNTTVec
+	b := pp.NewPolyCNTTVec(pp.paramKC)
 	var c *PolyCNTT
 
-	b, err = pp.ReadPolyCNTTVec(r)
-	if err != nil {
-		return nil, err
+	for i := 0; i < pp.paramKC; i++ {
+		b.polyCNTTs[i], err = pp.readPolyCNTT(r)
+		if err != nil {
+			return nil, err
+		}
 	}
-	c, err = pp.ReadPolyCNTT(r)
+	c, err = pp.readPolyCNTT(r)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ValueCommitment{
-		b: b,
-		c: c,
-	}, nil
+	return &ValueCommitment{b, c}, nil
 }
 
-func (pp *PublicParameter) TxoSerializedSize(t *Txo) int {
-	var length int
-	tmp := pp.AddressPublicKeySerializedSize(t.AddressPublicKey)
-	length += VarIntSerializeSize2(uint64(tmp)) + tmp
-	tmp = pp.ValueCommitmentSerializedSize(t.ValueCommitment)
-	length += VarIntSerializeSize2(uint64(tmp)) + tmp
-	return length +
-		GetBytesSerializeSize2(t.Vct) +
-		GetBytesSerializeSize2(t.CkemSerialzed)
+func (pp *PublicParameter) TxoValueCiphertextSerializeSize() int {
+	return pp.paramN/8 + 1
 }
-func (pp *PublicParameter) TxoSerialize(t *Txo) ([]byte, error) {
-	if t == nil || t.b == nil || t.c == nil {
+
+func (pp *PublicParameter) TxoSerializeSize() int {
+	return pp.AddressPublicKeySerializeSize() +
+		pp.ValueCommitmentSerializeSize() +
+		VarIntSerializeSize2(uint64(pp.TxoValueCiphertextSerializeSize())) + pp.TxoValueCiphertextSerializeSize() +
+		VarIntSerializeSize2(uint64(pqringctkyber.GetKemCiphertextBytesLen(pp.paramKem))) + pqringctkyber.GetKemCiphertextBytesLen(pp.paramKem)
+	// 8 for vc: 53-bits, for simplicity, just as uint64
+}
+
+func (pp *PublicParameter) SerializeTxo(txo *Txo) ([]byte, error) {
+	if txo == nil || txo.AddressPublicKey == nil || txo.ValueCommitment == nil {
 		return nil, errors.New(ErrNilPointer)
 	}
 
 	var err error
-	length := pp.TxoSerializedSize(t)
+	length := pp.TxoSerializeSize()
 	w := bytes.NewBuffer(make([]byte, 0, length))
 
-	length = pp.AddressPublicKeySerializedSize(t.AddressPublicKey)
-	err = WriteVarInt(w, uint64(length))
-	if err != nil {
-		return nil, err
-	}
-	serializedAddressPublicKey, err := pp.AddressPublicKeySerialize(t.AddressPublicKey)
+	serializedAddressPublicKey, err := pp.SerializeAddressPublicKey(txo.AddressPublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -364,107 +398,83 @@ func (pp *PublicParameter) TxoSerialize(t *Txo) ([]byte, error) {
 		return nil, err
 	}
 
-	length = pp.ValueCommitmentSerializedSize(t.ValueCommitment)
-	err = WriteVarInt(w, uint64(length))
+	serializedValueCmt, err := pp.SerializeValueCommitment(txo.ValueCommitment)
 	if err != nil {
 		return nil, err
 	}
-	valueCommitmentPublicKey, err := pp.ValueCommitmentSerialize(t.ValueCommitment)
-	if err != nil {
-		return nil, err
-	}
-	_, err = w.Write(valueCommitmentPublicKey)
+	_, err = w.Write(serializedValueCmt)
 	if err != nil {
 		return nil, err
 	}
 
-	err = WriteVarBytes(w, t.Vct)
+	err = WriteVarBytes(w, txo.Vct)
 	if err != nil {
 		return nil, err
 	}
 
-	err = WriteVarBytes(w, t.CkemSerialzed)
+	err = WriteVarBytes(w, txo.CkemSerialzed)
 	if err != nil {
 		return nil, err
 	}
-
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) TxoDeserialize(serializedTxo []byte) (*Txo, error) {
+
+func (pp *PublicParameter) DeserializeTxo(serializedTxo []byte) (*Txo, error) {
 	var err error
-	var count uint64
 	r := bytes.NewReader(serializedTxo)
 
-	count, err = ReadVarInt(r)
-	if err != nil {
-		return nil, err
-	}
-	tmp := make([]byte, count)
+	tmp := make([]byte, pp.AddressPublicKeySerializeSize())
 	err = readElement(r, tmp)
 	if err != nil {
 		return nil, err
 	}
 	var apk *AddressPublicKey
-	apk, err = pp.AddressPublicKeyDeserialize(tmp)
+	apk, err = pp.DeserializeAddressPublicKey(tmp)
 	if err != nil {
 		return nil, err
 	}
 
-	count, err = ReadVarInt(r)
-	if err != nil {
-		return nil, err
-	}
-	tmp = make([]byte, count)
+	tmp = make([]byte, pp.ValueCommitmentSerializeSize())
 	err = readElement(r, tmp)
 	if err != nil {
 		return nil, err
 	}
 	var cmt *ValueCommitment
-	cmt, err = pp.ValueCommitmentDeserialize(tmp)
+	cmt, err = pp.DeserializeValueCommitment(tmp)
 	if err != nil {
 		return nil, err
 	}
 
-	vct, err := ReadVarBytes(r, MAXALLOWED, "RpulpProof.Vct")
+	vct, err := ReadVarBytes(r, MAXALLOWED, "txo.Vct")
 	if err != nil {
 		return nil, err
 	}
 
-	ckem, err := ReadVarBytes(r, MAXALLOWED, "RpulpProof.ckem")
+	ckem, err := ReadVarBytes(r, MAXALLOWED, "txo.CkemSerialzed")
 	if err != nil {
 		return nil, err
 	}
 
-	return &Txo{
-		AddressPublicKey: apk,
-		ValueCommitment:  cmt,
-		Vct:              vct,
-		CkemSerialzed:    ckem,
-	}, nil
+	return &Txo{apk, cmt, vct, ckem}, nil
 }
 
-func (pp *PublicParameter) LgrTxoSerializedSize(txo *LgrTxo) int {
-	var length int
-	tmp := pp.TxoSerializedSize(&txo.Txo)
-	length += VarIntSerializeSize2(uint64(tmp)) + tmp
-
-	return length + GetBytesSerializeSize2(txo.Id)
+func (pp *PublicParameter) LgrTxoIdSerializeSize() int {
+	return HashBytesLen
 }
-func (pp *PublicParameter) LgrTxoSerialize(t *LgrTxo) ([]byte, error) {
-	if t == nil || t.b == nil || t.c == nil {
+
+func (pp *PublicParameter) LgrTxoSerializeSize() int {
+	return pp.GetTxoSerializeSize() + VarIntSerializeSize2(uint64(pp.LgrTxoIdSerializeSize())) + pp.LgrTxoIdSerializeSize()
+}
+func (pp *PublicParameter) SerializeLgrTxo(lgrTxo *LgrTxo) ([]byte, error) {
+	if lgrTxo.Txo == nil {
 		return nil, errors.New(ErrNilPointer)
 	}
 
 	var err error
-	length := pp.LgrTxoSerializedSize(t)
+	length := pp.LgrTxoSerializeSize()
 	w := bytes.NewBuffer(make([]byte, 0, length))
 
-	length = pp.TxoSerializedSize(&t.Txo)
-	err = WriteVarInt(w, uint64(length))
-	if err != nil {
-		return nil, err
-	}
-	serializedTxo, err := pp.TxoSerialize(&t.Txo)
+	serializedTxo, err := pp.SerializeTxo(lgrTxo.Txo)
 	if err != nil {
 		return nil, err
 	}
@@ -473,29 +483,25 @@ func (pp *PublicParameter) LgrTxoSerialize(t *LgrTxo) ([]byte, error) {
 		return nil, err
 	}
 
-	err = WriteVarBytes(w, t.Id)
+	err = WriteVarBytes(w, lgrTxo.Id)
 	if err != nil {
 		return nil, err
 	}
 
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) LgrTxoDeserialize(serializedLgrTxo []byte) (*LgrTxo, error) {
+func (pp *PublicParameter) DeserializeLgrTxo(serializedLgrTxo []byte) (*LgrTxo, error) {
 	var err error
-	var count uint64
+
 	r := bytes.NewReader(serializedLgrTxo)
 
-	count, err = ReadVarInt(r)
-	if err != nil {
-		return nil, err
-	}
-	tmp := make([]byte, count)
+	tmp := make([]byte, pp.TxoSerializeSize())
 	err = readElement(r, tmp)
 	if err != nil {
 		return nil, err
 	}
 	var txo *Txo
-	txo, err = pp.TxoDeserialize(tmp)
+	txo, err = pp.DeserializeTxo(tmp)
 	if err != nil {
 		return nil, err
 	}
@@ -505,178 +511,100 @@ func (pp *PublicParameter) LgrTxoDeserialize(serializedLgrTxo []byte) (*LgrTxo, 
 		return nil, err
 	}
 
-	return &LgrTxo{
-		Txo: *txo,
-		Id:  id,
-	}, nil
+	return &LgrTxo{txo, id}, nil
 }
 
-func (pp *PublicParameter) RpulpProofSerializedSize(p *rpulpProofv2) int {
+func (pp *PublicParameter) RpulpProofSerializeSize(prf *rpulpProofv2) int {
 	var length int
-	lengthOfPoly := pp.PolyCNTTSize()
-	length +=
-		VarIntSerializeSize2(1) + VarIntSerializeSize2(uint64(len(p.c_waves))) + len(p.c_waves)*lengthOfPoly + // c_waves []*PolyCNTT
-			VarIntSerializeSize2(1) + lengthOfPoly + //c_hat_g *PolyCNTT
-			VarIntSerializeSize2(1) + lengthOfPoly + //psi     *PolyCNTT
-			VarIntSerializeSize2(1) + lengthOfPoly + //phi     *PolyCNTT
-			VarIntSerializeSize2(1) + GetBytesSerializeSize2(p.chseed) //chseed  []byte
+	lengthOfPolyCNTT := pp.PolyCNTTSerializeSize()
+	length = VarIntSerializeSize2(uint64(len(prf.c_waves))) + len(prf.c_waves)*lengthOfPolyCNTT + // c_waves []*PolyCNTT
+		+3*lengthOfPolyCNTT + //c_hat_g,psi,phi  *PolyCNTT
+		VarIntSerializeSize2(uint64(len(prf.chseed))) + len(prf.chseed) //chseed  []byte
 	//cmt_zs  [][]*PolyCNTTVec
-	length += VarIntSerializeSize2(1)
-	for i := 0; i < len(p.cmt_zs); i++ {
-		length += VarIntSerializeSize2(uint64(len(p.cmt_zs[i])))
-		for j := 0; j < len(p.cmt_zs[i]); j++ {
-			length += pp.PolyCNTTVecSize(p.cmt_zs[i][j])
+	length += VarIntSerializeSize2(uint64(len(prf.cmt_zs)))
+	for i := 0; i < len(prf.cmt_zs); i++ {
+		length += VarIntSerializeSize2(uint64(len(prf.cmt_zs[i])))
+		for j := 0; j < len(prf.cmt_zs[i]); j++ {
+			length += pp.PolyCNTTVecSerializeSize(prf.cmt_zs[i][j])
 		}
 	}
 	//zs      []*PolyCNTTVec
-	length += VarIntSerializeSize2(1)
-	length += VarIntSerializeSize2(uint64(len(p.zs)))
-	for i := 0; i < len(p.cmt_zs); i++ {
-		length += pp.PolyCNTTVecSize(p.zs[i])
+	length += VarIntSerializeSize2(uint64(len(prf.zs)))
+	for i := 0; i < len(prf.zs); i++ {
+		length += pp.PolyCNTTVecSerializeSize(prf.zs[i])
 	}
 	return length
 }
-func (pp *PublicParameter) RpulpProofSerialize(p *rpulpProofv2) ([]byte, error) {
-	if p == nil {
+
+func (pp *PublicParameter) SerializeRpulpProof(prf *rpulpProofv2) ([]byte, error) {
+	if prf == nil || prf.c_waves == nil || prf.c_hat_g == nil || prf.psi == nil ||
+		prf.phi == nil || prf.cmt_zs == nil || prf.zs == nil {
 		return nil, errors.New(ErrNilPointer)
 	}
 
 	var err error
-	length := pp.RpulpProofSerializedSize(p)
+	length := pp.RpulpProofSerializeSize(prf)
 	w := bytes.NewBuffer(make([]byte, 0, length))
 
 	// c_waves []*PolyCNTT
-	if p.c_waves != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(len(p.c_waves)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < length; i++ {
-			err = pp.WritePolyCNTT(w, p.c_waves[i])
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
+	n := len(prf.c_waves)
+	err = WriteVarInt(w, uint64(len(prf.c_waves)))
+	for i := 0; i < n; i++ {
+		err = pp.writePolyCNTT(w, prf.c_waves[i])
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	//c_hat_g *PolyCNTT
-	if p.c_hat_g != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = pp.WritePolyCNTT(w, p.c_hat_g)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
-		}
+	err = pp.writePolyCNTT(w, prf.c_hat_g)
+	if err != nil {
+		return nil, err
 	}
+
 	//psi     *PolyCNTT
-	if p.psi != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = pp.WritePolyCNTT(w, p.psi)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
-		}
+	err = pp.writePolyCNTT(w, prf.psi)
+	if err != nil {
+		return nil, err
 	}
+
 	//phi     *PolyCNTT
-	if p.phi != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = pp.WritePolyCNTT(w, p.phi)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
-		}
+	err = pp.writePolyCNTT(w, prf.phi)
+	if err != nil {
+		return nil, err
 	}
+
 	//chseed  []byte
-	if p.chseed != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarBytes(w, p.chseed)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
-		}
+	err = WriteVarBytes(w, prf.chseed)
+	if err != nil {
+		return nil, err
 	}
+
 	//cmt_zs  [][]*PolyCNTTVec
-	if p.cmt_zs != nil {
-		err = WriteNotNULL(w)
+	n = len(prf.cmt_zs)
+	err = WriteVarInt(w, uint64(n))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < n; i++ {
+		n1 := len(prf.cmt_zs[i])
+		err = WriteVarInt(w, uint64(n1))
 		if err != nil {
 			return nil, err
 		}
-		err = WriteVarInt(w, uint64(len(p.cmt_zs)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(p.cmt_zs); i++ {
-			err = WriteVarInt(w, uint64(len(p.cmt_zs[i])))
-			if err != nil {
-				return nil, err
-			}
-			for j := 0; j < len(p.cmt_zs); j++ {
-				err = pp.WritePolyCNTTVec(w, p.cmt_zs[i][j])
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
+		for j := 0; j < n1; j++ {
+			pp.writePolyCNTTVec(w, prf.cmt_zs[i][j])
 		}
 	}
+
 	//zs      []*PolyCNTTVec
-	if p.zs != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(len(p.zs)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(p.zs); i++ {
-			err = pp.WritePolyCNTTVec(w, p.zs[i])
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
+	n = len(prf.zs)
+	err = WriteVarInt(w, uint64(n))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < n; i++ {
+		err = pp.writePolyCNTTVec(w, prf.zs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -684,25 +612,20 @@ func (pp *PublicParameter) RpulpProofSerialize(p *rpulpProofv2) ([]byte, error) 
 
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) RpulpProofDeserialize(serializedRpulpProof []byte) (*rpulpProofv2, error) {
-	var err error
-	var count uint64
+func (pp *PublicParameter) DeserializeRpulpProof(serializedRpulpProof []byte) (*rpulpProofv2, error) {
+
 	r := bytes.NewReader(serializedRpulpProof)
 
 	// c_waves []*PolyCNTT
 	var c_waves []*PolyCNTT
-	count, err = ReadVarInt(r)
+	count, err := ReadVarInt(r)
 	if err != nil {
 		return nil, err
 	}
 	if count != 0 {
-		count, err = ReadVarInt(r)
-		if err != nil {
-			return nil, err
-		}
 		c_waves = make([]*PolyCNTT, count)
 		for i := uint64(0); i < count; i++ {
-			c_waves[i], err = pp.ReadPolyCNTT(r)
+			c_waves[i], err = pp.readPolyCNTT(r)
 			if err != nil {
 				return nil, err
 			}
@@ -710,55 +633,27 @@ func (pp *PublicParameter) RpulpProofDeserialize(serializedRpulpProof []byte) (*
 	}
 
 	//c_hat_g *PolyCNTT
-	var c_hat_g *PolyCNTT
-	count, err = ReadVarInt(r)
+	c_hat_g, err := pp.readPolyCNTT(r)
 	if err != nil {
 		return nil, err
-	}
-	if count != 0 {
-		c_hat_g, err = pp.ReadPolyCNTT(r)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	//psi     *PolyCNTT
-	var psi *PolyCNTT
-	count, err = ReadVarInt(r)
+	psi, err := pp.readPolyCNTT(r)
 	if err != nil {
 		return nil, err
-	}
-	if count != 0 {
-		psi, err = pp.ReadPolyCNTT(r)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	//phi     *PolyCNTT
-	var phi *PolyCNTT
-	count, err = ReadVarInt(r)
+	phi, err := pp.readPolyCNTT(r)
 	if err != nil {
 		return nil, err
-	}
-	if count != 0 {
-		phi, err = pp.ReadPolyCNTT(r)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	//chseed  []byte
-	var chseed []byte
-	count, err = ReadVarInt(r)
+	chseed, err := ReadVarBytes(r, MAXALLOWED, "rpulpProof.chseed")
 	if err != nil {
 		return nil, err
-	}
-	if count != 0 {
-		chseed, err = ReadVarBytes(r, MAXALLOWED, "rpulpProof.chseed")
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	//cmt_zs  [][]*PolyCNTTVec
@@ -768,10 +663,6 @@ func (pp *PublicParameter) RpulpProofDeserialize(serializedRpulpProof []byte) (*
 		return nil, err
 	}
 	if count != 0 {
-		count, err = ReadVarInt(r)
-		if err != nil {
-			return nil, err
-		}
 		cmt_zs = make([][]*PolyCNTTVec, count)
 		var tcount uint64
 		for i := uint64(0); i < count; i++ {
@@ -779,11 +670,13 @@ func (pp *PublicParameter) RpulpProofDeserialize(serializedRpulpProof []byte) (*
 			if err != nil {
 				return nil, err
 			}
-			cmt_zs[i] = make([]*PolyCNTTVec, tcount)
-			for j := uint64(0); j < tcount; j++ {
-				cmt_zs[i][j], err = pp.ReadPolyCNTTVec(r)
-				if err != nil {
-					return nil, err
+			if tcount != 0 {
+				cmt_zs[i] = make([]*PolyCNTTVec, tcount)
+				for j := uint64(0); j < tcount; j++ {
+					cmt_zs[i][j], err = pp.readPolyCNTTVec(r)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
@@ -798,7 +691,7 @@ func (pp *PublicParameter) RpulpProofDeserialize(serializedRpulpProof []byte) (*
 	if count != 0 {
 		zs = make([]*PolyCNTTVec, count)
 		for i := uint64(0); i < count; i++ {
-			zs[i], err = pp.ReadPolyCNTTVec(r)
+			zs[i], err = pp.readPolyCNTTVec(r)
 			if err != nil {
 				return nil, err
 			}
@@ -815,118 +708,44 @@ func (pp *PublicParameter) RpulpProofDeserialize(serializedRpulpProof []byte) (*
 	}, nil
 }
 
-func (pp *PublicParameter) CbTxWitnessSerializedSize(w *CbTxWitnessv2) int {
+func (pp *PublicParameter) CbTxWitnessJ1SerializeSize(witness *CbTxWitnessJ1) int {
+	if witness == nil {
+		return 0
+	}
 	var length int
-	length = VarIntSerializeSize2(1) + pp.PolyCNTTVecSize(w.b_hat) +
-		VarIntSerializeSize2(1) + VarIntSerializeSize2(uint64(len(w.c_hats))) + len(w.c_hats)*pp.PolyCNTTSize()
+	length = VarIntSerializeSize2(uint64(len(witness.chseed))) + len(witness.chseed)
 
-	length += VarIntSerializeSize2(1)
-	length += VarIntSerializeSize2(uint64(len(w.u_p)))
-	length += len(w.u_p) * 8
+	length += VarIntSerializeSize2(uint64(len(witness.zs)))
+	for i := 0; i < len(witness.zs); i++ {
+		length += pp.PolyCNTTVecSerializeSize(witness.zs[i])
+	}
 
-	length += VarIntSerializeSize2(1)
-	tmp := pp.RpulpProofSerializedSize(w.rpulpproof)
-	length += VarIntSerializeSize2(uint64(tmp)) + tmp
 	return length
-
 }
-func (pp *PublicParameter) CbTxWitnessSerialize(wit *CbTxWitnessv2) ([]byte, error) {
-	if wit == nil {
+
+func (pp *PublicParameter) SerializeCbTxWitnessJ1(witness *CbTxWitnessJ1) ([]byte, error) {
+	if witness.zs == nil {
 		return nil, errors.New(ErrNilPointer)
 	}
+
 	var err error
-	length := pp.CbTxWitnessSerializedSize(wit)
+	length := pp.CbTxWitnessJ1SerializeSize(witness)
 	w := bytes.NewBuffer(make([]byte, 0, length))
 
-	// b_hat      *PolyCNTTVec
-	if wit.b_hat != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = pp.WritePolyCNTTVec(w, wit.b_hat)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
-		}
+	//chseed  []byte
+	err = WriteVarBytes(w, witness.chseed)
+	if err != nil {
+		return nil, err
 	}
-	// c_hats     []*PolyCNTT
-	if wit.c_hats != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(len(wit.c_hats)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(wit.c_hats); i++ {
-			err = pp.WritePolyCNTT(w, wit.c_hats[i])
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
-		}
+
+	//zs      []*PolyCNTTVec
+	n := len(witness.zs)
+	err = WriteVarInt(w, uint64(n))
+	if err != nil {
+		return nil, err
 	}
-	// u_p        []int64
-	if wit.u_p != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(len(wit.u_p)))
-		if err != nil {
-			return nil, err
-		}
-		tmp := make([]byte, 8)
-		for i := 0; i < len(wit.u_p); i++ {
-			tmp[0] = byte(wit.u_p[i] >> 0)
-			tmp[1] = byte(wit.u_p[i] >> 8)
-			tmp[2] = byte(wit.u_p[i] >> 16)
-			tmp[3] = byte(wit.u_p[i] >> 24)
-			tmp[4] = byte(wit.u_p[i] >> 32)
-			tmp[5] = byte(wit.u_p[i] >> 40)
-			tmp[6] = byte(wit.u_p[i] >> 48)
-			tmp[7] = byte(wit.u_p[i] >> 56)
-			err = WriteVarBytes(w, tmp)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// rpulpproof *rpulpProofv2
-	if wit.rpulpproof != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(pp.RpulpProofSerializedSize(wit.rpulpproof)))
-		if err != nil {
-			return nil, err
-		}
-		serializedRpuProof, err := pp.RpulpProofSerialize(wit.rpulpproof)
-		if err != nil {
-			return nil, err
-		}
-		_, err = w.Write(serializedRpuProof)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = WriteNULL(w)
+	for i := 0; i < n; i++ {
+		err = pp.writePolyCNTTVec(w, witness.zs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -934,22 +753,118 @@ func (pp *PublicParameter) CbTxWitnessSerialize(wit *CbTxWitnessv2) ([]byte, err
 
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) CbTxWitnessDeserialize(serializedCbTxWitness []byte) (*CbTxWitnessv2, error) {
-	var err error
-	var count uint64
-	r := bytes.NewReader(serializedCbTxWitness)
+func (pp *PublicParameter) DeserializeCbTxWitnessJ1(serializedWitness []byte) (*CbTxWitnessJ1, error) {
+	r := bytes.NewReader(serializedWitness)
 
-	// b_hat      *PolyCNTTVec
-	var b_hat *PolyCNTTVec
-	count, err = ReadVarInt(r)
+	//chseed  []byte
+	chseed, err := ReadVarBytes(r, MAXALLOWED, "CbTxWitnessJ1.chseed")
+	if err != nil {
+		return nil, err
+	}
+
+	//zs      []*PolyCNTTVec
+	var zs []*PolyCNTTVec
+	count, err := ReadVarInt(r)
 	if err != nil {
 		return nil, err
 	}
 	if count != 0 {
-		b_hat, err = pp.ReadPolyCNTTVec(r)
+		zs = make([]*PolyCNTTVec, count)
+		for i := uint64(0); i < count; i++ {
+			zs[i], err = pp.readPolyCNTTVec(r)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return &CbTxWitnessJ1{
+		chseed: chseed,
+		zs:     zs,
+	}, nil
+}
+
+func (pp *PublicParameter) CbTxWitnessJ2SerializeSize(witness *CbTxWitnessJ2) int {
+	if witness == nil {
+		return 0
+	}
+	var length int
+	length = pp.PolyCNTTVecSerializeSize(witness.b_hat) +
+		VarIntSerializeSize2(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize()
+
+	length += VarIntSerializeSize2(uint64(len(witness.u_p))) + len(witness.u_p)*8
+	rplPrfLen := pp.RpulpProofSerializeSize(witness.rpulpproof)
+	length += VarIntSerializeSize2(uint64(rplPrfLen)) + rplPrfLen
+
+	return length
+}
+func (pp *PublicParameter) SerializeCbTxWitnessJ2(witness *CbTxWitnessJ2) ([]byte, error) {
+	if witness == nil || witness.b_hat == nil || witness.c_hats == nil || witness.rpulpproof == nil {
+		return nil, errors.New(ErrNilPointer)
+	}
+	var err error
+	length := pp.CbTxWitnessJ2SerializeSize(witness)
+	w := bytes.NewBuffer(make([]byte, 0, length))
+
+	// b_hat      *PolyCNTTVec
+	err = pp.writePolyCNTTVec(w, witness.b_hat)
+	if err != nil {
+		return nil, err
+	}
+
+	// c_hats     []*PolyCNTT
+	err = WriteVarInt(w, uint64(len(witness.c_hats)))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(witness.c_hats); i++ {
+		err = pp.writePolyCNTT(w, witness.c_hats[i])
 		if err != nil {
 			return nil, err
 		}
+	}
+	// u_p        []int64
+	err = WriteVarInt(w, uint64(len(witness.u_p)))
+	if err != nil {
+		return nil, err
+	}
+	tmp := make([]byte, 8)
+	for i := 0; i < len(witness.u_p); i++ {
+		tmp[0] = byte(witness.u_p[i] >> 0)
+		tmp[1] = byte(witness.u_p[i] >> 8)
+		tmp[2] = byte(witness.u_p[i] >> 16)
+		tmp[3] = byte(witness.u_p[i] >> 24)
+		tmp[4] = byte(witness.u_p[i] >> 32)
+		tmp[5] = byte(witness.u_p[i] >> 40)
+		tmp[6] = byte(witness.u_p[i] >> 48)
+		tmp[7] = byte(witness.u_p[i] >> 56)
+		err = WriteVarBytes(w, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// rpulpproof *rpulpProofv2
+	err = WriteVarInt(w, uint64(pp.RpulpProofSerializeSize(witness.rpulpproof)))
+	if err != nil {
+		return nil, err
+	}
+	serializedRpuProof, err := pp.SerializeRpulpProof(witness.rpulpproof)
+	if err != nil {
+		return nil, err
+	}
+	_, err = w.Write(serializedRpuProof)
+	if err != nil {
+		return nil, err
+	}
+	return w.Bytes(), nil
+}
+func (pp *PublicParameter) DeserializeCbTxWitnessJ2(serializedCbTxWitness []byte) (*CbTxWitnessJ2, error) {
+	var count uint64
+	r := bytes.NewReader(serializedCbTxWitness)
+
+	// b_hat      *PolyCNTTVec
+	b_hat, err := pp.readPolyCNTTVec(r)
+	if err != nil {
+		return nil, err
 	}
 
 	// c_hats     []*PolyCNTT
@@ -961,7 +876,7 @@ func (pp *PublicParameter) CbTxWitnessDeserialize(serializedCbTxWitness []byte) 
 	if count != 0 {
 		c_hats = make([]*PolyCNTT, count)
 		for i := uint64(0); i < count; i++ {
-			c_hats[i], err = pp.ReadPolyCNTT(r)
+			c_hats[i], err = pp.readPolyCNTT(r)
 			if err != nil {
 				return nil, err
 			}
@@ -1000,21 +915,18 @@ func (pp *PublicParameter) CbTxWitnessDeserialize(serializedCbTxWitness []byte) 
 		return nil, err
 	}
 	if count != 0 {
-		count, err = ReadVarInt(r)
-		if err != nil {
-			return nil, err
-		}
 		serializedRpulpProof := make([]byte, count)
 		_, err = r.Read(serializedRpulpProof)
 		if err != nil {
 			return nil, err
 		}
-		rpulpproof, err = pp.RpulpProofDeserialize(serializedRpulpProof)
+		rpulpproof, err = pp.DeserializeRpulpProof(serializedRpulpProof)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return &CbTxWitnessv2{
+
+	return &CbTxWitnessJ2{
 		b_hat:      b_hat,
 		c_hats:     c_hats,
 		u_p:        u_p,
@@ -1022,154 +934,110 @@ func (pp *PublicParameter) CbTxWitnessDeserialize(serializedCbTxWitness []byte) 
 	}, nil
 }
 
-func (pp *PublicParameter) ElrsSignatureSerializedSize(sig *elrsSignaturev2) int {
+func (pp *PublicParameter) ElrsSignatureSerializeSize(sig *elrsSignaturev2) int {
 	var length int
 	// seeds [][]byte
-	length += VarIntSerializeSize2(1) + VarIntSerializeSize2(uint64(len(sig.seeds)))
+	length = VarIntSerializeSize2(uint64(len(sig.seeds)))
 	for i := 0; i < len(sig.seeds); i++ {
-		length += GetBytesSerializeSize2(sig.seeds[i])
+		length += VarIntSerializeSize2(uint64(len(sig.seeds[i]))) + len(sig.seeds[i])
 	}
 	//z_as  []*PolyANTTVec
-	length += VarIntSerializeSize2(1) + VarIntSerializeSize2(uint64(len(sig.z_as)))
+	length += VarIntSerializeSize2(uint64(len(sig.z_as)))
 	for i := 0; i < len(sig.z_as); i++ {
-		length += pp.PolyANTTVecSerializedSize(sig.z_as[i])
+		length += pp.PolyANTTVecSerializeSize(sig.z_as[i])
 	}
 	//z_cs  [][]*PolyCNTTVec
-	length += VarIntSerializeSize2(1) + VarIntSerializeSize2(uint64(len(sig.z_cs)))
+	length += VarIntSerializeSize2(uint64(len(sig.z_cs)))
 	for i := 0; i < len(sig.z_cs); i++ {
 		length += VarIntSerializeSize2(uint64(len(sig.z_cs[i])))
 		for j := 0; j < len(sig.z_cs[i]); j++ {
-			length += pp.PolyCNTTVecSize(sig.z_cs[i][j])
+			length += pp.PolyCNTTVecSerializeSize(sig.z_cs[i][j])
 		}
-
 	}
 	//z_cps [][]*PolyCNTTVec
-	length += VarIntSerializeSize2(1) + VarIntSerializeSize2(uint64(len(sig.z_cps)))
+	length += VarIntSerializeSize2(uint64(len(sig.z_cps)))
 	for i := 0; i < len(sig.z_cps); i++ {
 		length += VarIntSerializeSize2(uint64(len(sig.z_cps[i])))
 		for j := 0; j < len(sig.z_cps[i]); j++ {
-			length += pp.PolyCNTTVecSize(sig.z_cps[i][j])
+			length += pp.PolyCNTTVecSerializeSize(sig.z_cps[i][j])
 		}
 	}
 	return length
 }
-func (pp *PublicParameter) ElrsSignatureSerialize(sig *elrsSignaturev2) ([]byte, error) {
+func (pp *PublicParameter) SerializeElrsSignature(sig *elrsSignaturev2) ([]byte, error) {
 	if sig == nil {
 		return nil, errors.New(ErrNilPointer)
 	}
 
 	var err error
-	length := pp.ElrsSignatureSerializedSize(sig)
+	length := pp.ElrsSignatureSerializeSize(sig)
 	w := bytes.NewBuffer(make([]byte, 0, length))
 
 	// seeds [][]byte
-	if sig.seeds != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(len(sig.seeds)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(sig.seeds); i++ {
-			err = WriteVarBytes(w, sig.seeds[i])
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
+	err = WriteVarInt(w, uint64(len(sig.seeds)))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(sig.seeds); i++ {
+		err = WriteVarBytes(w, sig.seeds[i])
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	// z_as  []*PolyANTTVec
-	if sig.z_as != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(len(sig.z_as)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(sig.z_as); i++ {
-			err = pp.WritePolyANTTVec(w, sig.z_as[i])
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
+	err = WriteVarInt(w, uint64(len(sig.z_as)))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(sig.z_as); i++ {
+		err = pp.writePolyANTTVec(w, sig.z_as[i])
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	// z_cs  [][]*PolyCNTTVec
-	if sig.z_cs != nil {
-		err = WriteNotNULL(w)
+	err = WriteVarInt(w, uint64(len(sig.z_as)))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(sig.z_as); i++ {
+		tlength := len(sig.z_cs[i])
+		err = WriteVarInt(w, uint64(tlength))
 		if err != nil {
 			return nil, err
 		}
-		err = WriteVarInt(w, uint64(len(sig.z_as)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(sig.z_as); i++ {
-			tlength := len(sig.z_cs[i])
-			err = WriteVarInt(w, uint64(tlength))
+		for j := 0; j < tlength; j++ {
+			err = pp.writePolyCNTTVec(w, sig.z_cs[i][j])
 			if err != nil {
 				return nil, err
 			}
-			for j := 0; j < tlength; j++ {
-				err = pp.WritePolyCNTTVec(w, sig.z_cs[i][j])
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
 		}
 	}
+
 	// z_cps [][]*PolyCNTTVec
-	if sig.z_cps != nil {
-		err = WriteNotNULL(w)
+	err = WriteVarInt(w, uint64(len(sig.z_as)))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(sig.z_as); i++ {
+		tlength := len(sig.z_cps[i])
+		err = WriteVarInt(w, uint64(tlength))
 		if err != nil {
 			return nil, err
 		}
-		err = WriteVarInt(w, uint64(len(sig.z_as)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(sig.z_as); i++ {
-			tlength := len(sig.z_cps[i])
-			err = WriteVarInt(w, uint64(tlength))
+		for j := 0; j < tlength; j++ {
+			err = pp.writePolyCNTTVec(w, sig.z_cps[i][j])
 			if err != nil {
 				return nil, err
 			}
-			for j := 0; j < tlength; j++ {
-				err = pp.WritePolyCNTTVec(w, sig.z_cps[i][j])
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
 		}
 	}
 
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) ElrsSignatureDeserialize(serializeElrsSignature []byte) (*elrsSignaturev2, error) {
+func (pp *PublicParameter) DeserializeElrsSignature(serializeElrsSignature []byte) (*elrsSignaturev2, error) {
 	var err error
 	var count uint64
 	r := bytes.NewReader(serializeElrsSignature)
@@ -1198,7 +1066,7 @@ func (pp *PublicParameter) ElrsSignatureDeserialize(serializeElrsSignature []byt
 	if count != 0 {
 		z_as = make([]*PolyANTTVec, count)
 		for i := uint64(0); i < count; i++ {
-			z_as[i], err = pp.ReadPolyANTTVec(r)
+			z_as[i], err = pp.readPolyANTTVec(r)
 			if err != nil {
 				return nil, err
 			}
@@ -1220,7 +1088,7 @@ func (pp *PublicParameter) ElrsSignatureDeserialize(serializeElrsSignature []byt
 			}
 			z_cs[i] = make([]*PolyCNTTVec, tcount)
 			for j := uint64(0); j < tcount; j++ {
-				z_cs[i][j], err = pp.ReadPolyCNTTVec(r)
+				z_cs[i][j], err = pp.readPolyCNTTVec(r)
 				if err != nil {
 					return nil, err
 				}
@@ -1243,7 +1111,7 @@ func (pp *PublicParameter) ElrsSignatureDeserialize(serializeElrsSignature []byt
 			}
 			z_cps[i] = make([]*PolyCNTTVec, tcount)
 			for j := uint64(0); j < tcount; j++ {
-				z_cps[i][j], err = pp.ReadPolyCNTTVec(r)
+				z_cps[i][j], err = pp.readPolyCNTTVec(r)
 				if err != nil {
 					return nil, err
 				}
@@ -1259,217 +1127,133 @@ func (pp *PublicParameter) ElrsSignatureDeserialize(serializeElrsSignature []byt
 	}, nil
 }
 
-func (pp *PublicParameter) TrTxWitnessSerializedSize(trwit *TrTxWitnessv2) int {
-	length := VarIntSerializeSize2(1) + VarIntSerializeSize2(uint64(len(trwit.ma_ps))) + len(trwit.ma_ps)*pp.PolyANTTSerializedSize() + // ma_ps      []*PolyANTT
-		VarIntSerializeSize2(1) + pp.PolyCNTTVecSize(trwit.b_hat) + //b_hat      *PolyCNTTVec
-		VarIntSerializeSize2(1) + VarIntSerializeSize2(uint64(len(trwit.c_hats))) + len(trwit.c_hats)*pp.PolyCNTTSize() + //c_hats     []*PolyCNTT
-		VarIntSerializeSize2(1) + VarIntSerializeSize2(uint64(len(trwit.u_p))) + len(trwit.u_p)*8 //u_p        []int64
+func (pp *PublicParameter) TrTxWitnessSerializedSize(witness *TrTxWitnessv2) int {
+	length := VarIntSerializeSize2(uint64(len(witness.ma_ps))) + len(witness.ma_ps)*pp.PolyANTTSerializeSize() + // ma_ps      []*PolyANTT
+		VarIntSerializeSize2(uint64(len(witness.cmt_ps))) + len(witness.cmt_ps)*pp.ValueCommitmentSerializeSize() // cmt_ps     []*ValueCommitment
 
-	// cmt_ps     []*ValueCommitment
-	length += VarIntSerializeSize2(1)
-	if trwit.cmt_ps != nil {
-		length += VarIntSerializeSize2(uint64(len(trwit.cmt_ps)))
-		for i := 0; i < len(trwit.cmt_ps); i++ {
-			tmp := pp.ValueCommitmentSerializedSize(trwit.cmt_ps[i])
-			length += VarIntSerializeSize2(uint64(tmp)) + tmp
-		}
+	// elrsSigs   []*elrsSignaturev2
+	length += VarIntSerializeSize2(uint64(len(witness.elrsSigs)))
+	for i := 0; i < len(witness.elrsSigs); i++ {
+		sigLen := pp.ElrsSignatureSerializeSize(witness.elrsSigs[i])
+		length += VarIntSerializeSize2(uint64(sigLen)) + sigLen
 	}
-	//elrsSigs   []*elrsSignaturev2
-	length += VarIntSerializeSize2(1)
-	if trwit.cmt_ps != nil {
-		length += VarIntSerializeSize2(uint64(len(trwit.elrsSigs)))
-		for i := 0; i < len(trwit.elrsSigs); i++ {
-			length += pp.ElrsSignatureSerializedSize(trwit.elrsSigs[i])
-		}
-	}
+
+	length += pp.PolyCNTTVecSerializeSize(witness.b_hat) + //b_hat      *PolyCNTTVec
+		VarIntSerializeSize2(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize() + //c_hats     []*PolyCNTT
+		VarIntSerializeSize2(uint64(len(witness.u_p))) + len(witness.u_p)*8 //u_p        []int64
+
 	//rpulpproof *rpulpProofv2
-	length += VarIntSerializeSize2(1)
-	if trwit.rpulpproof != nil {
-		tmp := pp.RpulpProofSerializedSize(trwit.rpulpproof)
-		length += VarIntSerializeSize2(uint64(tmp)) + tmp
-	}
+	rpfLen := pp.RpulpProofSerializeSize(witness.rpulpproof)
+	length += VarIntSerializeSize2(uint64(rpfLen)) + rpfLen
 
 	return length
 }
-func (pp *PublicParameter) TrTxWitnessSerialize(wit *TrTxWitnessv2) ([]byte, error) {
-	if wit == nil {
+
+func (pp *PublicParameter) SerializeTrTxWitness(witness *TrTxWitnessv2) ([]byte, error) {
+	if witness == nil || witness.ma_ps == nil || witness.cmt_ps == nil ||
+		witness.elrsSigs == nil || witness.b_hat == nil || witness.c_hats == nil || witness.rpulpproof == nil {
 		return nil, errors.New(ErrNilPointer)
 	}
 	var err error
-	length := pp.TrTxWitnessSerializedSize(wit)
+	length := pp.TrTxWitnessSerializedSize(witness)
 	w := bytes.NewBuffer(make([]byte, 0, length))
 
 	// ma_ps      []*PolyANTT
-	if wit.ma_ps != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(len(wit.ma_ps)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(wit.ma_ps); i++ {
-			err = pp.WritePolyANTT(w, wit.ma_ps[i])
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
+	err = WriteVarInt(w, uint64(len(witness.ma_ps)))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(witness.ma_ps); i++ {
+		err = pp.writePolyANTT(w, witness.ma_ps[i])
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	// cmt_ps     []*ValueCommitment
-	if wit.cmt_ps != nil {
-		err = WriteNotNULL(w)
+	err = WriteVarInt(w, uint64(len(witness.cmt_ps)))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(witness.cmt_ps); i++ {
+		serializedVCmt, err := pp.SerializeValueCommitment(witness.cmt_ps[i])
 		if err != nil {
 			return nil, err
 		}
-		err = WriteVarInt(w, uint64(len(wit.cmt_ps)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(wit.ma_ps); i++ {
-			size := pp.ValueCommitmentSerializedSize(wit.cmt_ps[i])
-			err := WriteVarInt(w, uint64(size))
-			if err != nil {
-				return nil, err
-			}
-			serializedVCmt, err := pp.ValueCommitmentSerialize(wit.cmt_ps[i])
-			if err != nil {
-				return nil, err
-			}
-			_, err = w.Write(serializedVCmt)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
+		_, err = w.Write(serializedVCmt)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	// elrsSigs   []*elrsSignaturev2
-	if wit.elrsSigs != nil {
-		err = WriteNotNULL(w)
+	err = WriteVarInt(w, uint64(len(witness.elrsSigs)))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(witness.elrsSigs); i++ {
+		serializedElrSig, err := pp.SerializeElrsSignature(witness.elrsSigs[i])
 		if err != nil {
 			return nil, err
 		}
-		err = WriteVarInt(w, uint64(len(wit.cmt_ps)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(wit.elrsSigs); i++ {
-			serializedElrSig, err := pp.ElrsSignatureSerialize(wit.elrsSigs[i])
-			if err != nil {
-				return nil, err
-			}
-			_, err = w.Write(serializedElrSig)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
+		_, err = w.Write(serializedElrSig)
 		if err != nil {
 			return nil, err
 		}
 	}
 	// b_hat      *PolyCNTTVec
-	if wit.b_hat != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = pp.WritePolyCNTTVec(w, wit.b_hat)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
-		}
+	err = pp.writePolyCNTTVec(w, witness.b_hat)
+	if err != nil {
+		return nil, err
 	}
 	// c_hats     []*PolyCNTT
-	if wit.c_hats != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(len(wit.c_hats)))
-		if err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(wit.c_hats); i++ {
-			err = pp.WritePolyCNTT(w, wit.c_hats[i])
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
+	err = WriteVarInt(w, uint64(len(witness.c_hats)))
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(witness.c_hats); i++ {
+		err = pp.writePolyCNTT(w, witness.c_hats[i])
 		if err != nil {
 			return nil, err
 		}
 	}
 	// u_p        []int64
-	if wit.u_p != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		err = WriteVarInt(w, uint64(len(wit.u_p)))
-		if err != nil {
-			return nil, err
-		}
-		tmp := make([]byte, 8)
-		for i := 0; i < len(wit.u_p); i++ {
-			tmp[0] = byte(wit.u_p[i] >> 0)
-			tmp[1] = byte(wit.u_p[i] >> 8)
-			tmp[2] = byte(wit.u_p[i] >> 16)
-			tmp[3] = byte(wit.u_p[i] >> 24)
-			tmp[4] = byte(wit.u_p[i] >> 32)
-			tmp[5] = byte(wit.u_p[i] >> 40)
-			tmp[6] = byte(wit.u_p[i] >> 48)
-			tmp[7] = byte(wit.u_p[i] >> 56)
-			err = WriteVarBytes(w, tmp)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		err = WriteNULL(w)
+	err = WriteVarInt(w, uint64(len(witness.u_p)))
+	if err != nil {
+		return nil, err
+	}
+	tmp := make([]byte, 8)
+	for i := 0; i < len(witness.u_p); i++ {
+		tmp[0] = byte(witness.u_p[i] >> 0)
+		tmp[1] = byte(witness.u_p[i] >> 8)
+		tmp[2] = byte(witness.u_p[i] >> 16)
+		tmp[3] = byte(witness.u_p[i] >> 24)
+		tmp[4] = byte(witness.u_p[i] >> 32)
+		tmp[5] = byte(witness.u_p[i] >> 40)
+		tmp[6] = byte(witness.u_p[i] >> 48)
+		tmp[7] = byte(witness.u_p[i] >> 56)
+		err = WriteVarBytes(w, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	// rpulpproof *rpulpProofv2
-	if wit.rpulpproof != nil {
-		err = WriteNotNULL(w)
-		if err != nil {
-			return nil, err
-		}
-		serializedRpuProof, err := pp.RpulpProofSerialize(wit.rpulpproof)
-		if err != nil {
-			return nil, err
-		}
-		_, err = w.Write(serializedRpuProof)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = WriteNULL(w)
-		if err != nil {
-			return nil, err
-		}
+	err = WriteVarInt(w, uint64(pp.RpulpProofSerializeSize(witness.rpulpproof)))
+	if err != nil {
+		return nil, err
+	}
+	serializedRpuProof, err := pp.SerializeRpulpProof(witness.rpulpproof)
+	if err != nil {
+		return nil, err
+	}
+	_, err = w.Write(serializedRpuProof)
+	if err != nil {
+		return nil, err
 	}
 	return nil, nil
 }
-func (pp *PublicParameter) TrTxWitnessDeserialize(serializedTrTxWitness []byte) (*TrTxWitnessv2, error) {
+func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) (*TrTxWitnessv2, error) {
 	var err error
 	var count uint64
 	r := bytes.NewReader(serializedTrTxWitness)
@@ -1483,7 +1267,7 @@ func (pp *PublicParameter) TrTxWitnessDeserialize(serializedTrTxWitness []byte) 
 	if count != 0 {
 		ma_ps = make([]*PolyANTT, count)
 		for i := uint64(0); i < count; i++ {
-			ma_ps[i], err = pp.ReadPolyANTT(r)
+			ma_ps[i], err = pp.readPolyANTT(r)
 			if err != nil {
 				return nil, err
 			}
@@ -1498,16 +1282,12 @@ func (pp *PublicParameter) TrTxWitnessDeserialize(serializedTrTxWitness []byte) 
 	if count != 0 {
 		cmt_ps = make([]*ValueCommitment, count)
 		for i := uint64(0); i < count; i++ {
-			tLength, err := ReadVarInt(r)
-			if err != nil {
-				return nil, err
-			}
-			tmp := make([]byte, tLength)
+			tmp := make([]byte, pp.ValueCommitmentSerializeSize())
 			_, err = r.Read(tmp)
 			if err != nil {
 				return nil, err
 			}
-			cmt_ps[i], err = pp.ValueCommitmentDeserialize(tmp)
+			cmt_ps[i], err = pp.DeserializeValueCommitment(tmp)
 			if err != nil {
 				return nil, err
 			}
@@ -1522,16 +1302,16 @@ func (pp *PublicParameter) TrTxWitnessDeserialize(serializedTrTxWitness []byte) 
 	if count != 0 {
 		elrsSigs = make([]*elrsSignaturev2, count)
 		for i := uint64(0); i < count; i++ {
-			tLength, err := ReadVarInt(r)
+			sigLen, err := ReadVarInt(r)
 			if err != nil {
 				return nil, err
 			}
-			tmp := make([]byte, tLength)
+			tmp := make([]byte, sigLen)
 			_, err = r.Read(tmp)
 			if err != nil {
 				return nil, err
 			}
-			elrsSigs[i], err = pp.ElrsSignatureDeserialize(tmp)
+			elrsSigs[i], err = pp.DeserializeElrsSignature(tmp)
 			if err != nil {
 				return nil, err
 			}
@@ -1544,7 +1324,7 @@ func (pp *PublicParameter) TrTxWitnessDeserialize(serializedTrTxWitness []byte) 
 		return nil, err
 	}
 	if count != 0 {
-		b_hat, err = pp.ReadPolyCNTTVec(r)
+		b_hat, err = pp.readPolyCNTTVec(r)
 		if err != nil {
 			return nil, err
 		}
@@ -1558,7 +1338,7 @@ func (pp *PublicParameter) TrTxWitnessDeserialize(serializedTrTxWitness []byte) 
 	if count != 0 {
 		c_hats = make([]*PolyCNTT, count)
 		for i := uint64(0); i < count; i++ {
-			c_hats[i], err = pp.ReadPolyCNTT(r)
+			c_hats[i], err = pp.readPolyCNTT(r)
 			if err != nil {
 				return nil, err
 			}
@@ -1604,7 +1384,7 @@ func (pp *PublicParameter) TrTxWitnessDeserialize(serializedTrTxWitness []byte) 
 		if err != nil {
 			return nil, err
 		}
-		rpulpproof, err = pp.RpulpProofDeserialize(serializedRpulpProof)
+		rpulpproof, err = pp.DeserializeRpulpProof(serializedRpulpProof)
 		if err != nil {
 			return nil, err
 		}
@@ -1620,6 +1400,7 @@ func (pp *PublicParameter) TrTxWitnessDeserialize(serializedTrTxWitness []byte) 
 	}, nil
 }
 
+// todo: 20220322
 func (pp *PublicParameter) TrTxInputSerializedSize(trTxIn *TrTxInputv2) int {
 	var length int
 	//	TxoList      []*LgrTxo
@@ -1627,7 +1408,7 @@ func (pp *PublicParameter) TrTxInputSerializedSize(trTxIn *TrTxInputv2) int {
 	if trTxIn.TxoList != nil {
 		length += VarIntSerializeSize2(uint64(len(trTxIn.TxoList)))
 		for i := 0; i < len(trTxIn.TxoList); i++ {
-			tmp := pp.LgrTxoSerializedSize(trTxIn.TxoList[i])
+			tmp := pp.LgrTxoSerializeSize()
 			length += VarIntSerializeSize2(uint64(tmp)) + tmp
 		}
 	}
@@ -1658,12 +1439,12 @@ func (pp *PublicParameter) TrTxInputSerialize(trTxIn *TrTxInputv2) ([]byte, erro
 			return nil, err
 		}
 		for i := 0; i < len(trTxIn.TxoList); i++ {
-			size := pp.LgrTxoSerializedSize(trTxIn.TxoList[i])
+			size := pp.LgrTxoSerializeSize(trTxIn.TxoList[i])
 			err = WriteVarInt(w, uint64(size))
 			if err != nil {
 				return nil, err
 			}
-			serializedTxo, err := pp.LgrTxoSerialize(trTxIn.TxoList[i])
+			serializedTxo, err := pp.SerializeLgrTxo(trTxIn.TxoList[i])
 			if err != nil {
 				return nil, err
 			}
@@ -1718,7 +1499,7 @@ func (pp *PublicParameter) TrTxInputDeserialize(serialziedTrTxInput []byte) (*Tr
 			if err != nil {
 				return nil, err
 			}
-			TxoList[i], err = pp.LgrTxoDeserialize(tmp)
+			TxoList[i], err = pp.DeserializeLgrTxo(tmp)
 			if err != nil {
 				return nil, err
 			}
@@ -1759,7 +1540,7 @@ func (pp *PublicParameter) TransferTxSerializedSize(tx *TransferTxv2, b bool) in
 	if tx.OutputTxos != nil {
 		length += VarIntSerializeSize2(uint64(len(tx.OutputTxos)))
 		for i := 0; i < len(tx.OutputTxos); i++ {
-			tmp := pp.TxoSerializedSize(tx.OutputTxos[i])
+			tmp := pp.TxoSerializeSize(tx.OutputTxos[i])
 			length += VarIntSerializeSize2(uint64(tmp)) + tmp
 		}
 	}
@@ -1829,12 +1610,12 @@ func (pp *PublicParameter) TransferTxSerialize(tx *TransferTxv2, b bool) ([]byte
 			return nil, err
 		}
 		for i := 0; i < len(tx.OutputTxos); i++ {
-			size := pp.TxoSerializedSize(tx.OutputTxos[i])
+			size := pp.TxoSerializeSize(tx.OutputTxos[i])
 			err = WriteVarInt(w, uint64(size))
 			if err != nil {
 				return nil, err
 			}
-			serializedTxo, err := pp.TxoSerialize(tx.OutputTxos[i])
+			serializedTxo, err := pp.SerializeTxo(tx.OutputTxos[i])
 			if err != nil {
 				return nil, err
 			}
@@ -1892,7 +1673,7 @@ func (pp *PublicParameter) TransferTxSerialize(tx *TransferTxv2, b bool) ([]byte
 			if err != nil {
 				return nil, err
 			}
-			serializedTxo, err := pp.TrTxWitnessSerialize(tx.TxWitness)
+			serializedTxo, err := pp.SerializeTrTxWitness(tx.TxWitness)
 			if err != nil {
 				return nil, err
 			}
@@ -1955,7 +1736,7 @@ func (pp *PublicParameter) TransferTxDeserialize(serializedTrTx []byte, b bool) 
 			if err != nil {
 				return nil, err
 			}
-			OutputTxos[i], err = pp.TxoDeserialize(tmp)
+			OutputTxos[i], err = pp.DeserializeTxo(tmp)
 			if err != nil {
 				return nil, err
 			}
@@ -2004,7 +1785,7 @@ func (pp *PublicParameter) TransferTxDeserialize(serializedTrTx []byte, b bool) 
 			if err != nil {
 				return nil, err
 			}
-			TxWitness, err = pp.TrTxWitnessDeserialize(serializedTrTxWitness)
+			TxWitness, err = pp.DeserializeTrTxWitness(serializedTrTxWitness)
 			if err != nil {
 				return nil, err
 			}
@@ -2336,7 +2117,7 @@ func WritePolyCNTTVec(w io.Writer, polyNTTVec *PolyCNTTVec) error {
 //	return res
 //}
 
-//func RpulpProofSerialize(w io.Writer, proof *rpulpProof) error {
+//func SerializeRpulpProof(w io.Writer, proof *rpulpProof) error {
 //	// write c_waves
 //	if proof.c_waves != nil {
 //		count := len(proof.c_waves)
@@ -2611,7 +2392,7 @@ func ReadRpulpProofv2(r io.Reader) (*rpulpProofv2, error) {
 	}
 	var chseed0 []byte = nil
 	if count > 0 {
-		chseed0, err = ReadVarBytes(r, MAXALLOWED, "RpulpProofDeserialize")
+		chseed0, err = ReadVarBytes(r, MAXALLOWED, "DeserializeRpulpProof")
 		if err != nil {
 			return nil, err
 		}
@@ -2668,7 +2449,7 @@ func ReadRpulpProofv2(r io.Reader) (*rpulpProofv2, error) {
 	return ret, nil
 }
 
-//func RpulpProofDeserialize(r io.Reader) (*rpulpProof, error) {
+//func DeserializeRpulpProof(r io.Reader) (*rpulpProof, error) {
 //	// read c_waves
 //	count, err := ReadVarInt(r)
 //	if err != nil {
@@ -2731,7 +2512,7 @@ func ReadRpulpProofv2(r io.Reader) (*rpulpProofv2, error) {
 //	}
 //	var chseed0 []byte = nil
 //	if count > 0 {
-//		chseed0, err = ReadVarBytes(r, MAXALLOWED, "RpulpProofDeserialize")
+//		chseed0, err = ReadVarBytes(r, MAXALLOWED, "DeserializeRpulpProof")
 //		if err != nil {
 //			return nil, err
 //		}
@@ -3114,7 +2895,7 @@ func ReadPublicKey(r io.Reader) (*AddressPublicKey, error) {
 //	return res
 //}
 
-//func ElrsSignatureSerialize(w io.Writer, elrsSig *elrsSignature) error {
+//func SerializeElrsSignature(w io.Writer, elrsSig *elrsSignature) error {
 //	// write chseed
 //	if elrsSig.chseed != nil {
 //		WriteNotNULL(w)
@@ -3288,7 +3069,7 @@ func ReadElrsSignaturev2(r io.Reader) (*elrsSignaturev2, error) {
 	if count > 0 {
 		chseed0 = make([][]byte, count)
 		for i := 0; i < int(count); i++ {
-			chseed0[i], err = ReadVarBytes(r, MAXALLOWED, "ElrsSignatureDeserialize")
+			chseed0[i], err = ReadVarBytes(r, MAXALLOWED, "DeserializeElrsSignature")
 			if err != nil {
 				return nil, err
 			}
@@ -3368,7 +3149,7 @@ func ReadElrsSignaturev2(r io.Reader) (*elrsSignaturev2, error) {
 	return ret, nil
 }
 
-//func ElrsSignatureDeserialize(r io.Reader) (*elrsSignature, error) {
+//func DeserializeElrsSignature(r io.Reader) (*elrsSignature, error) {
 //	// read chseed
 //	count, err := ReadVarInt(r)
 //	if err != nil {
@@ -3376,7 +3157,7 @@ func ReadElrsSignaturev2(r io.Reader) (*elrsSignaturev2, error) {
 //	}
 //	var chseed0 []byte = nil
 //	if count > 0 {
-//		chseed0, err = ReadVarBytes(r, MAXALLOWED, "ElrsSignatureDeserialize")
+//		chseed0, err = ReadVarBytes(r, MAXALLOWED, "DeserializeElrsSignature")
 //		if err != nil {
 //			return nil, err
 //		}
@@ -3668,7 +3449,7 @@ func ReadElrsSignaturev2(r io.Reader) (*elrsSignaturev2, error) {
 //	// write rpulpproof
 //	if cbTxWitness.rpulpproof != nil {
 //		WriteNotNULL(w)
-//		err := RpulpProofSerialize(w, cbTxWitness.rpulpproof)
+//		err := SerializeRpulpProof(w, cbTxWitness.rpulpproof)
 //		if err != nil {
 //			return err
 //		}
@@ -3679,7 +3460,7 @@ func ReadElrsSignaturev2(r io.Reader) (*elrsSignaturev2, error) {
 //	return nil
 //}
 
-func (cbTxWitness *CbTxWitnessv2) Serialize0(w io.Writer) error {
+func (cbTxWitness *CbTxWitnessJ2) Serialize0(w io.Writer) error {
 	// write b_hat
 	if cbTxWitness.b_hat != nil {
 		WriteNotNULL(w)
@@ -3738,7 +3519,7 @@ func (cbTxWitness *CbTxWitnessv2) Serialize0(w io.Writer) error {
 
 	return nil
 }
-func (cbTxWitness *CbTxWitnessv2) Deserialize(r io.Reader) error {
+func (cbTxWitness *CbTxWitnessJ2) Deserialize(r io.Reader) error {
 	// read b_hat
 	count, err := ReadVarInt(r)
 	if err != nil {
@@ -3858,7 +3639,7 @@ func (cbTxWitness *CbTxWitnessv2) Deserialize(r io.Reader) error {
 //	}
 //	var rpulpproof0 *rpulpProof = nil
 //	if count > 0 {
-//		rpulpproof0, err = RpulpProofDeserialize(r)
+//		rpulpproof0, err = DeserializeRpulpProof(r)
 //		if err != nil {
 //			return err
 //		}
@@ -4430,7 +4211,7 @@ func (txo *Txo) Deserialize(r io.Reader) error {
 //	// write rpulpproof
 //	if trTxWitness.rpulpproof != nil {
 //		WriteNotNULL(w)
-//		err := RpulpProofSerialize(w, trTxWitness.rpulpproof)
+//		err := SerializeRpulpProof(w, trTxWitness.rpulpproof)
 //		if err != nil {
 //			return err
 //		}
@@ -4463,7 +4244,7 @@ func (txo *Txo) Deserialize(r io.Reader) error {
 //			return err
 //		}
 //		for i := 0; i < count; i++ {
-//			err = ElrsSignatureSerialize(w, trTxWitness.elrsSigs[i])
+//			err = SerializeElrsSignature(w, trTxWitness.elrsSigs[i])
 //			if err != nil {
 //				return err
 //			}
@@ -4755,7 +4536,7 @@ func (trTxWitness *TrTxWitnessv2) Deserialize(r io.Reader) error {
 //	}
 //	var rpulpproof0 *rpulpProof = nil
 //	if count > 0 {
-//		rpulpproof0, err = RpulpProofDeserialize(r)
+//		rpulpproof0, err = DeserializeRpulpProof(r)
 //		if err != nil {
 //			return err
 //		}
@@ -4786,7 +4567,7 @@ func (trTxWitness *TrTxWitnessv2) Deserialize(r io.Reader) error {
 //	if count > 0 {
 //		elrsSigs0 = make([]*elrsSignature, count)
 //		for i := 0; i < int(count); i++ {
-//			elrsSigs0[i], err = ElrsSignatureDeserialize(r)
+//			elrsSigs0[i], err = DeserializeElrsSignature(r)
 //			if err != nil {
 //				return err
 //			}

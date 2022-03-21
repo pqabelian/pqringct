@@ -12,16 +12,16 @@ func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, er
 		return nil, nil, nil, err
 	}
 
-	serializedAPk, err := pp.AddressPublicKeySerialize(apk)
+	serializedAPk, err := pp.SerializeAddressPublicKey(apk)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	serializedASksp, err := pp.AddressSecretKeySpSerialize(ask.AddressSecretKeySp)
+	serializedASksp, err := pp.SerializeAddressSecretKeySp(ask.AddressSecretKeySp)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	serializedASksn, err := pp.AddressSecretKeySnSerialize(ask.AddressSecretKeySn)
+	serializedASksn, err := pp.SerializeAddressSecretKeySn(ask.AddressSecretKeySn)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -52,7 +52,7 @@ func TransferTxVerify(pp *PublicParameter, trTx *TransferTxv2) bool {
 	return pp.TransferTxVerify(trTx)
 }
 func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVSk []byte) (valid bool, v uint64) {
-	txoAddress, err := pp.AddressPublicKeySerialize(txo.AddressPublicKey)
+	txoAddress, err := pp.SerializeAddressPublicKey(txo.AddressPublicKey)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -87,19 +87,29 @@ func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVSk
 	}
 	return true, v
 }
+
 func SerialNumberGen(pp *PublicParameter, serializedLgrTxo []byte, serializedSksn []byte) []byte {
-	txo, err := pp.LgrTxoDeserialize(serializedLgrTxo)
+	txo, err := pp.DeserializeLgrTxo(serializedLgrTxo)
 	if err != nil {
 		return nil
 	}
 	tmp := pp.ExpandKIDR(txo)
-	asksn, err := pp.AddressSecretKeySnDeserialize(serializedSksn)
+	asksn, err := pp.DeserializeAddressSecretKeySn(serializedSksn)
 	if err != nil {
 		return nil
 	}
 	sn := pp.PolyANTTAdd(tmp, asksn.ma)
 	return pp.SerialNumberCompute(sn)
 }
+
+func LedgerTxoIdCompute(pp *PublicParameter, identifier []byte) ([]byte, error) {
+	lgrTxoId, err := Hash(identifier)
+	if err != nil {
+		return nil, err
+	}
+	return lgrTxoId, nil
+}
+
 func (pp *PublicParameter) GetPublicKeyByteLen() int {
 	panic("GetPublicKeyByteLen implement me")
 	return -1
