@@ -239,7 +239,7 @@ func (pp *PublicParameter) AddressSecretKeySnSerialize(asksn *AddressSecretKeySn
 }
 func (pp *PublicParameter) AddressSecretKeySnDeserialize(serialziedASkSn []byte) (*AddressSecretKeySn, error) {
 	var err error
-	r := bytes.NewReader(serialziedASkSn[4:])
+	r := bytes.NewReader(serialziedASkSn)
 	var ma *PolyANTT
 	ma, err = pp.ReadPolyANTT(r)
 	if err != nil {
