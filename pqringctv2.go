@@ -1183,6 +1183,9 @@ func (pp *PublicParameter) ELRSSign(
 
 	z_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
 	z_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
+
+	w_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
+	w_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
 	delta_cs[sindex] = make([]*PolyCNTT, pp.paramK)
 ELRSSignRestartv2:
 	// randomness y_a_j_bar
@@ -1197,8 +1200,6 @@ ELRSSignRestartv2:
 	y_cs := make([]*PolyCNTTVec, pp.paramK)
 	y_cps := make([]*PolyCNTTVec, pp.paramK)
 
-	w_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
-	w_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
 	for tao := 0; tao < pp.paramK; tao++ {
 		tmpYc, err := pp.sampleMaskCv2()
 		if err != nil {
@@ -1297,6 +1298,7 @@ func (pp *PublicParameter) collectBytesForELRv2(
 		(len(lgxTxoList)*(pp.paramKA+1+pp.paramKC+1+pp.paramKA+1+pp.paramK*pp.paramKC*2)+
 			1+pp.paramKC+1))
 	w := bytes.NewBuffer(tt)
+	//	todo: make a serializer begin
 	appendPolyANTTToBytes := func(a *PolyANTT) {
 		for k := 0; k < pp.paramDA; k++ {
 			w.WriteByte(byte(a.coeffs[k] >> 0))
@@ -1310,6 +1312,8 @@ func (pp *PublicParameter) collectBytesForELRv2(
 
 		}
 	}
+	//	todo: make a serializer end
+	//	todo: make a serializer begin
 	appendPolyCNTTToBytes := func(a *PolyCNTT) {
 		for k := 0; k < pp.paramDC; k++ {
 			w.WriteByte(byte(a.coeffs[k] >> 0))
@@ -1322,6 +1326,7 @@ func (pp *PublicParameter) collectBytesForELRv2(
 			w.WriteByte(byte(a.coeffs[k] >> 56))
 		}
 	}
+	//	todo: make a serializer end
 	// msg
 	w.Write(msg)
 	// txoList=[(pk,cmt)]
@@ -1548,6 +1553,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		return nil, errors.New("the output value exceeds the input value") // todo: more accurate info
 	}
 
+	//	todo: serialize	begin
 	cbTxCon := make([]byte, 0, 8)
 	tw := bytes.NewBuffer(cbTxCon)
 	tw.WriteByte(byte(vin >> 0))
@@ -1568,6 +1574,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			return nil, errors.New("error in serializing txo")
 		}
 	}
+	//	todo: serialize	end
 	if J == 1 {
 		// random from S_etaC^lc
 		ys := make([]*PolyCNTTVec, pp.paramK)
@@ -1774,6 +1781,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		}*/
 	// todo: check cbTx.OutputTxos[j].cmt is well-formed
 
+	// todo: call serializer begin
 	cbTxCon := make([]byte, 0, 8)
 	tw := bytes.NewBuffer(cbTxCon)
 	tw.WriteByte(byte(cbTx.Vin >> 0))
@@ -1796,6 +1804,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 			return false
 		}
 	}
+	// todo: call serializer end
 	if J == 1 {
 		if cbTx.TxWitness.b_hat != nil || cbTx.TxWitness.c_hats != nil || cbTx.TxWitness.u_p != nil {
 			return false
@@ -2564,6 +2573,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 func (pp *PublicParameter) collectBytesForTransfer(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
 	res := make([]byte, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
 	w := bytes.NewBuffer(res)
+	//	todo: encaps to a fucntion, say SerializePolyCNTT
 	appendPolyCNTTToBytes := func(a *PolyCNTT) {
 		for k := 0; k < pp.paramDC; k++ {
 			w.WriteByte(byte(a.coeffs[k] >> 0))
