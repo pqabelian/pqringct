@@ -137,11 +137,11 @@ func (pp *PublicParameter) GetNullSerialNumber() []byte {
 	panic("GetNullSerialNumber implement me")
 	return nil
 }
-func (pp *PublicParameter) GetValuePublicKeySerializeSize() []byte {
+func (pp *PublicParameter) GetValuePublicKeySerializeSize() int {
 	panic("GetNullSerialNumber implement me")
-	return nil
+	return 0
 }
-func (pp *PublicParameter) GetAddressPublicKeySerializeSize() []byte {
+func (pp *PublicParameter) GetAddressPublicKeySerializeSize() int {
 	panic("GetNullSerialNumber implement me")
-	return nil
+	return 0
 }
