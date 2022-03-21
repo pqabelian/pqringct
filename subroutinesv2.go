@@ -1253,6 +1253,13 @@ func intToBinary(v uint64, bitNum int) (bits []int64) {
 	}
 	return rstbits
 }
+func binaryToInt64(v uint64, bitNum int) (bits []int64) {
+	rstbits := make([]int64, bitNum)
+	for i := 0; i < bitNum; i++ {
+		rstbits[i] = int64((v >> i) & 1)
+	}
+	return rstbits
+}
 
 func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err error) {
 	binM = make([][]byte, rownum)

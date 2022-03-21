@@ -1039,9 +1039,14 @@ func (pp *PublicParameter) ExpandKIDR(lgrtxo *LgrTxo) *PolyANTT {
 	buf := make([]byte, 0, 1000)
 	w := bytes.NewBuffer(buf)
 	var err error
-	err = lgrtxo.Serialize(w)
+	serialize, err := pp.LgrTxoSerialize(lgrtxo)
 	if err != nil {
-		log.Fatalln("error for lgrtxo.Serialize(w)")
+		log.Fatalln("error for pp.LgrTxoSerialize()")
+		return nil
+	}
+	_, err = w.Write(serialize)
+	if err != nil {
+		log.Fatalln("error for w.Write()")
 		return nil
 	}
 	seed, err := Hash(w.Bytes())
@@ -1292,7 +1297,6 @@ func (pp *PublicParameter) collectBytesForELRv2(
 		(len(lgxTxoList)*(pp.paramKA+1+pp.paramKC+1+pp.paramKA+1+pp.paramK*pp.paramKC*2)+
 			1+pp.paramKC+1))
 	w := bytes.NewBuffer(tt)
-	var err error
 	appendPolyANTTToBytes := func(a *PolyANTT) {
 		for k := 0; k < pp.paramDA; k++ {
 			w.WriteByte(byte(a.coeffs[k] >> 0))
@@ -1322,9 +1326,14 @@ func (pp *PublicParameter) collectBytesForELRv2(
 	w.Write(msg)
 	// txoList=[(pk,cmt)]
 	for i := 0; i < len(lgxTxoList); i++ {
-		err = lgxTxoList[i].Serialize(w)
+		serialize, err := pp.LgrTxoSerialize(lgxTxoList[i])
 		if err != nil {
-			log.Fatalln("error for lgtxo.Serialize(w)")
+			log.Fatalln("error for pp.LgrTxoSerialize()")
+			return nil
+		}
+		_, err = w.Write(serialize)
+		if err != nil {
+			log.Fatalln("error for w.Write()")
 			return nil
 		}
 	}
@@ -1401,7 +1410,6 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 	w_cs := make([][]*PolyCNTTVec, ringLen)
 	w_cps := make([][]*PolyCNTTVec, ringLen)
 	delta_cs := make([][]*PolyCNTT, ringLen)
-
 	for j := 0; j < ringLen; j++ {
 		tmpDA, err := pp.expandChallengeA(sig.seeds[j])
 		if err != nil {
@@ -1551,7 +1559,11 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 	tw.WriteByte(byte(vin >> 48))
 	tw.WriteByte(byte(vin >> 56))
 	for i := 0; i < J; i++ {
-		err = retcbTx.OutputTxos[i].Serialize0(tw)
+		serializedTxo, err := pp.TxoSerialize(retcbTx.OutputTxos[i])
+		if err != nil {
+			return nil, err
+		}
+		_, err = tw.Write(serializedTxo)
 		if err != nil {
 			return nil, errors.New("error in serializing txo")
 		}
@@ -1773,7 +1785,12 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 	tw.WriteByte(byte(cbTx.Vin >> 48))
 	tw.WriteByte(byte(cbTx.Vin >> 56))
 	for i := 0; i < J; i++ {
-		err := cbTx.OutputTxos[i].Serialize0(tw)
+		serializedTxo, err := pp.TxoSerialize(cbTx.OutputTxos[i])
+		if err != nil {
+			log.Fatalln(err)
+			return false
+		}
+		_, err = tw.Write(serializedTxo)
 		if err != nil {
 			log.Fatalf("error in serializing txo")
 			return false
@@ -2125,15 +2142,11 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		elrsSigs:   nil,
 	}*/
 
-	msgTrTxCon := rettrTx.Serialize(false)
-	if msgTrTxCon == nil {
+	msgTrTxCon, err := pp.TransferTxSerialize(rettrTx, false)
+	if msgTrTxCon == nil || err != nil {
 		return nil, errors.New("error in rettrTx.Serialize ")
 	}
 	//msgTrTxConExt := msgTrTxCon	// todo: not need to do. append cmt_ps
-	/*	msgTrTxConHash, err := Hash(msgTrTxCon)
-		if err != nil {
-			return nil, err
-		}*/
 
 	elrsSigs := make([]*elrsSignaturev2, I)
 	for i := 0; i < I; i++ {
@@ -2424,8 +2437,8 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 	//	todo: check the well-form of TxWitness
 
 	//	check the ring signatures
-	msgTrTxCon := trTx.Serialize(false)
-	if msgTrTxCon == nil {
+	msgTrTxCon, err := pp.TransferTxSerialize(trTx, false)
+	if msgTrTxCon == nil || err != nil {
 		return false
 	}
 	/*	msgTrTxConHash, err := Hash(msgTrTxCon)

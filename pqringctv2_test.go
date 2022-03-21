@@ -122,6 +122,9 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			value:         12,
 		},
 	})
+	if err != nil {
+		t.Errorf(err.Error())
+	}
 	cbTx2, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
 		{
 			serializedAPk: serializedAPk1,

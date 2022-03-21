@@ -1,6 +1,10 @@
 package pqringct
 
-import "bytes"
+import (
+	"bytes"
+	"github.com/cryptosuite/pqringct/pqringctkem"
+	"log"
+)
 
 func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, error) {
 	apk, ask, err := pp.AddressKeyGen(seed)
@@ -47,22 +51,53 @@ func TransferTxGen(pp *PublicParameter, inputDescs []*TxInputDescv2, outputDescs
 func TransferTxVerify(pp *PublicParameter, trTx *TransferTxv2) bool {
 	return pp.TransferTxVerify(trTx)
 }
-func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedSkvalue []byte) (valid bool, v uint64) {
-
+func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVSk []byte) (valid bool, v uint64) {
+	txoAddress, err := pp.AddressPublicKeySerialize(txo.AddressPublicKey)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if !bytes.Equal(txoAddress, address) {
+		return false, 0
+	}
+	// run kem.decaps to get kappa
+	version := uint32(serializedVSk[0]) << 0
+	version |= uint32(serializedVSk[1]) << 8
+	version |= uint32(serializedVSk[2]) << 16
+	version |= uint32(serializedVSk[3]) << 24
+	if pqringctkem.VersionKEM(version) != pp.paramKem.Version {
+		return false, 0
+	}
+	kappa, err := pqringctkem.Decaps(pp.paramKem, txo.CkemSerialzed, serializedVSk[4:])
+	if err != nil {
+		log.Fatalln(err)
+	}
+	sk, err := pp.expandRandomBitsV(kappa)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	mtmp := make([]byte, pp.paramDC)
+	for i := 0; i < pp.paramDC; i++ {
+		mtmp[i] = sk[i] ^ txo.Vct[i]
+	}
+	v = uint64(0)
+	for i := 0; i < len(mtmp); i++ {
+		if mtmp[i] == 1 {
+			v += 1 << i
+		}
+	}
+	return true, v
 }
 func SerialNumberGen(pp *PublicParameter, serializedLgrTxo []byte, serializedSksn []byte) []byte {
-	r := bytes.NewReader(serializedLgrTxo)
-	txo, err := pp.LgrTxoDeserialize(r)
+	txo, err := pp.LgrTxoDeserialize(serializedLgrTxo)
 	if err != nil {
 		return nil
 	}
 	tmp := pp.ExpandKIDR(txo)
-	r = bytes.NewReader(serializedSksn)
-	ma, err := pp.ReadPolyANTT(r)
+	asksn, err := pp.AddressSecretKeySnDeserialize(serializedSksn)
 	if err != nil {
 		return nil
 	}
-	sn := pp.PolyANTTAdd(tmp, ma)
+	sn := pp.PolyANTTAdd(tmp, asksn.ma)
 	return pp.SerialNumberCompute(sn)
 }
 func (pp *PublicParameter) GetPublicKeyByteLen() int {

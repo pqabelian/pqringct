@@ -38,7 +38,7 @@ func (pp *PublicParameter) ReadPolyANTT(r io.Reader) (*PolyANTT, error) {
 	}
 	res := pp.NewPolyANTT()
 	for i := uint64(0); i < count; i++ {
-		err = readElement(r, res.coeffs[i])
+		err = readElement(r, &res.coeffs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -109,7 +109,7 @@ func (pp *PublicParameter) ReadPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 	}
 	res := pp.NewPolyCNTT()
 	for i := uint64(0); i < count; i++ {
-		err = readElement(r, res.coeffs[i])
+		err = readElement(r, &res.coeffs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -1270,7 +1270,8 @@ func (pp *PublicParameter) TrTxWitnessSerializedSize(trwit *TrTxWitnessv2) int {
 	if trwit.cmt_ps != nil {
 		length += VarIntSerializeSize2(uint64(len(trwit.cmt_ps)))
 		for i := 0; i < len(trwit.cmt_ps); i++ {
-			length += pp.ValueCommitmentSerializedSize(trwit.cmt_ps[i])
+			tmp := pp.ValueCommitmentSerializedSize(trwit.cmt_ps[i])
+			length += VarIntSerializeSize2(uint64(tmp)) + tmp
 		}
 	}
 	//elrsSigs   []*elrsSignaturev2
@@ -1331,6 +1332,11 @@ func (pp *PublicParameter) TrTxWitnessSerialize(wit *TrTxWitnessv2) ([]byte, err
 			return nil, err
 		}
 		for i := 0; i < len(wit.ma_ps); i++ {
+			size := pp.ValueCommitmentSerializedSize(wit.cmt_ps[i])
+			err := WriteVarInt(w, uint64(size))
+			if err != nil {
+				return nil, err
+			}
 			serializedVCmt, err := pp.ValueCommitmentSerialize(wit.cmt_ps[i])
 			if err != nil {
 				return nil, err
@@ -1611,6 +1617,405 @@ func (pp *PublicParameter) TrTxWitnessDeserialize(serializedTrTxWitness []byte) 
 		c_hats:     c_hats,
 		u_p:        u_p,
 		rpulpproof: rpulpproof,
+	}, nil
+}
+
+func (pp *PublicParameter) TrTxInputSerializedSize(trTxIn *TrTxInputv2) int {
+	var length int
+	//	TxoList      []*LgrTxo
+	length += VarIntSerializeSize2(1)
+	if trTxIn.TxoList != nil {
+		length += VarIntSerializeSize2(uint64(len(trTxIn.TxoList)))
+		for i := 0; i < len(trTxIn.TxoList); i++ {
+			tmp := pp.LgrTxoSerializedSize(trTxIn.TxoList[i])
+			length += VarIntSerializeSize2(uint64(tmp)) + tmp
+		}
+	}
+	//	SerialNumber []byte
+	length += VarIntSerializeSize2(1)
+	if trTxIn.SerialNumber != nil {
+		tmp := len(trTxIn.SerialNumber)
+		length += VarIntSerializeSize2(uint64(tmp)) + tmp
+	}
+	return length
+}
+func (pp *PublicParameter) TrTxInputSerialize(trTxIn *TrTxInputv2) ([]byte, error) {
+	if trTxIn == nil {
+		return nil, errors.New(ErrNilPointer)
+	}
+	var err error
+	length := pp.TrTxInputSerializedSize(trTxIn)
+	w := bytes.NewBuffer(make([]byte, 0, length))
+
+	//TxoList      []*LgrTxo
+	if trTxIn.TxoList != nil {
+		err = WriteNotNULL(w)
+		if err != nil {
+			return nil, err
+		}
+		err = WriteVarInt(w, uint64(len(trTxIn.TxoList)))
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < len(trTxIn.TxoList); i++ {
+			size := pp.LgrTxoSerializedSize(trTxIn.TxoList[i])
+			err = WriteVarInt(w, uint64(size))
+			if err != nil {
+				return nil, err
+			}
+			serializedTxo, err := pp.LgrTxoSerialize(trTxIn.TxoList[i])
+			if err != nil {
+				return nil, err
+			}
+			_, err = w.Write(serializedTxo)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		err = WriteNULL(w)
+		if err != nil {
+			return nil, err
+		}
+	}
+	//SerialNumber []byte
+	if trTxIn.SerialNumber != nil {
+		err = WriteNotNULL(w)
+		if err != nil {
+			return nil, err
+		}
+		err = WriteVarBytes(w, trTxIn.SerialNumber)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = WriteNULL(w)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return w.Bytes(), nil
+}
+func (pp *PublicParameter) TrTxInputDeserialize(serialziedTrTxInput []byte) (*TrTxInputv2, error) {
+	var err error
+	var count uint64
+	r := bytes.NewReader(serialziedTrTxInput)
+	//TxoList      []*LgrTxo
+	var TxoList []*LgrTxo
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	if count != 0 {
+		TxoList = make([]*LgrTxo, count)
+		for i := uint64(0); i < count; i++ {
+			tLength, err := ReadVarInt(r)
+			if err != nil {
+				return nil, err
+			}
+			tmp := make([]byte, tLength)
+			_, err = r.Read(tmp)
+			if err != nil {
+				return nil, err
+			}
+			TxoList[i], err = pp.LgrTxoDeserialize(tmp)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	//SerialNumber []byte
+	var SerialNumber []byte
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	if count != 0 {
+		SerialNumber, err = ReadVarBytes(r, MAXALLOWED, "trTxInput.SerialNumber")
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &TrTxInputv2{
+		TxoList:      TxoList,
+		SerialNumber: SerialNumber,
+	}, nil
+}
+
+func (pp *PublicParameter) TransferTxSerializedSize(tx *TransferTxv2, b bool) int {
+	var length int
+	//Inputs     []*TrTxInputv2
+	length += VarIntSerializeSize2(1)
+	if tx.Inputs != nil {
+		length += VarIntSerializeSize2(uint64(len(tx.Inputs)))
+		for i := 0; i < len(tx.Inputs); i++ {
+			tmp := pp.TrTxInputSerializedSize(tx.Inputs[i])
+			length += VarIntSerializeSize2(uint64(tmp)) + tmp
+		}
+	}
+
+	//OutputTxos []*Txo
+	length += VarIntSerializeSize2(1)
+	if tx.OutputTxos != nil {
+		length += VarIntSerializeSize2(uint64(len(tx.OutputTxos)))
+		for i := 0; i < len(tx.OutputTxos); i++ {
+			tmp := pp.TxoSerializedSize(tx.OutputTxos[i])
+			length += VarIntSerializeSize2(uint64(tmp)) + tmp
+		}
+	}
+	//Fee        uint64
+	length += 8
+	//TxMemo []byte
+	length += VarIntSerializeSize2(1)
+	if tx.TxMemo != nil {
+		length += GetBytesSerializeSize2(tx.TxMemo)
+	}
+	if b {
+		//TxWitness *TrTxWitnessv2
+		length += VarIntSerializeSize2(1)
+		if tx.TxWitness != nil {
+			tmp := pp.TrTxWitnessSerializedSize(tx.TxWitness)
+			length += VarIntSerializeSize2(uint64(tmp)) + tmp
+		}
+	}
+	return length
+}
+func (pp *PublicParameter) TransferTxSerialize(tx *TransferTxv2, b bool) ([]byte, error) {
+	if tx == nil {
+		return nil, errors.New(ErrNilPointer)
+	}
+	var err error
+	length := pp.TransferTxSerializedSize(tx, b)
+	w := bytes.NewBuffer(make([]byte, 0, length))
+	// Inputs     []*TrTxInputv2
+	if tx.Inputs != nil {
+		err = WriteNotNULL(w)
+		if err != nil {
+			return nil, err
+		}
+		err = WriteVarInt(w, uint64(len(tx.Inputs)))
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < len(tx.Inputs); i++ {
+			size := pp.TrTxInputSerializedSize(tx.Inputs[i])
+			err = WriteVarInt(w, uint64(size))
+			if err != nil {
+				return nil, err
+			}
+			serializedTxo, err := pp.TrTxInputSerialize(tx.Inputs[i])
+			if err != nil {
+				return nil, err
+			}
+			_, err = w.Write(serializedTxo)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		err = WriteNULL(w)
+		if err != nil {
+			return nil, err
+		}
+	}
+	//OutputTxos []*Txo
+	if tx.OutputTxos != nil {
+		err = WriteNotNULL(w)
+		if err != nil {
+			return nil, err
+		}
+		err = WriteVarInt(w, uint64(len(tx.OutputTxos)))
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < len(tx.OutputTxos); i++ {
+			size := pp.TxoSerializedSize(tx.OutputTxos[i])
+			err = WriteVarInt(w, uint64(size))
+			if err != nil {
+				return nil, err
+			}
+			serializedTxo, err := pp.TxoSerialize(tx.OutputTxos[i])
+			if err != nil {
+				return nil, err
+			}
+			_, err = w.Write(serializedTxo)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		err = WriteNULL(w)
+		if err != nil {
+			return nil, err
+		}
+	}
+	//Fee        uint64
+	tmp := make([]byte, 8)
+	tmp[0] = byte(tx.Fee >> 0)
+	tmp[1] = byte(tx.Fee >> 8)
+	tmp[2] = byte(tx.Fee >> 16)
+	tmp[3] = byte(tx.Fee >> 24)
+	tmp[4] = byte(tx.Fee >> 32)
+	tmp[5] = byte(tx.Fee >> 40)
+	tmp[6] = byte(tx.Fee >> 48)
+	tmp[7] = byte(tx.Fee >> 56)
+	_, err = w.Write(tmp)
+	if err != nil {
+		return nil, err
+	}
+	//TxMemo []byte
+	if tx.TxMemo != nil {
+		err = WriteNotNULL(w)
+		if err != nil {
+			return nil, err
+		}
+		err = WriteVarBytes(w, tx.TxMemo)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = WriteNULL(w)
+		if err != nil {
+			return nil, err
+		}
+	}
+	//TxWitness *TrTxWitnessv2
+	if b {
+
+		if tx.TxWitness != nil {
+			err = WriteNotNULL(w)
+			if err != nil {
+				return nil, err
+			}
+			size := pp.TrTxWitnessSerializedSize(tx.TxWitness)
+			err = WriteVarInt(w, uint64(size))
+			if err != nil {
+				return nil, err
+			}
+			serializedTxo, err := pp.TrTxWitnessSerialize(tx.TxWitness)
+			if err != nil {
+				return nil, err
+			}
+			_, err = w.Write(serializedTxo)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			err = WriteNULL(w)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return w.Bytes(), nil
+}
+func (pp *PublicParameter) TransferTxDeserialize(serializedTrTx []byte, b bool) (*TransferTxv2, error) {
+	var err error
+	var count uint64
+	r := bytes.NewReader(serializedTrTx)
+	// Inputs     []*TrTxInputv2
+	var Inputs []*TrTxInputv2
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	if count != 0 {
+		Inputs = make([]*TrTxInputv2, count)
+		for i := uint64(0); i < count; i++ {
+			tLength, err := ReadVarInt(r)
+			if err != nil {
+				return nil, err
+			}
+			tmp := make([]byte, tLength)
+			_, err = r.Read(tmp)
+			if err != nil {
+				return nil, err
+			}
+			Inputs[i], err = pp.TrTxInputDeserialize(tmp)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	// OutputTxos []*Txo
+	var OutputTxos []*Txo
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	if count != 0 {
+		OutputTxos = make([]*Txo, count)
+		for i := uint64(0); i < count; i++ {
+			tLength, err := ReadVarInt(r)
+			if err != nil {
+				return nil, err
+			}
+			tmp := make([]byte, tLength)
+			_, err = r.Read(tmp)
+			if err != nil {
+				return nil, err
+			}
+			OutputTxos[i], err = pp.TxoDeserialize(tmp)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	// Fee        uint64
+	tmp := make([]byte, 8)
+	_, err = r.Read(tmp)
+	if err != nil {
+		return nil, err
+	}
+	Fee := uint64(tmp[0]) << 0
+	Fee |= uint64(tmp[1]) << 8
+	Fee |= uint64(tmp[2]) << 16
+	Fee |= uint64(tmp[3]) << 24
+	Fee |= uint64(tmp[4]) << 32
+	Fee |= uint64(tmp[5]) << 40
+	Fee |= uint64(tmp[6]) << 48
+	Fee |= uint64(tmp[7]) << 56
+	// TxMemo []byte
+	var TxMemo []byte
+	count, err = ReadVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+	if count != 0 {
+		TxMemo, err = ReadVarBytes(r, MAXALLOWED, "trTx.TxMemo")
+		if err != nil {
+			return nil, err
+		}
+	}
+	var TxWitness *TrTxWitnessv2
+	if b {
+		// TxWitness *TrTxWitnessv2
+		count, err = ReadVarInt(r)
+		if err != nil {
+			return nil, err
+		}
+		if count != 0 {
+			count, err = ReadVarInt(r)
+			if err != nil {
+				return nil, err
+			}
+			serializedTrTxWitness := make([]byte, count)
+			_, err = r.Read(serializedTrTxWitness)
+			if err != nil {
+				return nil, err
+			}
+			TxWitness, err = pp.TrTxWitnessDeserialize(serializedTrTxWitness)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return &TransferTxv2{
+		Inputs:     Inputs,
+		OutputTxos: OutputTxos,
+		Fee:        Fee,
+		TxMemo:     TxMemo,
+		TxWitness:  TxWitness,
 	}, nil
 }
 
