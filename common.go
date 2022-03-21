@@ -412,3 +412,14 @@ func VarIntSerializeSize2(val uint64) int {
 	return 9
 }
 
+// WriteNULL write an identifier 0x00 to w,
+// which means current variable is null
+func WriteNULL(w io.Writer) error {
+	return WriteVarInt(w, uint64(0))
+}
+
+// WriteNotNULL write an identifier 0x01 to w,
+// which means current variable is not null
+func WriteNotNULL(w io.Writer) error {
+	return WriteVarInt(w, uint64(1))
+}

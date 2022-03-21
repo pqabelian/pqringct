@@ -8,16 +8,16 @@ func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, er
 		return nil, nil, nil, err
 	}
 
-	serializedAPk, err := pp.SerializeAddressPublicKey(apk)
+	serializedAPk, err := pp.AddressPublicKeySerialize(apk)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	serializedASksp, err := pp.SerializeAddressSecretKeySp(ask.AddressSecretKeySp)
+	serializedASksp, err := pp.AddressSecretKeySpSerialize(ask.AddressSecretKeySp)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	serializedASksn, err := pp.SerializeAddressSecretKeySn(ask.AddressSecretKeySn)
+	serializedASksn, err := pp.AddressSecretKeySnSerialize(ask.AddressSecretKeySn)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -48,11 +48,11 @@ func TransferTxVerify(pp *PublicParameter, trTx *TransferTxv2) bool {
 	return pp.TransferTxVerify(trTx)
 }
 func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedSkvalue []byte) (valid bool, v uint64) {
-	panic("implement me")
+
 }
 func SerialNumberGen(pp *PublicParameter, serializedLgrTxo []byte, serializedSksn []byte) []byte {
 	r := bytes.NewReader(serializedLgrTxo)
-	txo, err := pp.ReadLgrTxo(r)
+	txo, err := pp.LgrTxoDeserialize(r)
 	if err != nil {
 		return nil
 	}
@@ -99,6 +99,14 @@ func (pp *PublicParameter) GetTxoSerialNumberLen() int {
 	return -1
 }
 func (pp *PublicParameter) GetNullSerialNumber() []byte {
+	panic("GetNullSerialNumber implement me")
+	return nil
+}
+func (pp *PublicParameter) GetValuePublicKeySerializeSize() []byte {
+	panic("GetNullSerialNumber implement me")
+	return nil
+}
+func (pp *PublicParameter) GetAddressPublicKeySerializeSize() []byte {
 	panic("GetNullSerialNumber implement me")
 	return nil
 }

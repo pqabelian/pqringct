@@ -1524,7 +1524,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		}
 
 		// restore the apk from serializedAPk
-		apk, err := pp.DeserializeAddressPublicKey(txOutputDesc.serializedAPk)
+		apk, err := pp.AddressPublicKeyDeserialize(txOutputDesc.serializedAPk)
 		if err != nil {
 			return nil, err
 		}
@@ -1992,7 +1992,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		if outputDescItem.serializedAPk == nil || outputDescItem.serializedVPk == nil {
 			return nil, errors.New("the address public key or value publci key is nil")
 		}
-		apks[i], err = pp.DeserializeAddressPublicKey(outputDescItem.serializedAPk)
+		apks[i], err = pp.AddressPublicKeyDeserialize(outputDescItem.serializedAPk)
 		if err != nil || apks[i] == nil {
 			return nil, errors.New("the apk is not well-form")
 		}
@@ -2027,11 +2027,11 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 			return nil, errors.New("some information is empty")
 		}
 		asks[i] = &AddressSecretKey{}
-		asks[i].AddressSecretKeySp, err = pp.DeserializeAddressSecretKeySp(inputDescItem.serializedASksp)
+		asks[i].AddressSecretKeySp, err = pp.AddressSecretKeySpDeserialize(inputDescItem.serializedASksp)
 		if err != nil {
 			return nil, err
 		}
-		asks[i].AddressSecretKeySn, err = pp.DeserializeAddressSecretKeySn(inputDescItem.serializedASksn)
+		asks[i].AddressSecretKeySn, err = pp.AddressSecretKeySnDeserialize(inputDescItem.serializedASksn)
 		if err != nil || asks[i] == nil {
 			return nil, err
 		}
