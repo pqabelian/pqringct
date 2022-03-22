@@ -60,14 +60,7 @@ func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVSk
 		return false, 0
 	}
 	// run kem.decaps to get kappa
-	version := uint32(serializedVSk[0]) << 0
-	version |= uint32(serializedVSk[1]) << 8
-	version |= uint32(serializedVSk[2]) << 16
-	version |= uint32(serializedVSk[3]) << 24
-	if pqringctkem.VersionKEM(version) != pp.paramKem.Version {
-		return false, 0
-	}
-	kappa, err := pqringctkem.Decaps(pp.paramKem, txo.CkemSerialzed, serializedVSk[4:])
+	kappa, err := pqringctkem.Decaps(pp.paramKem, txo.CkemSerialzed, serializedVSk)
 	if err != nil {
 		log.Fatalln(err)
 	}
