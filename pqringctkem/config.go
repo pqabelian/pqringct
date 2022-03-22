@@ -110,6 +110,7 @@ func Decaps(ppkem *ParamKem, serializedC []byte, sk []byte) ([]byte, error) {
 	return kappa, nil
 }
 
+// todo: 20220322 :+4
 func GetKemCiphertextBytesLen(ppkem *ParamKem) int {
 	return ppkem.Kyber.CryptoCiphertextBytes()
 }

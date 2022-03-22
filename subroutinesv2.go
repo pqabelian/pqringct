@@ -16,33 +16,44 @@ const (
 )
 
 // todo: 8 byte, to support at most 64 bits
-func (pp *PublicParameter) expandRandomBitsV(seed []byte) (r []byte, err error) {
+func (pp *PublicParameter) expandRandomBitsInBytesV(seed []byte) (r []byte, err error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
 	}
+
+	buf := make([]byte, pp.TxoValueBytesLen())
 	seed = append(seed, 'V')
-	r, err = pp.generateBits(seed, pp.paramDC)
+	//	todo: 202203 check the security
+	XOF := sha3.NewShake128()
+	XOF.Reset()
+	_, err = XOF.Write(seed)
 	if err != nil {
 		return nil, err
 	}
-	return r, nil
+	_, err = XOF.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
+
 func (pp *PublicParameter) generateBits(seed []byte, length int) ([]byte, error) {
 	var err error
 	// check the length of seed
 	res := make([]byte, length)
 	buf := make([]byte, (length+7)/8)
 	XOF := sha3.NewShake128()
+
+	XOF.Reset()
+	_, err = XOF.Write(seed)
+	if err != nil {
+		return nil, err
+	}
+	_, err = XOF.Read(buf)
+	if err != nil {
+		return nil, err
+	}
 	for i := 0; i < (length+7)/8; i++ {
-		XOF.Reset()
-		_, err = XOF.Write(append(seed, byte(i)))
-		if err != nil {
-			return nil, err
-		}
-		_, err = XOF.Read(buf)
-		if err != nil {
-			return nil, err
-		}
 		for j := 0; j < 8 && 8*i+j < length; j++ {
 			res[8*i+j] = buf[i] & (1 << j) >> j
 		}

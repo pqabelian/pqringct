@@ -436,6 +436,7 @@ func (pp *PublicParameter) ValueKeyGen(seed []byte) ([]byte, []byte, error) {
 func (pp *PublicParameter) txoGen(apk *AddressPublicKey, vpk []byte, vin uint64) (txo *Txo, cmtr *PolyCNTTVec, err error) {
 	//	got (C, kappa) from key encapsulate mechanism
 	// Restore the KEM version
+	// todo: shall be encapsed into pqringctkem
 	version := uint32(vpk[0]) << 0
 	version |= uint32(vpk[1]) << 8
 	version |= uint32(vpk[2]) << 16
@@ -462,14 +463,18 @@ func (pp *PublicParameter) txoGen(apk *AddressPublicKey, vpk []byte, vin uint64)
 	)
 
 	//	vc = m ^ sk
-	//	todo: the vc should have length only N, to prevent the unused D-N bits of leaking information
-	sk, err := pp.expandRandomBitsV(kappa)
+	//	todo_done: the vc should have length only N, to prevent the unused D-N bits of leaking information
+	sk, err := pp.expandRandomBitsInBytesV(kappa)
 	if err != nil {
 		return nil, nil, err
 	}
-	vct := make([]byte, pp.paramDC)
-	for i := 0; i < pp.paramDC; i++ {
-		vct[i] = sk[i] ^ byte(mtmp[i])
+	vpt, err := pp.encodeTxoValueToBytes(vin)
+	if err != nil {
+		return nil, nil, err
+	}
+	vct := make([]byte, pp.TxoValueBytesLen())
+	for i := 0; i < pp.TxoValueBytesLen(); i++ {
+		vct[i] = sk[i] ^ vpt[i]
 	}
 
 	rettxo := &Txo{
@@ -2617,6 +2622,70 @@ func (pp *PublicParameter) ledgerTxoSerialNumberCompute(a *PolyANTT) []byte {
 		log.Fatalln("Error call Hash() in ledgerTxoSerialNumberCompute")
 	}
 	return res
+}
+
+func (pp *PublicParameter) TxoCoinReceive(txo *Txo, address []byte, serializedVSk []byte) (valid bool, v uint64, err error) {
+	if txo == nil {
+		return false, 0, errors.New("nil txo in TxoCoinReceive")
+	}
+	if len(txo.Vct) != pp.TxoValueBytesLen() {
+		return false, 0, errors.New("length of txo.Vct does not match the design")
+	}
+
+	txoAddress, err := pp.SerializeAddressPublicKey(txo.AddressPublicKey)
+	if err != nil {
+		return false, 0, err
+		//log.Fatalln(err)
+	}
+	if !bytes.Equal(txoAddress, address) {
+		return false, 0, nil
+	}
+
+	kappa, err := pqringctkem.Decaps(pp.paramKem, txo.CkemSerialzed, serializedVSk)
+	if err != nil {
+		//log.Fatalln(err)
+		return false, 0, err
+	}
+	sk, err := pp.expandRandomBitsInBytesV(kappa)
+	if err != nil {
+		return false, 0, err
+		//log.Fatalln(err)
+	}
+	if len(sk) != pp.TxoValueBytesLen() {
+		return false, 0, errors.New("length of generated pad for value does not match the design")
+	}
+
+	valueBytes := make([]byte, pp.TxoValueBytesLen())
+	for i := 0; i < pp.TxoValueBytesLen(); i++ {
+		valueBytes[i] = txo.Vct[i] ^ sk[i]
+	}
+
+	value, err := pp.decodeTxoValueFromBytes(valueBytes)
+	if err != nil {
+		return false, 0, errors.New("fail to decode value from txo.vct")
+	}
+
+	rctmp, err := pp.expandRandomnessC(kappa)
+	if err != nil {
+		return false, 0, errors.New("fail to expand randomness for commitment")
+	}
+	cmtr := pp.NTTPolyCVec(rctmp)
+
+	mtmp := intToBinary(value, pp.paramDC)
+	m := &PolyCNTT{coeffs: mtmp}
+	// [b c]^T = C*r + [0 m]^T
+	b := pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cmtr, pp.paramKC, pp.paramLC)
+	c := pp.PolyCNTTAdd(
+		pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], cmtr, pp.paramLC),
+		m,
+	)
+
+	if !pp.PolyCNTTVecEqualCheck(b, txo.ValueCommitment.b) || !pp.PolyCNTTEqualCheck(c, txo.ValueCommitment.c) {
+		return false, 0, nil
+	}
+
+	return true, value, nil
+
 }
 
 func (pp *PublicParameter) LedgerTXOSerialNumberGen(txo []byte, txolid []byte, skma []byte) []byte {

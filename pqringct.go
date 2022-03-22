@@ -836,7 +836,7 @@ package pqringct
 //
 //	v := uint64(0)
 //	// recover value from txo.vc
-//	sk, err := pp.expandRandomBitsV(kappa)
+//	sk, err := pp.expandRandomBitsInBytesV(kappa)
 //	if err != nil {
 //		return false, 0
 //	}
@@ -1562,7 +1562,7 @@ package pqringct
 //
 //	//	vc = m ^ sk
 //	//	todo: the vc should have length only N, to prevent the unused D-N bits of leaking information
-//	sk, err := pp.expandRandomBitsV(kappa)
+//	sk, err := pp.expandRandomBitsInBytesV(kappa)
 //	if err != nil {
 //		return nil, nil, err
 //	}

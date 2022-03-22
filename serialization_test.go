@@ -9,6 +9,48 @@ import (
 	"testing"
 )
 
+func TestSerializeTxoValue(t *testing.T) {
+	pp := DefaultPPV2
+
+	value := uint64(123456789)
+	fmt.Println(value, "pvalue")
+
+	seed := make([]byte, 7)
+	for i := 0; i < 7; i++ {
+		seed[i] = byte(i)
+	}
+
+	sk, err := pp.expandRandomBitsInBytesV(seed)
+
+	vbytes, err := pp.encodeTxoValueToBytes(value)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	rst := make([]byte, pp.TxoValueBytesLen())
+	for i := 0; i < pp.TxoValueBytesLen(); i++ {
+		rst[i] = vbytes[i] ^ sk[i]
+	}
+	cipherValue, err := pp.decodeTxoValueFromBytes(rst)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(cipherValue, "cvalue")
+
+	skr, err := pp.expandRandomBitsInBytesV(seed)
+
+	recover := make([]byte, pp.TxoValueBytesLen())
+	for i := 0; i < pp.TxoValueBytesLen(); i++ {
+		recover[i] = rst[i] ^ skr[i]
+	}
+	recoverValue, err := pp.decodeTxoValueFromBytes(recover)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(recoverValue, "revalue")
+
+}
+
 func TestPublicParameter_writePolyANTT_readPolyANTT(t *testing.T) {
 	pp := DefaultPPV2
 	seed := make([]byte, pp.paramSeedBytesLen)
