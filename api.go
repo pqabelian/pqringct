@@ -102,8 +102,7 @@ func LedgerTxoIdCompute(pp *PublicParameter, identifier []byte) ([]byte, error) 
 }
 
 func (pp *PublicParameter) GetPublicKeyByteLen() int {
-	panic("GetPublicKeyByteLen implement me")
-	return -1
+	return pp.AddressPublicKeySerializeSize() + pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
 }
 
 func (pp *PublicParameter) GetTxoSerializeSize() int {
@@ -128,37 +127,111 @@ func (pp *PublicParameter) GetCbTxWitnessMaxLenApprox(txoOutNum int) int {
 			pp.responseCSerializeSizeApprox()
 		return lenApprox
 	}
-	panic("the txOutNum for calling GetCbTxWitnessMaxLen should be >=1")
 	return -1
 }
-
+func (pp *PublicParameter) GetCbTxWitnessMaxLen() int {
+	lenApprox := pp.boundingVecCSerializeSizeApprox() +
+		1 + (pp.paramJ+2)*pp.PolyCNTTSerializeSize() +
+		1 + pp.paramDC*8 +
+		1 + pp.paramJ*pp.PolyCNTTSerializeSize() + 3*pp.PolyCNTTSerializeSize() +
+		pp.challengeSeedCSerializeSizeApprox() +
+		1 + (pp.paramJ)*pp.responseCSerializeSizeApprox() +
+		pp.responseCSerializeSizeApprox()
+	return lenApprox
+}
 func (pp *PublicParameter) GetTrTxWitnessMaxLen() int {
-	panic("GetNullSerialNumber implement me")
-	return -1
+	maxOutNum := pp.paramJ
+	lenApprox := pp.boundingVecCSerializeSizeApprox() +
+		1 + (maxOutNum+2)*pp.PolyCNTTSerializeSize() +
+		1 + pp.paramDC*8 +
+		1 + maxOutNum*pp.PolyCNTTSerializeSize() + 3*pp.PolyCNTTSerializeSize() +
+		pp.challengeSeedCSerializeSizeApprox() +
+		1 + (maxOutNum)*pp.responseCSerializeSizeApprox() +
+		pp.responseCSerializeSizeApprox()
+	return lenApprox
 }
 
-func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, outputTxoNum uint8) int {
-	panic("GetNullSerialNumber implement me")
-	return -1
+// TODO(20220320) check the length right?
+func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, outputTxoNum int) int {
+	inputNum := len(inputRingSizes)
+	length := VarIntSerializeSize2(uint64(inputNum)) + inputNum*pp.PolyANTTSerializeSize() + // ma_ps      []*PolyANTT
+		VarIntSerializeSize2(uint64(inputNum)) + inputNum*pp.ValueCommitmentSerializeSize() // cmt_ps     []*ValueCommitment
+
+	// elrsSigs   []*elrsSignaturev2
+	sigLen := 0
+	length += VarIntSerializeSize2(uint64(inputNum))
+	for i := 0; i < inputNum; i++ {
+		// sigLen := pp.ElrsSignatureSerializeSize(witness.elrsSigs[i])
+		// seeds [][]byte
+		length = VarIntSerializeSize2(uint64(inputRingSizes[i]))
+		for j := 0; j < inputRingSizes[i]; j++ {
+			length += VarIntSerializeSize2(uint64(HashBytesLen)) + HashBytesLen
+		}
+		//z_as  []*PolyANTTVec
+		length += VarIntSerializeSize2(uint64(inputRingSizes[i]))
+		for j := 0; j < inputRingSizes[i]; j++ {
+			length += VarIntSerializeSize2(uint64(pp.paramLA)) + pp.paramLA*pp.PolyANTTSerializeSize()
+		}
+		//z_cs  [][]*PolyCNTTVec
+		length += VarIntSerializeSize2(uint64(inputRingSizes[i]))
+		for j := 0; j < inputRingSizes[i]; j++ {
+			length += VarIntSerializeSize2(uint64(pp.paramK))
+			for k := 0; k < pp.paramK; k++ {
+				length += VarIntSerializeSize2(uint64(pp.paramLC)) + pp.paramLC*pp.PolyCNTTSerializeSize()
+			}
+		}
+		//z_cps [][]*PolyCNTTVec
+		length += VarIntSerializeSize2(uint64(inputRingSizes[i]))
+		for j := 0; j < inputRingSizes[i]; j++ {
+			length += VarIntSerializeSize2(uint64(pp.paramK))
+			for k := 0; k < pp.paramK; j++ {
+				length += VarIntSerializeSize2(uint64(pp.paramLC)) + pp.paramLC*pp.PolyCNTTSerializeSize()
+			}
+		}
+		length += VarIntSerializeSize2(uint64(sigLen)) + sigLen
+	}
+
+	length += VarIntSerializeSize2(uint64(pp.paramKC)) + pp.paramKC*pp.PolyCNTTSerializeSize() + //b_hat      *PolyCNTTVec
+		VarIntSerializeSize2(uint64(inputNum+outputTxoNum+2)) + (inputNum+outputTxoNum+2)*pp.PolyCNTTSerializeSize() + //c_hats     []*PolyCNTT
+		VarIntSerializeSize2(uint64(pp.paramDC)) + pp.paramDC*8 //u_p        []int64
+
+	//rpulpproof *rpulpProofv2
+	rpfLen := 0
+	for i := 0; i < len(inputRingSizes); i++ {
+		lengthOfPolyCNTT := pp.PolyCNTTSerializeSize()
+		rpfLen += VarIntSerializeSize2(uint64(inputRingSizes[i]+outputTxoNum)) + (inputRingSizes[i]+outputTxoNum)*lengthOfPolyCNTT + // c_waves []*PolyCNTT
+			+3*lengthOfPolyCNTT + //c_hat_g,psi,phi  *PolyCNTT
+			VarIntSerializeSize2(uint64(HashBytesLen)) + HashBytesLen //chseed  []byte
+		//cmt_zs  [][]*PolyCNTTVec
+		rpfLen += VarIntSerializeSize2(uint64(pp.paramK))
+		for j := 0; j < pp.paramK; j++ {
+			rpfLen += VarIntSerializeSize2(uint64(inputRingSizes[i] + outputTxoNum))
+			for k := 0; k < (inputRingSizes[i] + outputTxoNum); k++ {
+				rpfLen += VarIntSerializeSize2(uint64(pp.paramLC)) + pp.paramLC*pp.PolyCNTTSerializeSize()
+			}
+		}
+		//zs      []*PolyCNTTVec
+		rpfLen += VarIntSerializeSize2(uint64(pp.paramK))
+		for j := 0; j < pp.paramK; j++ {
+			rpfLen += VarIntSerializeSize2(uint64(pp.paramLC)) + pp.paramLC*pp.PolyCNTTSerializeSize()
+		}
+	}
+	length += VarIntSerializeSize2(uint64(rpfLen)) + rpfLen
+
+	return length
 }
 
 func (pp *PublicParameter) GetTxMemoMaxLen() int {
-	panic("GetNullSerialNumber implement me")
-	return -1
+	return 56
 }
 
 func (pp *PublicParameter) GetTxoSerialNumberLen() int {
 	return pp.GetTxoSerializeSize()
 }
-func (pp *PublicParameter) GetNullSerialNumber() []byte {
-	panic("GetNullSerialNumber implement me")
-	return nil
-}
+
 func (pp *PublicParameter) GetValuePublicKeySerializeSize() int {
-	panic("GetNullSerialNumber implement me")
-	return 0
+	return pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
 }
 func (pp *PublicParameter) GetAddressPublicKeySerializeSize() int {
-	panic("GetNullSerialNumber implement me")
-	return 0
+	return pp.AddressPublicKeySerializeSize()
 }
