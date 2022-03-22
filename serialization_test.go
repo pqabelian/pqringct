@@ -377,10 +377,9 @@ func TestPublicParameter_SerializeLgrTxo_DeserializeLgrTxo(t *testing.T) {
 		c: c,
 	}
 
-	vct := RandomBytes(pp.paramN)
-	for i := 0; i < pp.paramN; i++ {
-		vct[i] = vct[i] & 1
-	}
+	length := pp.TxoValueBytesLen()
+	vct := RandomBytes(length)
+
 	Ckem := RandomBytes(pqringctkem.GetKemCiphertextBytesLen(pp.paramKem))
 
 	txo := &Txo{

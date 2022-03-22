@@ -436,15 +436,7 @@ func (pp *PublicParameter) ValueKeyGen(seed []byte) ([]byte, []byte, error) {
 func (pp *PublicParameter) txoGen(apk *AddressPublicKey, vpk []byte, vin uint64) (txo *Txo, cmtr *PolyCNTTVec, err error) {
 	//	got (C, kappa) from key encapsulate mechanism
 	// Restore the KEM version
-	// todo: shall be encapsed into pqringctkem
-	version := uint32(vpk[0]) << 0
-	version |= uint32(vpk[1]) << 8
-	version |= uint32(vpk[2]) << 16
-	version |= uint32(vpk[3]) << 24
-	if pqringctkem.VersionKEM(version) != pp.paramKem.Version {
-		return nil, nil, errors.New("the version of kem is not matched")
-	}
-	CkemSerialzed, kappa, err := pqringctkem.Encaps(pp.paramKem, vpk[4:])
+	CkemSerialzed, kappa, err := pqringctkem.Encaps(pp.paramKem, vpk)
 	//	expand the kappa to PolyCVec with length Lc
 	rctmp, err := pp.expandRandomnessC(kappa)
 	if err != nil {
@@ -699,7 +691,7 @@ rpUlpProveRestart:
 	if err != nil {
 		return nil, err
 	}
-	ctmp, err := pp.expandChallenge(chseed)
+	ctmp, err := pp.expandChallengeC(chseed)
 	if err != nil {
 		return nil, err
 	}
@@ -832,7 +824,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 		}
 
 	}
-	chmp, err := pp.expandChallenge(rpulppi.chseed)
+	chmp, err := pp.expandChallengeC(rpulppi.chseed)
 	if err != nil {
 		return false
 	}
@@ -1682,7 +1674,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		}
 		msg_hats[J+1] = e
 
-		randomnessC, err := pp.sampleRandomnessRv2()
+		randomnessC, err := pp.sampleRandomnessRC()
 		if err != nil {
 			return nil, err
 		}
@@ -2122,17 +2114,13 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		// extract this as a function named ledgerTxoSerialNumberCompute
 		m_r := pp.ExpandKIDR(inputDescs[i].txoList[inputDescs[i].sidx])
 		ma_ps[i] = pp.PolyANTTAdd(asks[i].ma, m_r)
-		serializedTxo, err := pp.SerializeTxo(inputDescs[i].txoList[inputDescs[i].sidx].Txo)
-		if err != nil {
-			return nil, err
-		}
-		sn := pp.LedgerTXOSerialNumberGen(serializedTxo, inputDescs[i].txoList[inputDescs[i].sidx].Id, inputDescs[i].serializedASksn)
+		sn := pp.ledgerTxoSerialNumberCompute(ma_ps[i])
 		rettrTx.Inputs[i] = &TrTxInputv2{
 			TxoList:      inputDescs[i].txoList,
 			SerialNumber: sn,
 		}
 
-		tmprp, err := pp.sampleRandomnessRv2()
+		tmprp, err := pp.sampleRandomnessRC()
 		if err != nil {
 			return nil, err
 		}
@@ -2191,7 +2179,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		msg_hats[I+j] = intToBinary(outputDescs[j].value, pp.paramDC)
 	}
 
-	randomnessC, err := pp.sampleRandomnessRv2()
+	randomnessC, err := pp.sampleRandomnessRC()
 	if err != nil {
 		return nil, err
 	}
@@ -2688,23 +2676,24 @@ func (pp *PublicParameter) TxoCoinReceive(txo *Txo, address []byte, serializedVS
 
 }
 
-func (pp *PublicParameter) LedgerTXOSerialNumberGen(txo []byte, txolid []byte, skma []byte) []byte {
-	t := make([]byte, 0, len(txo)+len(txolid))
-	t = append(t, txo...)
-	t = append(t, txolid...)
-	seed, err := Hash(t)
+func (pp *PublicParameter) LedgerTXOSerialNumberGen(serializedTxo []byte, txolid []byte, skma []byte) []byte {
+	txo, err := pp.DeserializeTxo(serializedTxo)
 	if err != nil {
 		return nil
 	}
-	got := rejectionUniformWithQa(seed, pp.paramDA, pp.paramQA)
-	m_r := &PolyANTT{coeffs: got}
+	lgrTxo := &LgrTxo{
+		Txo: txo,
+		Id:  txolid,
+	}
+	m_r := pp.ExpandKIDR(lgrTxo)
 
 	r := bytes.NewReader(skma)
 	ma, err := pp.readPolyANTT(r)
 	if err != nil {
 		return nil
 	}
-	ma_ps := pp.PolyANTTAdd(ma, m_r)
-	sn := pp.ledgerTxoSerialNumberCompute(ma_ps)
+
+	ma_p := pp.PolyANTTAdd(ma, m_r)
+	sn := pp.ledgerTxoSerialNumberCompute(ma_p)
 	return sn[:]
 }

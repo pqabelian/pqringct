@@ -60,9 +60,17 @@ func KeyGen(ppkem *ParamKem, seed []byte, seedLen int) ([]byte, []byte, error) {
 func Encaps(ppkem *ParamKem, pk []byte) ([]byte, []byte, error) {
 	var serializedC, kappa []byte
 	var err error
+	// todo: shall be encapsed into pqringctkem
+	version := uint32(pk[0]) << 0
+	version |= uint32(pk[1]) << 8
+	version |= uint32(pk[2]) << 16
+	version |= uint32(pk[3]) << 24
+	if VersionKEM(version) != ppkem.Version {
+		return nil, nil, errors.New("the version of kem is not matched")
+	}
 	switch ppkem.Version {
 	case KEM_KYBER:
-		serializedC, kappa, err = pqringctkyber.Encaps(ppkem.Kyber, pk)
+		serializedC, kappa, err = pqringctkyber.Encaps(ppkem.Kyber, pk[4:])
 		if err != nil {
 			return nil, nil, err
 		}
@@ -110,9 +118,8 @@ func Decaps(ppkem *ParamKem, serializedC []byte, sk []byte) ([]byte, error) {
 	return kappa, nil
 }
 
-// todo: 20220322 :+4
 func GetKemCiphertextBytesLen(ppkem *ParamKem) int {
-	return ppkem.Kyber.CryptoCiphertextBytes()
+	return 4 + ppkem.Kyber.CryptoCiphertextBytes()
 }
 
 func (vpk *ValuePublicKey) WellformCheck() bool {

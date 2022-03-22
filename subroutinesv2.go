@@ -625,8 +625,7 @@ func (pp PublicParameter) expandChallengeC(seeds []byte) (*PolyC, error) {
 	return ret, nil
 }
 
-// todo: rename with C
-func (pp *PublicParameter) sampleRandomnessRv2() (*PolyCVec, error) {
+func (pp *PublicParameter) sampleRandomnessRC() (*PolyCVec, error) {
 	polys := make([]*PolyC, pp.paramLC)
 	var err error
 	for i := 0; i < pp.paramLC; i++ {
@@ -1196,29 +1195,6 @@ func intMatrixInnerProductWithReduction(a [][]int64, b [][]int64, rowNum int, co
 	}
 
 	return rst
-}
-
-// todo: should be the same with
-//	use name expandChallengeC
-func (pp *PublicParameter) expandChallenge(seed []byte) (r *PolyC, err error) {
-	// extend seed via sha3.Shake128
-	ret := pp.NewPolyC()
-	buf := make([]byte, pp.paramDC/4)
-	XOF := sha3.NewShake128()
-	XOF.Reset()
-	_, err = XOF.Write(append(seed, byte('C'), byte('h')))
-	if err != nil {
-		return nil, err
-	}
-	_, err = XOF.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-	got, err := randomnessFromChallengeSpace(seed, pp.paramDC)
-	for i := 0; i < pp.paramDC; i++ {
-		ret.coeffs[i] = got[i]
-	}
-	return ret, nil
 }
 
 /*
