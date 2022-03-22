@@ -104,7 +104,8 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	apk1, ask1, _ := pp.AddressKeyGen(seed1)
 	serializedVPk1, serializedVSk1, _ := pp.ValueKeyGen(seed1)
 	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
-	serializedASksp1, serializedASksn1, _ := pp.AddressSecretKeySerialize(ask1)
+	serializedASksp1, _ := pp.SerializeAddressSecretKeySp(ask1.AddressSecretKeySp)
+	serializedASksn1, _ := pp.SerializeAddressSecretKeySn(ask1.AddressSecretKeySn)
 	seed2 := RandomBytes(pp.paramSeedBytesLen)
 	apk2, _, _ := pp.AddressKeyGen(seed2)
 	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
@@ -155,11 +156,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 					{
 						txoList: []*LgrTxo{
 							{
-								Txo: *cbTx1.OutputTxos[0],
+								Txo: cbTx1.OutputTxos[0],
 								Id:  []byte{1},
 							},
 							{
-								Txo: *cbTx1.OutputTxos[1],
+								Txo: cbTx1.OutputTxos[1],
 								Id:  []byte{2},
 							},
 						},
@@ -196,11 +197,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 					{
 						txoList: []*LgrTxo{
 							{
-								Txo: *cbTx1.OutputTxos[0],
+								Txo: cbTx1.OutputTxos[0],
 								Id:  []byte{1},
 							},
 							{
-								Txo: *cbTx1.OutputTxos[1],
+								Txo: cbTx1.OutputTxos[1],
 								Id:  []byte{2},
 							},
 						},
@@ -214,11 +215,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 					{
 						txoList: []*LgrTxo{
 							{
-								Txo: *cbTx2.OutputTxos[0],
+								Txo: cbTx2.OutputTxos[0],
 								Id:  []byte{1},
 							},
 							{
-								Txo: *cbTx2.OutputTxos[1],
+								Txo: cbTx2.OutputTxos[1],
 								Id:  []byte{2},
 							},
 						},

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/cryptosuite/pqringct/pqringctkem/pqringctkyber"
+	"github.com/cryptosuite/pqringct/pqringctkem"
 	"io"
 )
 
@@ -14,17 +14,22 @@ const (
 )
 
 func (pp *PublicParameter) PolyANTTSerializeSize() int {
-	// todo: 37-bit int64 could be serialized to 5 bytes, that is pp.paramDA * 5
-	return pp.paramDA * 8
+	// todo: 37-bit int64 could be precise serialized to 37-bit bytes, that is (pp.paramDA * 37 + 7) / 8
+	return pp.paramDA * 5
 }
 func (pp *PublicParameter) writePolyANTT(w io.Writer, a *PolyANTT) error {
 	var err error
-	/*	err = WriteVarInt(w, uint64(pp.paramDA))
-		if err != nil {
-			return err
-		}*/
+	tmp := make([]byte, 5)
 	for i := 0; i < pp.paramDA; i++ {
-		err = writeElement(w, a.coeffs[i])
+		//err = writeElement(w, a.coeffs[i])
+		// the element in coeffs is an value with 37-bit but as int64
+		// so it could be serialized to 5 bytes
+		tmp[0] = byte(a.coeffs[i] >> 0)
+		tmp[1] = byte(a.coeffs[i] >> 8)
+		tmp[2] = byte(a.coeffs[i] >> 16)
+		tmp[3] = byte(a.coeffs[i] >> 24)
+		tmp[4] = byte(a.coeffs[i] >> 32)
+		err = writeElement(w, tmp)
 		if err != nil {
 			return err
 		}
@@ -39,10 +44,20 @@ func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
 			return nil, err
 		}*/
 	res := pp.NewPolyANTT()
+	tmp := make([]byte, 5)
 	for i := 0; i < pp.paramDA; i++ {
-		err = readElement(r, &res.coeffs[i])
+		//err = readElement(r, &res.coeffs[i])
+		err = readElement(r, tmp)
 		if err != nil {
 			return nil, err
+		}
+		res.coeffs[i] = int64(tmp[0]) >> 0
+		res.coeffs[i] |= int64(tmp[1]) << 8
+		res.coeffs[i] |= int64(tmp[2]) << 16
+		res.coeffs[i] |= int64(tmp[3]) << 24
+		res.coeffs[i] |= int64(tmp[4]) << 32
+		if tmp[4]>>7 == 1 {
+			res.coeffs[i] = int64(uint64(res.coeffs[i]) | 0xFFFFFF0000000000)
 		}
 	}
 	return res, nil
@@ -85,8 +100,8 @@ func (pp *PublicParameter) readPolyANTTVec(r io.Reader) (*PolyANTTVec, error) {
 }
 
 func (pp *PublicParameter) PolyCNTTSerializeSize() int {
-	//	todo: 53-bit int64 could be serialized to 7 bytes, that is pp.paramDA * 7
-	return pp.paramDC * 8
+	//	todo: 53-bit int64 could be be precise serialized to 37-bit bytes, that is (pp.paramDA * 53 + 7) / 8
+	return pp.paramDC * 7
 }
 func (pp *PublicParameter) writePolyCNTT(w io.Writer, c *PolyCNTT) error {
 	var err error
@@ -94,8 +109,19 @@ func (pp *PublicParameter) writePolyCNTT(w io.Writer, c *PolyCNTT) error {
 		if err != nil {
 			return err
 		}*/
+	tmp := make([]byte, 7)
 	for i := 0; i < pp.paramDC; i++ {
-		err = writeElement(w, c.coeffs[i])
+		//err = writeElement(w, c.coeffs[i])
+		// the element in coeffs is an value with 53-bit but as int64
+		// so it could be serialized to 7 bytes
+		tmp[0] = byte(c.coeffs[i] >> 0)
+		tmp[1] = byte(c.coeffs[i] >> 8)
+		tmp[2] = byte(c.coeffs[i] >> 16)
+		tmp[3] = byte(c.coeffs[i] >> 24)
+		tmp[4] = byte(c.coeffs[i] >> 32)
+		tmp[5] = byte(c.coeffs[i] >> 40)
+		tmp[6] = byte(c.coeffs[i] >> 48)
+		err = writeElement(w, tmp)
 		if err != nil {
 			return err
 		}
@@ -110,10 +136,21 @@ func (pp *PublicParameter) readPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 			return nil, err
 		}*/
 	res := pp.NewPolyCNTT()
+	tmp := make([]byte, 7)
 	for i := 0; i < pp.paramDC; i++ {
-		err = readElement(r, &res.coeffs[i])
+		err = readElement(r, tmp)
 		if err != nil {
 			return nil, err
+		}
+		res.coeffs[i] = int64(tmp[0]) >> 0
+		res.coeffs[i] |= int64(tmp[1]) << 8
+		res.coeffs[i] |= int64(tmp[2]) << 16
+		res.coeffs[i] |= int64(tmp[3]) << 24
+		res.coeffs[i] |= int64(tmp[4]) << 32
+		res.coeffs[i] |= int64(tmp[5]) << 40
+		res.coeffs[i] |= int64(tmp[6]) << 48
+		if tmp[6]>>7 == 1 {
+			res.coeffs[i] = int64(uint64(res.coeffs[i]) | 0xFFF0000000000000)
 		}
 	}
 	return res, nil
@@ -376,7 +413,7 @@ func (pp *PublicParameter) TxoSerializeSize() int {
 	return pp.AddressPublicKeySerializeSize() +
 		pp.ValueCommitmentSerializeSize() +
 		VarIntSerializeSize2(uint64(pp.TxoValueCiphertextSerializeSize())) + pp.TxoValueCiphertextSerializeSize() +
-		VarIntSerializeSize2(uint64(pqringctkyber.GetKemCiphertextBytesLen(pp.paramKem))) + pqringctkyber.GetKemCiphertextBytesLen(pp.paramKem)
+		VarIntSerializeSize2(uint64(pqringctkem.GetKemCiphertextBytesLen(pp.paramKem))) + pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
 	// 8 for vc: 53-bits, for simplicity, just as uint64
 }
 
@@ -463,6 +500,7 @@ func (pp *PublicParameter) LgrTxoIdSerializeSize() int {
 }
 
 func (pp *PublicParameter) LgrTxoSerializeSize() int {
+	// TODO(20220322) GetTxoSerializeSize() should not be call, it should be a provided api function
 	return pp.GetTxoSerializeSize() + VarIntSerializeSize2(uint64(pp.LgrTxoIdSerializeSize())) + pp.LgrTxoIdSerializeSize()
 }
 func (pp *PublicParameter) SerializeLgrTxo(lgrTxo *LgrTxo) ([]byte, error) {
@@ -1639,6 +1677,7 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 	if count != 0 {
 		OutputTxos = make([]*Txo, count)
 		for i := uint64(0); i < count; i++ {
+			// TODO(20220322) GetTxoSerializeSize() should not be call, it should be a provided api function
 			tmp := make([]byte, pp.GetTxoSerializeSize())
 			_, err = r.Read(tmp)
 			if err != nil {

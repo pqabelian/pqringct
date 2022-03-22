@@ -110,6 +110,10 @@ func Decaps(ppkem *ParamKem, serializedC []byte, sk []byte) ([]byte, error) {
 	return kappa, nil
 }
 
+func GetKemCiphertextBytesLen(ppkem *ParamKem) int {
+	return ppkem.Kyber.CryptoCiphertextBytes()
+}
+
 func (vpk *ValuePublicKey) WellformCheck() bool {
 	// todo
 	return true
