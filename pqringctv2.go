@@ -2114,11 +2114,14 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 	cmt_ps := make([]*ValueCommitment, I)
 	cmtr_ps := make([]*PolyCNTTVec, I)
 	for i := 0; i < I; i++ {
-		// extract this as a function named SerialNumberCompute
+		// extract this as a function named ledgerTxoSerialNumberCompute
 		m_r := pp.ExpandKIDR(inputDescs[i].txoList[inputDescs[i].sidx])
 		ma_ps[i] = pp.PolyANTTAdd(asks[i].ma, m_r)
-		sn := pp.SerialNumberCompute(ma_ps[i])
-
+		serializedTxo, err := pp.SerializeTxo(inputDescs[i].txoList[inputDescs[i].sidx].Txo)
+		if err != nil {
+			return nil, err
+		}
+		sn := pp.LedgerTXOSerialNumberGen(serializedTxo, inputDescs[i].txoList[inputDescs[i].sidx].Id, inputDescs[i].serializedASksn)
 		rettrTx.Inputs[i] = &TrTxInputv2{
 			TxoList:      inputDescs[i].txoList,
 			SerialNumber: sn,
@@ -2451,7 +2454,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 		}*/
 	for i := 0; i < I; i++ {
 		//	check the validity of sigma_{lrs,i}
-		sn := pp.SerialNumberCompute(trTx.TxWitness.ma_ps[i])
+		sn := pp.ledgerTxoSerialNumberCompute(trTx.TxWitness.ma_ps[i])
 		if !bytes.Equal(trTx.Inputs[i].SerialNumber, sn) {
 			return false
 		}
@@ -2594,10 +2597,10 @@ func (pp *PublicParameter) collectBytesForTransfer(premsg []byte, b_hat *PolyCNT
 	return res
 }
 
-func (pp *PublicParameter) SerialNumberSerializeSize() int {
+func (pp *PublicParameter) LedgerTxoSerialNumberSerializeSize() int {
 	return HashBytesLen
 }
-func (pp *PublicParameter) SerialNumberCompute(a *PolyANTT) []byte {
+func (pp *PublicParameter) ledgerTxoSerialNumberCompute(a *PolyANTT) []byte {
 	tmp := make([]byte, pp.paramDA*8)
 	for k := 0; k < pp.paramDA; k++ {
 		tmp = append(tmp, byte(a.coeffs[k]>>0))
@@ -2611,7 +2614,7 @@ func (pp *PublicParameter) SerialNumberCompute(a *PolyANTT) []byte {
 	}
 	res, err := Hash(tmp)
 	if err != nil {
-		log.Fatalln("Error call Hash() in SerialNumberCompute")
+		log.Fatalln("Error call Hash() in ledgerTxoSerialNumberCompute")
 	}
 	return res
 }
@@ -2633,6 +2636,6 @@ func (pp *PublicParameter) LedgerTXOSerialNumberGen(txo []byte, txolid []byte, s
 		return nil
 	}
 	ma_ps := pp.PolyANTTAdd(ma, m_r)
-	sn := pp.SerialNumberCompute(ma_ps)
+	sn := pp.ledgerTxoSerialNumberCompute(ma_ps)
 	return sn[:]
 }

@@ -88,18 +88,9 @@ func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVSk
 	return true, v
 }
 
-func SerialNumberGen(pp *PublicParameter, serializedLgrTxo []byte, serializedSksn []byte) []byte {
-	txo, err := pp.DeserializeLgrTxo(serializedLgrTxo)
-	if err != nil {
-		return nil
-	}
-	tmp := pp.ExpandKIDR(txo)
-	asksn, err := pp.DeserializeAddressSecretKeySn(serializedSksn)
-	if err != nil {
-		return nil
-	}
-	sn := pp.PolyANTTAdd(tmp, asksn.ma)
-	return pp.SerialNumberCompute(sn)
+func LedgerTxoSerialNumberGen(pp *PublicParameter, serializedTxo []byte, txolid []byte, serializedSksn []byte) []byte {
+	sn := pp.LedgerTXOSerialNumberGen(serializedTxo, txolid, serializedSksn)
+	return sn
 }
 
 func LedgerTxoIdCompute(pp *PublicParameter, identifier []byte) ([]byte, error) {
@@ -116,11 +107,28 @@ func (pp *PublicParameter) GetPublicKeyByteLen() int {
 }
 
 func (pp *PublicParameter) GetTxoSerializeSize() int {
-	panic("GetTxoSerializeSize implement me")
-	return -1
+	return pp.TxoSerializeSize()
 }
-func (pp *PublicParameter) GetCbTxWitnessMaxLen(num int) int {
-	panic("GetCoinbaseTxWitnessLen implement me")
+func (pp *PublicParameter) GetCbTxWitnessMaxLenApprox(txoOutNum int) int {
+	if txoOutNum == 0 {
+		return 0
+	}
+
+	if txoOutNum == 1 {
+		return pp.challengeSeedCSerializeSizeApprox() + pp.challengeSeedCSerializeSizeApprox()
+	}
+
+	if txoOutNum > 1 {
+		lenApprox := pp.boundingVecCSerializeSizeApprox() +
+			1 + (txoOutNum+2)*pp.PolyCNTTSerializeSize() +
+			1 + pp.paramDC*8 +
+			1 + txoOutNum*pp.PolyCNTTSerializeSize() + 3*pp.PolyCNTTSerializeSize() +
+			pp.challengeSeedCSerializeSizeApprox() +
+			1 + (txoOutNum)*pp.responseCSerializeSizeApprox() +
+			pp.responseCSerializeSizeApprox()
+		return lenApprox
+	}
+	panic("the txOutNum for calling GetCbTxWitnessMaxLen should be >=1")
 	return -1
 }
 
@@ -140,8 +148,7 @@ func (pp *PublicParameter) GetTxMemoMaxLen() int {
 }
 
 func (pp *PublicParameter) GetTxoSerialNumberLen() int {
-	panic("GetTxoSerialNumberLen implement me")
-	return -1
+	return pp.GetTxoSerializeSize()
 }
 func (pp *PublicParameter) GetNullSerialNumber() []byte {
 	panic("GetNullSerialNumber implement me")

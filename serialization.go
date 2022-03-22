@@ -16,7 +16,7 @@ const (
 func (pp *PublicParameter) IntegerASerializeSize() int {
 	// todo: 37-bit int64 could be serialized to 5 bytes, that is pp.paramDA * 5
 	// todo: 37-bit int64 could be precise serialized to 37-bit bytes, that is (pp.paramDA * 37 + 7) / 8
-	return pp.paramDC * 8
+	return 5
 }
 
 func (pp *PublicParameter) writeIntegerA(w io.Writer, a int64) error {
@@ -806,6 +806,16 @@ func (pp *PublicParameter) DeserializeRpulpProof(serializedRpulpProof []byte) (*
 	}, nil
 }
 
+func (pp *PublicParameter) challengeSeedCSerializeSizeApprox() int {
+	return 1 + HashBytesLen
+}
+func (pp *PublicParameter) responseCSerializeSizeApprox() int {
+	//	r \in \in (Ring_{q_c})^{L_c}
+	//	z \in (Ring_{q_c})^{L_c}
+	//	k
+	return 1 + pp.paramK*(1+pp.PolyCNTTSerializeSize()*pp.paramLC)
+}
+
 func (pp *PublicParameter) CbTxWitnessJ1SerializeSize(witness *CbTxWitnessJ1) int {
 	if witness == nil {
 		return 0
@@ -881,6 +891,10 @@ func (pp *PublicParameter) DeserializeCbTxWitnessJ1(serializedWitness []byte) (*
 	}, nil
 }
 
+func (pp *PublicParameter) boundingVecCSerializeSizeApprox() int {
+	//	PolyCNTTVec[k_c]
+	return 1 + pp.paramKC*pp.PolyCNTTSerializeSize()
+}
 func (pp *PublicParameter) CbTxWitnessJ2SerializeSize(witness *CbTxWitnessJ2) int {
 	if witness == nil {
 		return 0
