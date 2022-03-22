@@ -2146,7 +2146,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		elrsSigs:   nil,
 	}*/
 
-	msgTrTxCon, err := pp.TransferTxSerialize(rettrTx, false)
+	msgTrTxCon, err := pp.SerializeTransferTx(rettrTx, false)
 	if msgTrTxCon == nil || err != nil {
 		return nil, errors.New("error in rettrTx.Serialize ")
 	}
@@ -2441,7 +2441,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 	//	todo: check the well-form of TxWitness
 
 	//	check the ring signatures
-	msgTrTxCon, err := pp.TransferTxSerialize(trTx, false)
+	msgTrTxCon, err := pp.SerializeTransferTx(trTx, false)
 	if msgTrTxCon == nil || err != nil {
 		return false
 	}
@@ -2594,6 +2594,9 @@ func (pp *PublicParameter) collectBytesForTransfer(premsg []byte, b_hat *PolyCNT
 	return res
 }
 
+func (pp *PublicParameter) SerialNumberSerializeSize() int {
+	return HashBytesLen
+}
 func (pp *PublicParameter) SerialNumberCompute(a *PolyANTT) []byte {
 	tmp := make([]byte, pp.paramDA*8)
 	for k := 0; k < pp.paramDA; k++ {
@@ -2605,7 +2608,6 @@ func (pp *PublicParameter) SerialNumberCompute(a *PolyANTT) []byte {
 		tmp = append(tmp, byte(a.coeffs[k]>>40))
 		tmp = append(tmp, byte(a.coeffs[k]>>48))
 		tmp = append(tmp, byte(a.coeffs[k]>>56))
-
 	}
 	res, err := Hash(tmp)
 	if err != nil {
