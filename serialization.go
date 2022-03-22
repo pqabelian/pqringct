@@ -13,23 +13,54 @@ const (
 	ErrNilPointer    = "there are nil pointer"
 )
 
-func (pp *PublicParameter) PolyANTTSerializeSize() int {
+func (pp *PublicParameter) IntegerASerializeSize() int {
+	// todo: 37-bit int64 could be serialized to 5 bytes, that is pp.paramDA * 5
 	// todo: 37-bit int64 could be precise serialized to 37-bit bytes, that is (pp.paramDA * 37 + 7) / 8
-	return pp.paramDA * 5
+	return pp.paramDC * 8
+}
+
+func (pp *PublicParameter) writeIntegerA(w io.Writer, a int64) error {
+	// a shall be in [-(q_a-1)/2, (q_a-1)/2]
+	//	hardcode as q_a is 38-bit integer
+	//	5 bytes, the highest bit used for +-sign
+	for i := 0; i < 5; i++ {
+		// +- sign
+	}
+	return nil
+}
+func (pp *PublicParameter) readIntegerA(r io.Reader) (int64, error) {
+	// a shall be in [-(q_a-1)/2, (q_a-1)/2]
+	//	hardcode as q_a is 38-bit integer
+	//	5 bytes, the highest bit used for +-sign
+	//	pp.paramDA
+
+	for i := 0; i < 5; i++ {
+		// +- sign
+	}
+	return 0, nil
+}
+
+func (pp *PublicParameter) PolyANTTSerializeSize() int {
+	// todo: 37-bit int64 could be serialized to 5 bytes, that is pp.paramDA * 5
+	return pp.paramDA * pp.IntegerASerializeSize()
 }
 func (pp *PublicParameter) writePolyANTT(w io.Writer, a *PolyANTT) error {
 	var err error
-	tmp := make([]byte, 5)
+	//	tmp := make([]byte, 5)
 	for i := 0; i < pp.paramDA; i++ {
-		//err = writeElement(w, a.coeffs[i])
-		// the element in coeffs is an value with 37-bit but as int64
-		// so it could be serialized to 5 bytes
-		tmp[0] = byte(a.coeffs[i] >> 0)
-		tmp[1] = byte(a.coeffs[i] >> 8)
-		tmp[2] = byte(a.coeffs[i] >> 16)
-		tmp[3] = byte(a.coeffs[i] >> 24)
-		tmp[4] = byte(a.coeffs[i] >> 32)
-		err = writeElement(w, tmp)
+		//	todo:
+		err = pp.writeIntegerA(w, a.coeffs[i])
+
+		////err = writeElement(w, a.coeffs[i])
+		//// the element in coeffs is an value with 37-bit but as int64
+		//// so it could be serialized to 5 bytes
+		//tmp[0] = byte(a.coeffs[i] >> 0)
+		//tmp[1] = byte(a.coeffs[i] >> 8)
+		//tmp[2] = byte(a.coeffs[i] >> 16)
+		//tmp[3] = byte(a.coeffs[i] >> 24)
+		//tmp[4] = byte(a.coeffs[i] >> 32)
+		//err = writeElement(w, tmp)
+
 		if err != nil {
 			return err
 		}
@@ -44,21 +75,22 @@ func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
 			return nil, err
 		}*/
 	res := pp.NewPolyANTT()
-	tmp := make([]byte, 5)
+	//	tmp := make([]byte, 5)
 	for i := 0; i < pp.paramDA; i++ {
 		//err = readElement(r, &res.coeffs[i])
-		err = readElement(r, tmp)
+
+		res.coeffs[i], err = pp.readIntegerA(r)
 		if err != nil {
 			return nil, err
 		}
-		res.coeffs[i] = int64(tmp[0]) >> 0
-		res.coeffs[i] |= int64(tmp[1]) << 8
-		res.coeffs[i] |= int64(tmp[2]) << 16
-		res.coeffs[i] |= int64(tmp[3]) << 24
-		res.coeffs[i] |= int64(tmp[4]) << 32
-		if tmp[4]>>7 == 1 {
-			res.coeffs[i] = int64(uint64(res.coeffs[i]) | 0xFFFFFF0000000000)
-		}
+		//res.coeffs[i] = int64(tmp[0]) >> 0
+		//res.coeffs[i] |= int64(tmp[1]) << 8
+		//res.coeffs[i] |= int64(tmp[2]) << 16
+		//res.coeffs[i] |= int64(tmp[3]) << 24
+		//res.coeffs[i] |= int64(tmp[4]) << 32
+		//if tmp[4]>>7 == 1 {
+		//	res.coeffs[i] = int64(uint64(res.coeffs[i]) | 0xFFFFFF0000000000)
+		//}
 	}
 	return res, nil
 }
@@ -99,9 +131,32 @@ func (pp *PublicParameter) readPolyANTTVec(r io.Reader) (*PolyANTTVec, error) {
 	return &PolyANTTVec{polyANTTs: res}, nil
 }
 
-func (pp *PublicParameter) PolyCNTTSerializeSize() int {
-	//	todo: 53-bit int64 could be be precise serialized to 37-bit bytes, that is (pp.paramDA * 53 + 7) / 8
+func (pp *PublicParameter) IntegerCSerializeSize() int {
+	//	todo: 53-bit int64 could be serialized to 7 bytes, that is pp.paramDA * 7
 	return pp.paramDC * 7
+}
+
+func (pp *PublicParameter) writeIntegerC(w io.Writer, a int64) error {
+	// a shall be in [-(q_c-1)/2, (q_c-1)/2]
+	//	hardcode as q_c is 53-bit integer
+	//	7 bytes, the highest bit used for +-sign
+	for i := 0; i < 7; i++ {
+		// +- sign
+	}
+	return nil
+}
+func (pp *PublicParameter) readIntegerC(r io.Reader) (int64, error) {
+	// a shall be in [-(q_c-1)/2, (q_c-1)/2]
+	//	hardcode as q_c is 53-bit integer
+	//	7 bytes, the highest bit used for +-sign
+	for i := 0; i < 7; i++ {
+		// +- sign
+	}
+	return 0, nil
+}
+
+func (pp *PublicParameter) PolyCNTTSerializeSize() int {
+	return pp.paramDC * pp.IntegerCSerializeSize()
 }
 func (pp *PublicParameter) writePolyCNTT(w io.Writer, c *PolyCNTT) error {
 	var err error
@@ -109,19 +164,22 @@ func (pp *PublicParameter) writePolyCNTT(w io.Writer, c *PolyCNTT) error {
 		if err != nil {
 			return err
 		}*/
-	tmp := make([]byte, 7)
+	//	tmp := make([]byte, 7)
 	for i := 0; i < pp.paramDC; i++ {
 		//err = writeElement(w, c.coeffs[i])
-		// the element in coeffs is an value with 53-bit but as int64
-		// so it could be serialized to 7 bytes
-		tmp[0] = byte(c.coeffs[i] >> 0)
-		tmp[1] = byte(c.coeffs[i] >> 8)
-		tmp[2] = byte(c.coeffs[i] >> 16)
-		tmp[3] = byte(c.coeffs[i] >> 24)
-		tmp[4] = byte(c.coeffs[i] >> 32)
-		tmp[5] = byte(c.coeffs[i] >> 40)
-		tmp[6] = byte(c.coeffs[i] >> 48)
-		err = writeElement(w, tmp)
+		err = pp.writeIntegerC(w, c.coeffs[i])
+
+		//// the element in coeffs is an value with 53-bit but as int64
+		//// so it could be serialized to 7 bytes
+		//tmp[0] = byte(c.coeffs[i] >> 0)
+		//tmp[1] = byte(c.coeffs[i] >> 8)
+		//tmp[2] = byte(c.coeffs[i] >> 16)
+		//tmp[3] = byte(c.coeffs[i] >> 24)
+		//tmp[4] = byte(c.coeffs[i] >> 32)
+		//tmp[5] = byte(c.coeffs[i] >> 40)
+		//tmp[6] = byte(c.coeffs[i] >> 48)
+		//err = writeElement(w, tmp)
+
 		if err != nil {
 			return err
 		}
@@ -136,22 +194,24 @@ func (pp *PublicParameter) readPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 			return nil, err
 		}*/
 	res := pp.NewPolyCNTT()
-	tmp := make([]byte, 7)
+	//	tmp := make([]byte, 7)
 	for i := 0; i < pp.paramDC; i++ {
-		err = readElement(r, tmp)
+
+		//err = readElement(r, &res.coeffs[i])
+		res.coeffs[i], err = pp.readIntegerC(r)
 		if err != nil {
 			return nil, err
 		}
-		res.coeffs[i] = int64(tmp[0]) >> 0
-		res.coeffs[i] |= int64(tmp[1]) << 8
-		res.coeffs[i] |= int64(tmp[2]) << 16
-		res.coeffs[i] |= int64(tmp[3]) << 24
-		res.coeffs[i] |= int64(tmp[4]) << 32
-		res.coeffs[i] |= int64(tmp[5]) << 40
-		res.coeffs[i] |= int64(tmp[6]) << 48
-		if tmp[6]>>7 == 1 {
-			res.coeffs[i] = int64(uint64(res.coeffs[i]) | 0xFFF0000000000000)
-		}
+		//res.coeffs[i] = int64(tmp[0]) >> 0
+		//res.coeffs[i] |= int64(tmp[1]) << 8
+		//res.coeffs[i] |= int64(tmp[2]) << 16
+		//res.coeffs[i] |= int64(tmp[3]) << 24
+		//res.coeffs[i] |= int64(tmp[4]) << 32
+		//res.coeffs[i] |= int64(tmp[5]) << 40
+		//res.coeffs[i] |= int64(tmp[6]) << 48
+		//if tmp[6]>>7 == 1 {
+		//	res.coeffs[i] = int64(uint64(res.coeffs[i]) | 0xFFF0000000000000)
+		//}
 	}
 	return res, nil
 }
