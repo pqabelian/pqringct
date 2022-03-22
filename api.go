@@ -1,9 +1,7 @@
 package pqringct
 
 import (
-	"bytes"
 	"github.com/cryptosuite/pqringct/pqringctkem"
-	"log"
 )
 
 func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, error) {
@@ -52,33 +50,13 @@ func TransferTxVerify(pp *PublicParameter, trTx *TransferTxv2) bool {
 	return pp.TransferTxVerify(trTx)
 }
 func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVSk []byte) (valid bool, v uint64) {
-	txoAddress, err := pp.SerializeAddressPublicKey(txo.AddressPublicKey)
+	bl, value, err := pp.TxoCoinReceive(txo, address, serializedVSk)
+
 	if err != nil {
-		log.Fatalln(err)
-	}
-	if !bytes.Equal(txoAddress, address) {
+
 		return false, 0
 	}
-	// run kem.decaps to get kappa
-	kappa, err := pqringctkem.Decaps(pp.paramKem, txo.CkemSerialzed, serializedVSk)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	sk, err := pp.expandRandomBitsV(kappa)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	mtmp := make([]byte, pp.paramDC)
-	for i := 0; i < pp.paramDC; i++ {
-		mtmp[i] = sk[i] ^ txo.Vct[i]
-	}
-	v = uint64(0)
-	for i := 0; i < len(mtmp); i++ {
-		if mtmp[i] == 1 {
-			v += 1 << i
-		}
-	}
-	return true, v
+	return bl, value
 }
 
 func LedgerTxoSerialNumberGen(pp *PublicParameter, serializedTxo []byte, txolid []byte, serializedSksn []byte) []byte {
