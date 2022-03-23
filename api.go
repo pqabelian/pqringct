@@ -72,9 +72,9 @@ func LedgerTxoIdCompute(pp *PublicParameter, identifier []byte) ([]byte, error) 
 	return lgrTxoId, nil
 }
 
-func (pp *PublicParameter) GetPublicKeyByteLen() int {
-	return pp.AddressPublicKeySerializeSize() + pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
-}
+//func (pp *PublicParameter) GetPublicKeyByteLen() int {
+//	return pp.AddressPublicKeySerializeSize() + pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
+//}
 
 func (pp *PublicParameter) GetTxoSerializeSize() int {
 	return pp.TxoSerializeSize()
