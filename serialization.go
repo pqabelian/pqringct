@@ -1402,7 +1402,7 @@ func (pp *PublicParameter) SerializeTrTxWitness(witness *TrTxWitnessv2) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	return w.Bytes(), nil
 }
 func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) (*TrTxWitnessv2, error) {
 	var err error
