@@ -402,12 +402,12 @@ func (pp *PublicParameter) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec
 	return res, nil
 }
 
-var DefaultPPV2 *PublicParameter
+var DefaultPP *PublicParameter
 
 func init() {
 	var err error
 
-	DefaultPPV2, err = NewPublicParameter(
+	DefaultPP, err = NewPublicParameter(
 		256,
 		137438953937,
 		60,

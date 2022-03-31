@@ -16,7 +16,7 @@ func TestReduce(t *testing.T) {
 }
 
 func TestPublicParameterv2_NTTPolyC_NTTInvPolyC(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 	c := pp.NewPolyC()
 	for i := 0; i < pp.paramDC; i++ {
 		c.coeffs[i] = int64(i + 1)
@@ -29,7 +29,7 @@ func TestPublicParameterv2_NTTPolyC_NTTInvPolyC(t *testing.T) {
 }
 
 func TestPublicParameter_NTTPolyC(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 
 	//bigQa := new(big.Int).SetInt64(pp.paramQA)
 	//for i := 1; i < pp.paramZetaAOrder; i++ {

@@ -10,7 +10,7 @@ import (
 )
 
 func TestSerializeTxoValue(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 
 	value := uint64(123456789)
 	fmt.Println(value, "pvalue")
@@ -52,7 +52,7 @@ func TestSerializeTxoValue(t *testing.T) {
 }
 
 func TestPublicParameter_writePolyANTT_readPolyANTT(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 	seed := make([]byte, pp.paramSeedBytesLen)
 	tmp := rejectionUniformWithQa(seed, pp.paramDA, pp.paramQA)
 	a := &PolyANTT{coeffs: tmp}
@@ -74,7 +74,7 @@ func TestPublicParameter_writePolyANTT_readPolyANTT(t *testing.T) {
 	}
 }
 func TestPublicParameter_writePolyCNTT_readPolyCNTT(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 	seed := make([]byte, pp.paramSeedBytesLen)
 	tmp := rejectionUniformWithQc(seed, pp.paramDC)
 	a := &PolyCNTT{coeffs: tmp}
@@ -97,7 +97,7 @@ func TestPublicParameter_writePolyCNTT_readPolyCNTT(t *testing.T) {
 }
 
 func TestPublicParameter_writePolyANTTVec_readPolyANTTVec(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 	as := pp.NewPolyANTTVec(pp.paramLA)
 	for i := 0; i < pp.paramLA; i++ {
 		seed := RandomBytes(pp.paramSeedBytesLen)
@@ -124,7 +124,7 @@ func TestPublicParameter_writePolyANTTVec_readPolyANTTVec(t *testing.T) {
 	}
 }
 func TestPublicParameter_writePolyCNTTVec_readPolyCNTTVec(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 	as := pp.NewPolyCNTTVec(pp.paramLC)
 	for i := 0; i < pp.paramLC; i++ {
 		seed := RandomBytes(pp.paramSeedBytesLen)
@@ -152,7 +152,7 @@ func TestPublicParameter_writePolyCNTTVec_readPolyCNTTVec(t *testing.T) {
 }
 
 func TestPublicParameter_SerializeAddressSecretSpAndSnKey_DeserializeAddressSecretSpAndSnKey(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 	ts := pp.NewPolyANTTVec(pp.paramLA)
 	for i := 0; i < pp.paramLA; i++ {
 		seed := RandomBytes(pp.paramSeedBytesLen)
@@ -199,7 +199,7 @@ func TestPublicParameter_SerializeAddressSecretSpAndSnKey_DeserializeAddressSecr
 }
 
 func TestPublicParameter_SerializeValueCommitment_DeserializeValueCommitment(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 	b := pp.NewPolyCNTTVec(pp.paramKC)
 	for i := 0; i < pp.paramKC; i++ {
 		seed := RandomBytes(pp.paramSeedBytesLen)
@@ -240,7 +240,7 @@ func TestPublicParameter_SerializeValueCommitment_DeserializeValueCommitment(t *
 }
 
 func TestPublicParameter_SerializeAddressPublicKey(t *testing.T) {
-	pp := DefaultPPV2
+	pp := DefaultPP
 	ts := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
 		seed := RandomBytes(pp.paramSeedBytesLen)
@@ -281,7 +281,7 @@ func TestPublicParameter_SerializeAddressPublicKey(t *testing.T) {
 
 func TestPublicParameter_SerializeTxo_DeserializeTxo(t *testing.T) {
 	var seed []byte
-	pp := DefaultPPV2
+	pp := DefaultPP
 	ts := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
 		seed = RandomBytes(pp.paramSeedBytesLen)
@@ -344,7 +344,7 @@ func TestPublicParameter_SerializeTxo_DeserializeTxo(t *testing.T) {
 
 func TestPublicParameter_SerializeLgrTxo_DeserializeLgrTxo(t *testing.T) {
 	var seed []byte
-	pp := DefaultPPV2
+	pp := DefaultPP
 	ts := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
 		seed = RandomBytes(pp.paramSeedBytesLen)

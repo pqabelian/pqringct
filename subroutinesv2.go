@@ -321,6 +321,8 @@ func (pp *PublicParameter) generatePolyCNTTMatrix(seed []byte, rowLength int, co
 	}
 	return res, nil
 }
+
+// generatePolyANTTMatrix() expands the seed to a polyANTT matrix.
 func (pp *PublicParameter) generatePolyANTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyANTTVec, error) {
 	// check the length of seed
 	res := make([]*PolyANTTVec, rowLength)

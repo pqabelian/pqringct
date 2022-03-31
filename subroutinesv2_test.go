@@ -18,7 +18,7 @@ func Test_rejectionUniformWithQc(t *testing.T) {
 			"Test1",
 			args{
 				seed:   []byte("This is the seed for testing"),
-				length: DefaultPPV2.paramDC,
+				length: DefaultPP.paramDC,
 			},
 			nil,
 		},
@@ -30,7 +30,7 @@ func Test_rejectionUniformWithQc(t *testing.T) {
 			//	t.Errorf("rejectionUniformWithQc() = %v, want %v", got, tt.want)
 			//}
 			for i := 0; i < len(got); i++ {
-				if got[i] < -(DefaultPPV2.paramQC-1)>>1 || got[i] > (DefaultPPV2.paramQC-1)>>1 {
+				if got[i] < -(DefaultPP.paramQC-1)>>1 || got[i] > (DefaultPP.paramQC-1)>>1 {
 					t.Errorf("rejectionUniformWithQc() sample a value %v", got[i])
 				}
 			}
@@ -52,19 +52,19 @@ func Test_rejectionUniformWithQa(t *testing.T) {
 			"Test1",
 			args{
 				seed:   []byte("This is the seed for testing"),
-				length: DefaultPPV2.paramDA,
+				length: DefaultPP.paramDA,
 			},
 			nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := rejectionUniformWithQa(tt.args.seed, tt.args.length, DefaultPPV2.paramQA)
+			got := rejectionUniformWithQa(tt.args.seed, tt.args.length, DefaultPP.paramQA)
 			//if !reflect.DeepEqual(got, tt.want) {
 			//	t.Errorf("rejectionUniformWithQc() = %v, want %v", got, tt.want)
 			//}
 			for i := 0; i < len(got); i++ {
-				tmp := (DefaultPPV2.paramQA - 1) >> 1
+				tmp := (DefaultPP.paramQA - 1) >> 1
 				if got[i] < -tmp || got[i] > tmp {
 					t.Errorf("rejectionUniformWithQc() sample a value %v", got[i])
 				}
