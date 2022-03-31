@@ -53,7 +53,7 @@ func NewPublicParameter(
 	}
 
 	// initialize the NTTCFactors
-	slotNumC := res.paramZetaCOrder / 2 // fully splitting
+	slotNumC := res.paramZetaCOrder / 2 // factored to irreducible factors, fully splitting
 	segNumC := 1
 	nttFactorsC := make([]int, 1)
 	nttFactorsC[0] = slotNumC / 2
@@ -73,7 +73,7 @@ func NewPublicParameter(
 	res.paramNTTCFactors = nttFactorsC
 
 	// initialize the NTTAFactors
-	slotNumA := res.paramZetaAOrder / 2 // fully splitting
+	slotNumA := res.paramZetaAOrder / 2 // factored to irreducible factors
 	segNumA := 1
 	nttFactorsA := make([]int, 1)
 	nttFactorsA[0] = slotNumA / 2
@@ -93,13 +93,34 @@ func NewPublicParameter(
 	res.paramNTTAFactors = nttFactorsA
 
 	//  parameters for Number Theory Transform
+	curr := new(big.Int)
+
 	res.paramZetasC = make([]int64, res.paramZetaCOrder)
-	for i := 0; i < res.paramZetaCOrder; i++ {
-		res.paramZetasC[i] = powerAndModP(res.paramZetaC, int64(i), res.paramQC)
+	//for i := 0; i < res.paramZetaCOrder; i++ {
+	//	res.paramZetasC[i] = powerAndModP(res.paramZetaC, int64(i), res.paramQC)
+	//}
+	bigQC := new(big.Int).SetInt64(res.paramQC)
+	zetaC := new(big.Int).SetInt64(res.paramZetaC)
+	res.paramZetasC[0] = 1
+	curr.SetInt64(1)
+	for i := 1; i < res.paramZetaCOrder; i++ {
+		curr.Mul(curr, zetaC)
+		curr.Mod(curr, bigQC)
+		res.paramZetasC[i] = reduceInt64(curr.Int64(), res.paramQC)
 	}
+
 	res.paramZetasA = make([]int64, res.paramZetaAOrder)
-	for i := 0; i < res.paramZetaAOrder; i++ {
-		res.paramZetasA[i] = powerAndModP(res.paramZetaA, int64(i), res.paramQA)
+	//for i := 0; i < res.paramZetaAOrder; i++ {
+	//	res.paramZetasA[i] = powerAndModP(res.paramZetaA, int64(i), res.paramQA)
+	//}
+	bigQA := new(big.Int).SetInt64(res.paramQA)
+	zetaA := new(big.Int).SetInt64(res.paramZetaA)
+	res.paramZetasA[0] = 1
+	curr.SetInt64(1)
+	for i := 1; i < res.paramZetaAOrder; i++ {
+		curr.Mul(curr, zetaA)
+		curr.Mod(curr, bigQA)
+		res.paramZetasA[i] = reduceInt64(curr.Int64(), res.paramQA)
 	}
 
 	seed, err := Hash(res.paramCStr)
@@ -271,6 +292,7 @@ func (pp *PublicParameter) ParamSeedBytesLen() int {
 	return pp.paramSeedBytesLen
 }
 
+// todo: review, 20220331 to be continued
 func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
 	res := make([]*PolyANTTVec, pp.paramKA)
 
@@ -466,13 +488,13 @@ func init() {
 	}
 }
 
-func powerAndModP(base int64, power int64, p int64) int64 {
-	a := big.NewInt(base)
-	b := big.NewInt(power)
-	mod := big.NewInt(p)
-	res := big.NewInt(1).Exp(a, b, mod).Int64()
-	if res > (p-1)>>1 {
-		res -= p
-	}
-	return res
-}
+//func powerAndModP(base int64, power int64, p int64) int64 {
+//	a := big.NewInt(base)
+//	b := big.NewInt(power)
+//	mod := big.NewInt(p)
+//	res := big.NewInt(1).Exp(a, b, mod).Int64()
+//	if res > (p-1)>>1 {
+//		res -= p
+//	}
+//	return res
+//}
