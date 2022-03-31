@@ -36,80 +36,163 @@ func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 	return vpk, vsk, nil
 }
 
-func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDescv2) (cbTx *CoinbaseTxv2, err error) {
-	return pp.CoinbaseTxGen(vin, txOutputDescs)
+func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDescv2, txMemo []byte) (cbTx *CoinbaseTxv2, err error) {
+	return pp.CoinbaseTxGen(vin, txOutputDescs, txMemo)
 }
-func CoinbaseTxVerify(pp *PublicParameter, cbTx *CoinbaseTxv2) bool {
+func CoinbaseTxVerify(pp *PublicParameter, cbTx *CoinbaseTxv2) (bool, error) {
 	return pp.CoinbaseTxVerify(cbTx)
 }
 
 func TransferTxGen(pp *PublicParameter, inputDescs []*TxInputDescv2, outputDescs []*TxOutputDescv2, fee uint64, txMemo []byte) (trTx *TransferTxv2, err error) {
 	return pp.TransferTxGen(inputDescs, outputDescs, fee, txMemo)
 }
-func TransferTxVerify(pp *PublicParameter, trTx *TransferTxv2) bool {
+func TransferTxVerify(pp *PublicParameter, trTx *TransferTxv2) (bool, error) {
 	return pp.TransferTxVerify(trTx)
 }
-func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVSk []byte) (valid bool, v uint64) {
-	bl, value, err := pp.TxoCoinReceive(txo, address, serializedVSk)
+func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVPk []byte, serializedVSk []byte) (valid bool, v uint64, err error) {
+	bl, value, err := pp.TxoCoinReceive(txo, address, serializedVPk, serializedVSk)
 
 	if err != nil {
-
-		return false, 0
+		return false, 0, err
 	}
-	return bl, value
+	return bl, value, nil
 }
 
-func LedgerTxoSerialNumberGen(pp *PublicParameter, serializedTxo []byte, txolid []byte, serializedSksn []byte) []byte {
-	sn := pp.LedgerTXOSerialNumberGen(serializedTxo, txolid, serializedSksn)
-	return sn
-}
-
-func LedgerTxoIdCompute(pp *PublicParameter, identifier []byte) ([]byte, error) {
-	lgrTxoId, err := Hash(identifier)
+// LedgerTxoSerialNumberGen() generates the Serial Number for a LgrTxo.
+func LedgerTxoSerialNumberGen(pp *PublicParameter, lgrTxo *LgrTxo, serializedAsksn []byte) ([]byte, error) {
+	sn, err := pp.ledgerTXOSerialNumberGen(lgrTxo, serializedAsksn)
 	if err != nil {
 		return nil, err
 	}
-	return lgrTxoId, nil
+	return sn, nil
 }
 
-//func (pp *PublicParameter) GetPublicKeyByteLen() int {
-//	return pp.AddressPublicKeySerializeSize() + pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
+//func LedgerTxoIdCompute(pp *PublicParameter, identifier []byte) ([]byte, error) {
+//	lgrTxoId, err := Hash(identifier)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return lgrTxoId, nil
 //}
 
-func (pp *PublicParameter) GetTxoSerializeSize() int {
+//	Data structures for Transaction generation/verify	begin
+
+func NewTxOutputDescv2(pp *PublicParameter, serializedAPk []byte, serializedVPk []byte, value uint64) *TxOutputDescv2 {
+	return pp.newTxOutputDescv2(serializedAPk, serializedVPk, value)
+}
+
+func NewTxInputDescv2(pp *PublicParameter, lgrTxoList []*LgrTxo, sidx int, serializedASksp []byte, serializedASksn []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDescv2 {
+	return pp.newTxInputDescv2(lgrTxoList, sidx, serializedASksn, serializedASksp, serializedVPk, serializedVSk, value)
+}
+
+//	Data structures for Transaction generation/verify	end
+
+//	serialize APIs	begin
+func SerializeTxo(pp *PublicParameter, txo *Txo) ([]byte, error) {
+	serialized, err := pp.SerializeTxo(txo)
+	if err != nil {
+		return nil, err
+	}
+	return serialized, nil
+}
+
+func DeserializeTxo(pp *PublicParameter, serializedTxo []byte) (*Txo, error) {
+	txo, err := pp.DeserializeTxo(serializedTxo)
+	if err != nil {
+		return nil, err
+	}
+	return txo, nil
+}
+
+func SerializeCbTxWitnessJ1(pp *PublicParameter, witness *CbTxWitnessJ1) ([]byte, error) {
+	serialized, err := pp.SerializeCbTxWitnessJ1(witness)
+	if err != nil {
+		return nil, err
+	}
+	return serialized, nil
+}
+
+func DeserializeCbTxWitnessJ1(pp *PublicParameter, serializedWitness []byte) (*CbTxWitnessJ1, error) {
+	witness, err := pp.DeserializeCbTxWitnessJ1(serializedWitness)
+	if err != nil {
+		return nil, err
+	}
+	return witness, nil
+}
+
+func SerializeCbTxWitnessJ2(pp *PublicParameter, witness *CbTxWitnessJ2) ([]byte, error) {
+	serialized, err := pp.SerializeCbTxWitnessJ2(witness)
+	if err != nil {
+		return nil, err
+	}
+	return serialized, nil
+}
+
+func DeserializeCbTxWitnessJ2(pp *PublicParameter, serializedWitness []byte) (*CbTxWitnessJ2, error) {
+	witness, err := pp.DeserializeCbTxWitnessJ2(serializedWitness)
+	if err != nil {
+		return nil, err
+	}
+	return witness, nil
+}
+
+//	serialize APIs	end
+
+//	sizes begin
+
+func GetParamSeedBytesLen(pp *PublicParameter) int {
+	return pp.paramSeedBytesLen
+}
+
+func GetAddressPublicKeySerializeSize(pp *PublicParameter) int {
+	return pp.AddressPublicKeySerializeSize()
+}
+
+func GetTxInputMaxNum(pp *PublicParameter) int {
+	return pp.paramI
+}
+func GetTxOutputMaxNum(pp *PublicParameter) int {
+	return pp.paramJ
+}
+
+func GetSerialNumberSerializeSize(pp *PublicParameter) int {
+	return pp.LedgerTxoSerialNumberSerializeSize()
+}
+
+func GetNullSerialNumber(pp *PublicParameter) []byte {
+	snSize := pp.LedgerTxoSerialNumberSerializeSize()
+	nullSn := make([]byte, snSize)
+	for i := 0; i < snSize; i++ {
+		nullSn[i] = 0
+	}
+	return nullSn
+}
+
+//	sizes end
+
+//	approximate Size begin
+func GetTxoSerializeSizeApprox(pp *PublicParameter) int {
 	return pp.TxoSerializeSize()
 }
-func (pp *PublicParameter) GetCbTxWitnessMaxLenApprox(txoOutNum int) int {
-	if txoOutNum == 0 {
+
+func (pp *PublicParameter) GetCoinbaseTxWitnessSerializeSizeApprox(outTxoNum int) int {
+	if outTxoNum == 0 {
 		return 0
 	}
 
-	if txoOutNum == 1 {
-		return pp.challengeSeedCSerializeSizeApprox() + pp.challengeSeedCSerializeSizeApprox()
+	if outTxoNum == 1 {
+		return pp.CbTxWitnessJ1SerializeSizeApprox()
 	}
 
-	if txoOutNum > 1 {
-		lenApprox := pp.boundingVecCSerializeSizeApprox() +
-			1 + (txoOutNum+2)*pp.PolyCNTTSerializeSize() +
-			1 + pp.paramDC*8 +
-			1 + txoOutNum*pp.PolyCNTTSerializeSize() + 3*pp.PolyCNTTSerializeSize() +
-			pp.challengeSeedCSerializeSizeApprox() +
-			1 + (txoOutNum)*pp.responseCSerializeSizeApprox() +
-			pp.responseCSerializeSizeApprox()
-		return lenApprox
+	if outTxoNum > 1 {
+		return pp.CbTxWitnessJ2SerializeSizeApprox(outTxoNum)
 	}
-	return -1
+
+	return 0
 }
-func (pp *PublicParameter) GetCbTxWitnessMaxLen() int {
-	lenApprox := pp.boundingVecCSerializeSizeApprox() +
-		1 + (pp.paramJ+2)*pp.PolyCNTTSerializeSize() +
-		1 + pp.paramDC*8 +
-		1 + pp.paramJ*pp.PolyCNTTSerializeSize() + 3*pp.PolyCNTTSerializeSize() +
-		pp.challengeSeedCSerializeSizeApprox() +
-		1 + (pp.paramJ)*pp.responseCSerializeSizeApprox() +
-		pp.responseCSerializeSizeApprox()
-	return lenApprox
-}
+
+//	approximate Size end
+
 func (pp *PublicParameter) GetTrTxWitnessMaxLen() int {
 	maxOutNum := pp.paramJ
 	lenApprox := pp.boundingVecCSerializeSizeApprox() +
@@ -194,10 +277,6 @@ func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, out
 
 func (pp *PublicParameter) GetTxMemoMaxLen() int {
 	return 56
-}
-
-func (pp *PublicParameter) GetTxoSerialNumberLen() int {
-	return pp.GetTxoSerializeSize()
 }
 
 func (pp *PublicParameter) GetValuePublicKeySerializeSize() int {
