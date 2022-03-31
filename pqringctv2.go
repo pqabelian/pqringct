@@ -87,6 +87,7 @@ type rpulpProofv2 struct {
 type CoinbaseTxv2 struct {
 	Vin         uint64
 	OutputTxos  []*Txo
+	TxMemo      []byte
 	TxWitnessJ1 *CbTxWitnessJ1
 	TxWitnessJ2 *CbTxWitnessJ2
 }
@@ -104,7 +105,7 @@ type CbTxWitnessJ2 struct {
 }
 
 type TxInputDescv2 struct {
-	txoList         []*LgrTxo // todo: refactor lgrTxoList
+	lgrTxoList      []*LgrTxo // todo: refactor lgrTxoList
 	sidx            int
 	serializedASksp []byte
 	serializedASksn []byte
@@ -115,7 +116,7 @@ type TxInputDescv2 struct {
 
 //func (pp *PublicParameter) SerializeTxInputDescv2(inputDesc *TxInputDescv2) []byte {
 //
-//	length := len(inputDesc.txoList)*(pp.SerializeSizeTxo()+len(inputDesc.txoList[0].Id)) + 4
+//	length := len(inputDesc.lgrTxoList)*(pp.SerializeSizeTxo()+len(inputDesc.lgrTxoList[0].Id)) + 4
 //	bytes.NewBuffer(make([]byte, 0, length))
 //	lengthOfAPk := len(inputDesc.serializedAPk)
 //	lengthOfVPk := len(inputDesc.serializedVPk)
@@ -219,9 +220,9 @@ type TxInputDescv2 struct {
 //	}, nil
 //}
 
-func NewTxInputDescv2(txoList []*LgrTxo, sidx int, serializedASksp []byte, serializedASksn []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDescv2 {
+func (pp *PublicParameter) newTxInputDescv2(txoList []*LgrTxo, sidx int, serializedASksp []byte, serializedASksn []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDescv2 {
 	return &TxInputDescv2{
-		txoList:         txoList,
+		lgrTxoList:      txoList,
 		sidx:            sidx,
 		serializedASksp: serializedASksp,
 		serializedASksn: serializedASksn,
@@ -340,7 +341,7 @@ func (pp *PublicParameter) DeserializeTxOutputDescv2(b []byte) (*TxOutputDescv2,
 	}, nil
 }
 
-func NewTxOutputDescv2(serializedAPk []byte, serializedVPk []byte, value uint64) *TxOutputDescv2 {
+func (pp *PublicParameter) newTxOutputDescv2(serializedAPk []byte, serializedVPk []byte, value uint64) *TxOutputDescv2 {
 	return &TxOutputDescv2{
 		serializedAPk: serializedAPk,
 		serializedVPk: serializedVPk,
@@ -1038,29 +1039,20 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 }
 
 //	todo_DONE: this method directly samples and returns a PloyANTT
-func (pp *PublicParameter) ExpandKIDR(lgrtxo *LgrTxo) *PolyANTT {
-	buf := make([]byte, 0, 1000)
-	w := bytes.NewBuffer(buf)
-	var err error
-	serialize, err := pp.SerializeLgrTxo(lgrtxo)
+func (pp *PublicParameter) ExpandKIDR(lgrtxo *LgrTxo) (*PolyANTT, error) {
+	serializedLgrTxo, err := pp.SerializeLgrTxo(lgrtxo)
 	if err != nil {
-		log.Fatalln("error for pp.SerializeLgrTxo()")
-		return nil
+		return nil, err
 	}
-	_, err = w.Write(serialize)
+	seed, err := Hash(serializedLgrTxo)
 	if err != nil {
-		log.Fatalln("error for w.Write()")
-		return nil
+		return nil, err
 	}
-	seed, err := Hash(w.Bytes())
-	if err != nil {
-		return nil
-	}
-	got := rejectionUniformWithQa(seed, pp.paramDA, pp.paramQA)
-	return &PolyANTT{coeffs: got}
-}
 
-//	todo_DONE: (ringHash, index) shall be ok?
+	got := rejectionUniformWithQa(seed, pp.paramDA, pp.paramQA)
+
+	return &PolyANTT{coeffs: got}, nil
+}
 
 func (pp *PublicParameter) ELRSSign(
 	lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment,
@@ -1119,6 +1111,10 @@ func (pp *PublicParameter) ELRSSign(
 			pp.paramKA,
 		)
 		// theta_a_j = <a,z_a_j> - d_a_j * (e_j + ExpandKIDR(txo[j]) - m_a_p)
+		lgrTxoH, err := pp.ExpandKIDR(lgrTxoList[j])
+		if err != nil {
+			return nil, err
+		}
 		delta_as[j] = pp.PolyANTTSub(
 			pp.PolyANTTVecInnerProduct(pp.paramVecA, z_as[j], pp.paramLA),
 			pp.PolyANTTMul(
@@ -1126,7 +1122,7 @@ func (pp *PublicParameter) ELRSSign(
 				pp.PolyANTTSub(
 					pp.PolyANTTAdd(
 						lgrTxoList[j].Txo.AddressPublicKey.e,
-						pp.ExpandKIDR(lgrTxoList[j]),
+						lgrTxoH,
 					),
 					ma_p,
 				),
@@ -1332,7 +1328,7 @@ func (pp *PublicParameter) collectBytesForELRv2(
 	//	todo: make a serializer end
 	// msg
 	w.Write(msg)
-	// txoList=[(pk,cmt)]
+	// lgrTxoList=[(pk,cmt)]
 	for i := 0; i < len(lgxTxoList); i++ {
 		serialize, err := pp.SerializeLgrTxo(lgxTxoList[i])
 		if err != nil {
@@ -1391,23 +1387,23 @@ func (pp *PublicParameter) collectBytesForELRv2(
 	return res[:]
 }
 
-func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment, msg []byte, sig *elrsSignaturev2) bool {
+func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment, msg []byte, sig *elrsSignaturev2) (bool, error) {
 	ringLen := len(lgrTxoList)
 	if ringLen == 0 {
-		return false
+		return false, nil
 	}
 	boundA := pp.paramEtaA - int64(pp.paramBetaA)
 	boundC := pp.paramEtaC - int64(pp.paramBetaC)
 	for j := 0; j < ringLen; j++ {
 		if pp.NTTInvPolyAVec(sig.z_as[j]).infNorm() > boundA {
-			return false
+			return false, nil
 		}
 		for tao := 0; tao < pp.paramK; tao++ {
 			if pp.NTTInvPolyCVec(sig.z_cs[j][tao]).infNorm() > boundC {
-				return false
+				return false, nil
 			}
 			if pp.NTTInvPolyCVec(sig.z_cps[j][tao]).infNorm() > boundC {
-				return false
+				return false, nil
 			}
 		}
 	}
@@ -1421,13 +1417,13 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 	for j := 0; j < ringLen; j++ {
 		tmpDA, err := pp.expandChallengeA(sig.seeds[j])
 		if err != nil {
-			return false
+			return false, err
 		}
 		da := pp.NTTPolyA(tmpDA)
 
 		tmpDC, err := pp.expandChallengeC(sig.seeds[j])
 		if err != nil {
-			return false
+			return false, err
 		}
 		dc := pp.NTTPolyC(tmpDC)
 
@@ -1438,6 +1434,10 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 			pp.paramKA,
 		)
 		// theta_a_j = <a,z_a_j> - d_a_j * (e_j + ExpandKIDR(txo[j]) - m_a_p)
+		lgrTxoH, err := pp.ExpandKIDR(lgrTxoList[j])
+		if err != nil {
+			return false, err
+		}
 		delta_as[j] = pp.PolyANTTSub(
 			pp.PolyANTTVecInnerProduct(pp.paramVecA, sig.z_as[j], pp.paramLA),
 			pp.PolyANTTMul(
@@ -1445,7 +1445,7 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 				pp.PolyANTTSub(
 					pp.PolyANTTAdd(
 						lgrTxoList[j].Txo.AddressPublicKey.e,
-						pp.ExpandKIDR(lgrTxoList[j]),
+						lgrTxoH,
 					),
 					ma_p,
 				),
@@ -1491,7 +1491,7 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 
 	seed_ch, err := Hash(pp.collectBytesForELRv2(lgrTxoList, ma_p, cmt_p, msg, w_as, delta_as, w_cs, w_cps, delta_cs))
 	if err != nil {
-		return false
+		return false, err
 	}
 	seedByteLen := len(seed_ch)
 	for j := 0; j < ringLen; j++ {
@@ -1501,13 +1501,13 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 	}
 	for i := 0; i < seedByteLen; i++ {
 		if seed_ch[i] != 0 {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
-func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDescv2) (cbTx *CoinbaseTxv2, err error) {
+func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDescv2, txMemo []byte) (cbTx *CoinbaseTxv2, err error) {
 	V := uint64(1)<<pp.paramN - 1
 
 	if vin >= V {
@@ -1524,6 +1524,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 	//	retcbTx.Version = 0 // todo: how to set and how to use the version? The bpf just care the content of cbTx?
 	retcbTx.Vin = vin
 	retcbTx.OutputTxos = make([]*Txo, J)
+	retcbTx.TxMemo = txMemo
 
 	cmts := make([]*ValueCommitment, J)
 	cmt_rs := make([]*PolyCNTTVec, J)
@@ -1556,28 +1557,32 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		return nil, errors.New("the output value exceeds the input value") // todo: more accurate info
 	}
 
-	//	todo: serialize	begin
-	cbTxCon := make([]byte, 0, 8)
-	tw := bytes.NewBuffer(cbTxCon)
-	tw.WriteByte(byte(vin >> 0))
-	tw.WriteByte(byte(vin >> 8))
-	tw.WriteByte(byte(vin >> 16))
-	tw.WriteByte(byte(vin >> 24))
-	tw.WriteByte(byte(vin >> 32))
-	tw.WriteByte(byte(vin >> 40))
-	tw.WriteByte(byte(vin >> 48))
-	tw.WriteByte(byte(vin >> 56))
-	for i := 0; i < J; i++ {
-		serializedTxo, err := pp.SerializeTxo(retcbTx.OutputTxos[i])
-		if err != nil {
-			return nil, err
-		}
-		_, err = tw.Write(serializedTxo)
-		if err != nil {
-			return nil, errors.New("error in serializing txo")
-		}
+	cbTxCon, err := pp.SerializeCoinbaseTx(retcbTx, false)
+	if err != nil {
+		return nil, err
 	}
-	//	todo: serialize	end
+	////	todo_done: serialize	begin
+	//cbTxCon := make([]byte, 0, 8)
+	//tw := bytes.NewBuffer(cbTxCon)
+	//tw.WriteByte(byte(vin >> 0))
+	//tw.WriteByte(byte(vin >> 8))
+	//tw.WriteByte(byte(vin >> 16))
+	//tw.WriteByte(byte(vin >> 24))
+	//tw.WriteByte(byte(vin >> 32))
+	//tw.WriteByte(byte(vin >> 40))
+	//tw.WriteByte(byte(vin >> 48))
+	//tw.WriteByte(byte(vin >> 56))
+	//for i := 0; i < J; i++ {
+	//	serializedTxo, err := pp.SerializeTxo(retcbTx.OutputTxos[i])
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	_, err = tw.Write(serializedTxo)
+	//	if err != nil {
+	//		return nil, errors.New("error in serializing txo")
+	//	}
+	//}
+	////	todo_done: serialize	end
 	if J == 1 {
 		// random from S_etaC^lc
 		ys := make([]*PolyCNTTVec, pp.paramK)
@@ -1749,28 +1754,28 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 }
 
 // CoinbaseTxVerify reports whether a coinbase transaction is legal.
-func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
+func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) (bool, error) {
 	if cbTx == nil {
-		return false
+		return false, nil
 	}
 
 	V := uint64(1)<<pp.paramN - 1
 
 	if cbTx.Vin > V {
-		return false
+		return false, nil
 	}
 
 	if cbTx.OutputTxos == nil || len(cbTx.OutputTxos) == 0 {
-		return false
+		return false, nil
 	}
 
 	if cbTx.TxWitnessJ1 == nil && cbTx.TxWitnessJ2 == nil {
-		return false
+		return false, nil
 	}
 
 	J := len(cbTx.OutputTxos)
 	if J > pp.paramJ {
-		return false
+		return false, nil
 	}
 
 	/*	// todo_DONE: check no repeated dpk in cbTx.OutputTxos
@@ -1784,45 +1789,50 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 		}*/
 	// todo: check cbTx.OutputTxos[j].cmt is well-formed
 
-	// todo: call serializer begin
-	cbTxCon := make([]byte, 0, 8)
-	tw := bytes.NewBuffer(cbTxCon)
-	tw.WriteByte(byte(cbTx.Vin >> 0))
-	tw.WriteByte(byte(cbTx.Vin >> 8))
-	tw.WriteByte(byte(cbTx.Vin >> 16))
-	tw.WriteByte(byte(cbTx.Vin >> 24))
-	tw.WriteByte(byte(cbTx.Vin >> 32))
-	tw.WriteByte(byte(cbTx.Vin >> 40))
-	tw.WriteByte(byte(cbTx.Vin >> 48))
-	tw.WriteByte(byte(cbTx.Vin >> 56))
-	for i := 0; i < J; i++ {
-		serializedTxo, err := pp.SerializeTxo(cbTx.OutputTxos[i])
-		if err != nil {
-			log.Fatalln(err)
-			return false
-		}
-		_, err = tw.Write(serializedTxo)
-		if err != nil {
-			log.Fatalf("error in serializing txo")
-			return false
-		}
+	cbTxCon, err := pp.SerializeCoinbaseTx(cbTx, false)
+	if err != nil {
+		return false, err
 	}
-	// todo: call serializer end
+	//// todo_done: call serializer begin
+	//cbTxCon := make([]byte, 0, 8)
+	//tw := bytes.NewBuffer(cbTxCon)
+	//tw.WriteByte(byte(cbTx.Vin >> 0))
+	//tw.WriteByte(byte(cbTx.Vin >> 8))
+	//tw.WriteByte(byte(cbTx.Vin >> 16))
+	//tw.WriteByte(byte(cbTx.Vin >> 24))
+	//tw.WriteByte(byte(cbTx.Vin >> 32))
+	//tw.WriteByte(byte(cbTx.Vin >> 40))
+	//tw.WriteByte(byte(cbTx.Vin >> 48))
+	//tw.WriteByte(byte(cbTx.Vin >> 56))
+	//for i := 0; i < J; i++ {
+	//	serializedTxo, err := pp.SerializeTxo(cbTx.OutputTxos[i])
+	//	if err != nil {
+	//		log.Fatalln(err)
+	//		return false
+	//	}
+	//	_, err = tw.Write(serializedTxo)
+	//	if err != nil {
+	//		log.Fatalf("error in serializing txo")
+	//		return false
+	//	}
+	//}
+	//// todo_done: call serializer end
+
 	if J == 1 {
 		if cbTx.TxWitnessJ1.zs == nil || len(cbTx.TxWitnessJ1.chseed) == 0 {
-			return false
+			return false, nil
 		}
 		// todo check the well-form of chseed
 
 		// check the well-formof zs
 		if len(cbTx.TxWitnessJ1.zs) != pp.paramK {
-			return false
+			return false, nil
 		}
 		// infNorm of z^t
 		bound := pp.paramEtaC - int64(pp.paramBetaC)
 		for t := 0; t < pp.paramK; t++ {
 			if pp.NTTInvPolyCVec(cbTx.TxWitnessJ1.zs[t]).infNorm() > bound {
-				return false
+				return false, nil
 			}
 		}
 
@@ -1831,7 +1841,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 
 		chtmp, err := pp.expandChallengeC(cbTx.TxWitnessJ1.chseed)
 		if err != nil {
-			return false
+			return false, err
 		}
 		ch := pp.NTTPolyC(chtmp)
 		mtmp := intToBinary(cbTx.Vin, pp.paramDC)
@@ -1856,28 +1866,28 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 
 		seed_ch, err := Hash(pp.collectBytesForCoinbase1(cbTxCon, ws, deltas))
 		if err != nil {
-			return false
+			return false, err
 		}
 		if bytes.Compare(seed_ch, cbTx.TxWitnessJ1.chseed) != 0 {
-			return false
+			return false, nil
 		}
 	} else {
 		// check the well-formness of cbTx.TxWitness
 		if cbTx.TxWitnessJ2.b_hat == nil || cbTx.TxWitnessJ2.c_hats == nil || cbTx.TxWitnessJ2.u_p == nil || cbTx.TxWitnessJ2.rpulpproof == nil {
-			return false
+			return false, nil
 		}
 
 		n := J
 		n2 := J + 2
 
 		if len(cbTx.TxWitnessJ2.c_hats) != n2 {
-			return false
+			return false, nil
 		}
 
 		//	infNorm of u'
 		infNorm := int64(0)
 		if len(cbTx.TxWitnessJ2.u_p) != pp.paramDC {
-			return false
+			return false, nil
 		}
 		for i := 0; i < pp.paramDC; i++ {
 			infNorm = cbTx.TxWitnessJ2.u_p[i]
@@ -1886,17 +1896,17 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 			}
 
 			if infNorm >= (pp.paramEtaF - int64(J-1)) { // todo: q/12 or eta_f - (J-1)
-				return false
+				return false, nil
 			}
 		}
 
 		seed_binM, err := Hash(pp.collectBytesForCoinbase2(cbTxCon, cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
-			return false
+			return false, nil
 		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, pp.paramDC)
 		if err != nil {
-			return false
+			return false, nil
 		}
 
 		u_hats := make([][]int64, 3)
@@ -1911,10 +1921,10 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) bool {
 
 		n1 := n
 		flag := pp.rpulpVerify(cbTxCon, cmts, n, cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats, n2, n1, RpUlpTypeCbTx2, binM, 0, J, 3, u_hats, cbTx.TxWitnessJ2.rpulpproof)
-		return flag
+		return flag, nil
 	}
 
-	return true
+	return true, nil
 }
 
 func (pp *PublicParameter) collectBytesForCoinbase1(premsg []byte, ws []*PolyCNTTVec, deltas []*PolyCNTT) []byte {
@@ -1976,6 +1986,8 @@ func (pp *PublicParameter) collectBytesForCoinbase2(premsg []byte, b_hat *PolyCN
 	return res
 }
 
+// TransferTxGen() generates Transfer Transaction.
+// todo: defined as not-exported. By design, only the functions in api.go are exported.
 func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDescs []*TxOutputDescv2, fee uint64, txMemo []byte) (trTx *TransferTxv2, err error) {
 	//	check the well-formness of the inputs and outputs
 	if len(inputDescs) == 0 || len(outputDescs) == 0 {
@@ -2008,7 +2020,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		}
 
 		if outputDescItem.serializedAPk == nil || outputDescItem.serializedVPk == nil {
-			return nil, errors.New("the address public key or value publci key is nil")
+			return nil, errors.New("the address public key or value public key is nil")
 		}
 		apks[i], err = pp.DeserializeAddressPublicKey(outputDescItem.serializedAPk)
 		if err != nil || apks[i] == nil {
@@ -2032,16 +2044,16 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 			return nil, errors.New("the value is more than max value")
 		}
 
-		if len(inputDescItem.txoList) == 0 {
+		if len(inputDescItem.lgrTxoList) == 0 {
 			return nil, errors.New("the transaction output list is empty")
 		}
-		if inputDescItem.sidx < 0 || inputDescItem.sidx >= len(inputDescItem.txoList) {
+		if inputDescItem.sidx < 0 || inputDescItem.sidx >= len(inputDescItem.lgrTxoList) {
 			return nil, errors.New("the index is not suitable")
 		}
-		/*		if inputDescItem.txoList[inputDescItem.sidx].ask == nil || inputDescItem.sk == nil {
+		/*		if inputDescItem.lgrTxoList[inputDescItem.sidx].ask == nil || inputDescItem.sk == nil {
 				return nil, errors.New("some information is empty")
 			}*/
-		if inputDescItem.txoList[inputDescItem.sidx].Txo.AddressPublicKey == nil || inputDescItem.serializedASksp == nil || inputDescItem.txoList[inputDescItem.sidx].Txo.ValueCommitment == nil {
+		if inputDescItem.lgrTxoList[inputDescItem.sidx].Txo.AddressPublicKey == nil || inputDescItem.serializedASksp == nil || inputDescItem.lgrTxoList[inputDescItem.sidx].Txo.ValueCommitment == nil {
 			return nil, errors.New("some information is empty")
 		}
 		asks[i] = &AddressSecretKey{}
@@ -2054,12 +2066,12 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 			return nil, err
 		}
 
-		if asks[i].CheckMatchPublciKey(inputDescItem.txoList[inputDescItem.sidx].Txo.AddressPublicKey, pp) == false {
+		if asks[i].CheckMatchPublciKey(inputDescItem.lgrTxoList[inputDescItem.sidx].Txo.AddressPublicKey, pp) == false {
 			return nil, errors.New("the address secret key and correspdong public key does not match")
 		}
 
 		// run kem.decaps to get kappa
-		kappa, err := pqringctkem.Decaps(pp.paramKem, inputDescItem.txoList[inputDescItem.sidx].Txo.CkemSerialzed, inputDescItem.serializedVSk)
+		kappa, err := pqringctkem.Decaps(pp.paramKem, inputDescItem.lgrTxoList[inputDescItem.sidx].Txo.CkemSerialzed, inputDescItem.serializedVSk)
 		if err != nil {
 			return nil, err
 		}
@@ -2078,11 +2090,11 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 			&PolyCNTT{msgs_in[i]})
 
 		// and check the validity
-		if !pp.PolyCNTTVecEqualCheck(b, inputDescItem.txoList[inputDescItem.sidx].Txo.b) {
+		if !pp.PolyCNTTVecEqualCheck(b, inputDescItem.lgrTxoList[inputDescItem.sidx].Txo.b) {
 			return nil, errors.New("fail to receive some transaction output : the computed commitment is not equal to input")
 		}
 
-		if !pp.PolyCNTTEqualCheck(c, inputDescItem.txoList[inputDescItem.sidx].Txo.c) {
+		if !pp.PolyCNTTEqualCheck(c, inputDescItem.lgrTxoList[inputDescItem.sidx].Txo.c) {
 			return nil, errors.New("fail to receive some transaction output : the computed commitment is not equal to input")
 		}
 	}
@@ -2112,11 +2124,19 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 	cmtr_ps := make([]*PolyCNTTVec, I)
 	for i := 0; i < I; i++ {
 		// extract this as a function named ledgerTxoSerialNumberCompute
-		m_r := pp.ExpandKIDR(inputDescs[i].txoList[inputDescs[i].sidx])
+		//m_r := pp.ExpandKIDR(inputDescs[i].lgrTxoList[inputDescs[i].sidx])
+		m_r, err := pp.ExpandKIDR(inputDescs[i].lgrTxoList[inputDescs[i].sidx])
+		if err != nil {
+			return nil, err
+		}
+
 		ma_ps[i] = pp.PolyANTTAdd(asks[i].ma, m_r)
-		sn := pp.ledgerTxoSerialNumberCompute(ma_ps[i])
+		sn, err := pp.ledgerTxoSerialNumberCompute(ma_ps[i])
+		if err != nil {
+			return nil, err
+		}
 		rettrTx.Inputs[i] = &TrTxInputv2{
-			TxoList:      inputDescs[i].txoList,
+			TxoList:      inputDescs[i].lgrTxoList,
 			SerialNumber: sn,
 		}
 
@@ -2150,7 +2170,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 
 	elrsSigs := make([]*elrsSignaturev2, I)
 	for i := 0; i < I; i++ {
-		elrsSigs[i], err = pp.ELRSSign(inputDescs[i].txoList, ma_ps[i], cmt_ps[i], msgTrTxCon,
+		elrsSigs[i], err = pp.ELRSSign(inputDescs[i].lgrTxoList, ma_ps[i], cmt_ps[i], msgTrTxCon,
 			inputDescs[i].sidx, asks[i].s, cmtrs_in[i], cmtr_ps[i])
 		if err != nil {
 			return nil, errors.New("fail to generate the extend linkable signature")
@@ -2229,8 +2249,12 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int64, pp.paramDC)
-		u_p_temp := make([]int64, pp.paramDC)                                         // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		seed_binM, err := Hash(pp.collectBytesForTransfer(msgTrTxCon, b_hat, c_hats)) // todo:20220317
+		u_p_temp := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		preMsg, err := pp.collectBytesForTransfer(msgTrTxCon, b_hat, c_hats)
+		if err != nil {
+			return nil, err
+		}
+		seed_binM, err := Hash(preMsg)
 		if err != nil {
 			return nil, err
 		}
@@ -2341,8 +2365,12 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 
 		// todo: check the scope of u_p in theory
 		u_p := make([]int64, pp.paramDC)
-		u_p_temp := make([]int64, pp.paramDC)                                         // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		seed_binM, err := Hash(pp.collectBytesForTransfer(msgTrTxCon, b_hat, c_hats)) // todo: confirm 20220317
+		u_p_temp := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		preMsg, err := pp.collectBytesForTransfer(msgTrTxCon, b_hat, c_hats)
+		if err != nil {
+			return nil, err
+		}
+		seed_binM, err := Hash(preMsg)
 		if err != nil {
 			return nil, err
 		}
@@ -2419,19 +2447,19 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 }
 
 // TransferTxVerify reports whether a transfer transaction is legal.
-func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
+func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) (bool, error) {
 	if trTx == nil {
-		return false
+		return false, nil
 	}
 
 	I := len(trTx.Inputs)
 	J := len(trTx.OutputTxos)
 
 	if I <= 0 || I > pp.paramI {
-		return false
+		return false, nil
 	}
 	if J <= 0 || J > pp.paramJ {
-		return false
+		return false, nil
 	}
 
 	//	todo: check the well-form of TxWitness
@@ -2439,7 +2467,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 	//	check the ring signatures
 	msgTrTxCon, err := pp.SerializeTransferTx(trTx, false)
 	if msgTrTxCon == nil || err != nil {
-		return false
+		return false, nil
 	}
 	/*	msgTrTxConHash, err := Hash(msgTrTxCon)
 		if err != nil {
@@ -2447,13 +2475,20 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 		}*/
 	for i := 0; i < I; i++ {
 		//	check the validity of sigma_{lrs,i}
-		sn := pp.ledgerTxoSerialNumberCompute(trTx.TxWitness.ma_ps[i])
+		sn, err := pp.ledgerTxoSerialNumberCompute(trTx.TxWitness.ma_ps[i])
+		if err != nil {
+			return false, err
+		}
 		if !bytes.Equal(trTx.Inputs[i].SerialNumber, sn) {
-			return false
+			return false, nil
 		}
 
-		if !pp.ELRSVerify(trTx.Inputs[i].TxoList, trTx.TxWitness.ma_ps[i], trTx.TxWitness.cmt_ps[i], msgTrTxCon, trTx.TxWitness.elrsSigs[i]) {
-			return false
+		elrsValid, err := pp.ELRSVerify(trTx.Inputs[i].TxoList, trTx.TxWitness.ma_ps[i], trTx.TxWitness.cmt_ps[i], msgTrTxCon, trTx.TxWitness.elrsSigs[i])
+		if err != nil {
+			return false, err
+		}
+		if !elrsValid {
+			return false, nil
 		}
 	}
 
@@ -2482,17 +2517,21 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 				infNorm = -infNorm
 			}
 			if infNorm > (pp.paramEtaF - int64(betaF)) {
-				return false
+				return false, nil
 			}
 		}
 
-		seed_binM, err := Hash(pp.collectBytesForTransfer(msgTrTxCon, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		preMsg, err := pp.collectBytesForTransfer(msgTrTxCon, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats)
 		if err != nil {
-			return false
+			return false, err
+		}
+		seed_binM, err := Hash(preMsg) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		if err != nil {
+			return false, err
 		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, pp.paramDC)
 		if err != nil {
-			return false
+			return false, err
 		}
 
 		u_hats := make([][]int64, 3)
@@ -2505,7 +2544,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 
 		flag := pp.rpulpVerify(msgTrTxCon, cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx1, binM, I, J, 3, u_hats, trTx.TxWitness.rpulpproof)
 		if !flag {
-			return false
+			return false, nil
 		}
 	} else {
 		//	I >= 2
@@ -2525,14 +2564,18 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 				infNorm = -infNorm
 			}
 			if infNorm > (pp.paramEtaF - int64(betaF)) {
-				return false
+				return false, nil
 			}
 		}
 
-		seed_binM, err := Hash(pp.collectBytesForTransfer(msgTrTxCon, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
+		preMsg, err := pp.collectBytesForTransfer(msgTrTxCon, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats)
+		if err != nil {
+			return false, nil
+		}
+		seed_binM, err := Hash(preMsg) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, 2*pp.paramDC)
 		if err != nil {
-			return false
+			return false, nil
 		}
 
 		u_hats := make([][]int64, 5)
@@ -2553,66 +2596,80 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) bool {
 
 		flag := pp.rpulpVerify(msgTrTxCon, cmts, n, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, n2, n1, RpUlpTypeTrTx2, binM, I, J, 5, u_hats, trTx.TxWitness.rpulpproof)
 		if !flag {
-			return false
+			return false, nil
 		}
 	}
 
-	return true
+	return true, nil
 }
 
-// todo: add input premsg
-func (pp *PublicParameter) collectBytesForTransfer(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
-	res := make([]byte, pp.paramKC*pp.paramDC*4+pp.paramDC*4*len(c_hats))
+func (pp *PublicParameter) collectBytesForTransfer(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) ([]byte, error) {
+	res := make([]byte, len(premsg)+pp.PolyCNTTVecSerializeSize(b_hat)+len(c_hats)*pp.PolyCNTTSerializeSize())
 	w := bytes.NewBuffer(res)
-	//	todo: encaps to a fucntion, say SerializePolyCNTT
-	appendPolyCNTTToBytes := func(a *PolyCNTT) {
-		for k := 0; k < pp.paramDC; k++ {
-			w.WriteByte(byte(a.coeffs[k] >> 0))
-			w.WriteByte(byte(a.coeffs[k] >> 8))
-			w.WriteByte(byte(a.coeffs[k] >> 16))
-			w.WriteByte(byte(a.coeffs[k] >> 24))
-			w.WriteByte(byte(a.coeffs[k] >> 32))
-			w.WriteByte(byte(a.coeffs[k] >> 40))
-			w.WriteByte(byte(a.coeffs[k] >> 48))
-			w.WriteByte(byte(a.coeffs[k] >> 56))
-		}
-	}
+
 	// premsg
-	w.Write(premsg)
-	// b_hat
-	for i := 0; i < pp.paramKC; i++ {
-		appendPolyCNTTToBytes(b_hat.polyCNTTs[i])
+	_, err := w.Write(premsg)
+	if err != nil {
+		return nil, err
 	}
+
+	// b_hat
+	err = pp.writePolyCNTTVec(w, b_hat)
+	if err != nil {
+		return nil, err
+	}
+
 	// c_hats
 	for i := 0; i < len(c_hats); i++ {
-		appendPolyCNTTToBytes(c_hats[i])
+		err = pp.writePolyCNTT(w, c_hats[i])
+		if err != nil {
+			return nil, err
+		}
 	}
-	return res
+	return w.Bytes(), nil
 }
 
 func (pp *PublicParameter) LedgerTxoSerialNumberSerializeSize() int {
 	return HashBytesLen
 }
-func (pp *PublicParameter) ledgerTxoSerialNumberCompute(a *PolyANTT) []byte {
-	tmp := make([]byte, pp.paramDA*8)
-	for k := 0; k < pp.paramDA; k++ {
-		tmp = append(tmp, byte(a.coeffs[k]>>0))
-		tmp = append(tmp, byte(a.coeffs[k]>>8))
-		tmp = append(tmp, byte(a.coeffs[k]>>16))
-		tmp = append(tmp, byte(a.coeffs[k]>>24))
-		tmp = append(tmp, byte(a.coeffs[k]>>32))
-		tmp = append(tmp, byte(a.coeffs[k]>>40))
-		tmp = append(tmp, byte(a.coeffs[k]>>48))
-		tmp = append(tmp, byte(a.coeffs[k]>>56))
-	}
-	res, err := Hash(tmp)
+
+// ledgerTxoSerialNumberCompute() compute the serial number for a PolyANTT.
+func (pp *PublicParameter) ledgerTxoSerialNumberCompute(a *PolyANTT) ([]byte, error) {
+	res := make([]byte, pp.PolyANTTSerializeSize())
+	w := bytes.NewBuffer(res)
+
+	err := pp.writePolyANTT(w, a)
 	if err != nil {
-		log.Fatalln("Error call Hash() in ledgerTxoSerialNumberCompute")
+		return nil, err
 	}
-	return res
+
+	sn, err := Hash(w.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	return sn, nil
+
+	//tmp := make([]byte, pp.paramDA*8)
+	//for k := 0; k < pp.paramDA; k++ {
+	//	tmp = append(tmp, byte(a.coeffs[k]>>0))
+	//	tmp = append(tmp, byte(a.coeffs[k]>>8))
+	//	tmp = append(tmp, byte(a.coeffs[k]>>16))
+	//	tmp = append(tmp, byte(a.coeffs[k]>>24))
+	//	tmp = append(tmp, byte(a.coeffs[k]>>32))
+	//	tmp = append(tmp, byte(a.coeffs[k]>>40))
+	//	tmp = append(tmp, byte(a.coeffs[k]>>48))
+	//	tmp = append(tmp, byte(a.coeffs[k]>>56))
+	//}
+	//res, err := Hash(tmp)
+	//if err != nil {
+	//	log.Fatalln("Error call Hash() in ledgerTxoSerialNumberCompute")
+	//}
+	//return res
 }
 
-func (pp *PublicParameter) TxoCoinReceive(txo *Txo, address []byte, serializedVSk []byte) (valid bool, v uint64, err error) {
+//	pqringct uses Kyber, where serializedVPk can be computed from serializedVSk, so that here serializedVPk is not used when calling pqringctkem.Decaps.
+func (pp *PublicParameter) TxoCoinReceive(txo *Txo, serializedAPk []byte, serializedVPk []byte, serializedVSk []byte) (valid bool, v uint64, err error) {
 	if txo == nil {
 		return false, 0, errors.New("nil txo in TxoCoinReceive")
 	}
@@ -2620,12 +2677,12 @@ func (pp *PublicParameter) TxoCoinReceive(txo *Txo, address []byte, serializedVS
 		return false, 0, errors.New("length of txo.Vct does not match the design")
 	}
 
-	txoAddress, err := pp.SerializeAddressPublicKey(txo.AddressPublicKey)
+	apkInTxo, err := pp.SerializeAddressPublicKey(txo.AddressPublicKey)
 	if err != nil {
 		return false, 0, err
 		//log.Fatalln(err)
 	}
-	if !bytes.Equal(txoAddress, address) {
+	if !bytes.Equal(apkInTxo, serializedAPk) {
 		return false, 0, nil
 	}
 
@@ -2676,24 +2733,32 @@ func (pp *PublicParameter) TxoCoinReceive(txo *Txo, address []byte, serializedVS
 
 }
 
-func (pp *PublicParameter) LedgerTXOSerialNumberGen(serializedTxo []byte, txolid []byte, skma []byte) []byte {
-	txo, err := pp.DeserializeTxo(serializedTxo)
-	if err != nil {
-		return nil
-	}
-	lgrTxo := &LgrTxo{
-		Txo: txo,
-		Id:  txolid,
-	}
-	m_r := pp.ExpandKIDR(lgrTxo)
+//	ledgerTXOSerialNumberGen() generates serial number for a ledger-txo, say a (txo, txolid) pair.
+func (pp *PublicParameter) ledgerTXOSerialNumberGen(lgrTxo *LgrTxo, serializedAsksn []byte) ([]byte, error) {
+	//txo, err := pp.DeserializeTxo(serializedTxo)
+	//if err != nil {
+	//	return nil, err
+	//}
 
-	r := bytes.NewReader(skma)
+	//lgrTxo := &LgrTxo{
+	//	Txo: txo,
+	//	Id:  txolid,
+	//}
+	m_r, err := pp.ExpandKIDR(lgrTxo)
+	if err != nil {
+		return nil, err
+	}
+
+	r := bytes.NewReader(serializedAsksn)
 	ma, err := pp.readPolyANTT(r)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	ma_p := pp.PolyANTTAdd(ma, m_r)
-	sn := pp.ledgerTxoSerialNumberCompute(ma_p)
-	return sn[:]
+	sn, err := pp.ledgerTxoSerialNumberCompute(ma_p)
+	if err != nil {
+		return nil, err
+	}
+	return sn, nil
 }
