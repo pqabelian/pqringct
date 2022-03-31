@@ -1,7 +1,11 @@
 package pqringct
 
-import (
-	"github.com/cryptosuite/pqringct/pqringctkem"
+const (
+	//	PQRingCT, 2022.03.31
+	TxoSerializeSizeMaxAllowed          = 1048576 //1024*1024*1, 1M bytes
+	SerialNumberSerializeSizeMaxAllowed = 128     // 128 bytes
+	TxMemoSerializeSizeMaxAllowed       = 1024    // 1024 bytes
+	TxWitnessSerializeSizeMaxAllowed    = 8388608 //1024*1024*8, 8M bytes
 )
 
 func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, error) {
@@ -26,7 +30,6 @@ func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, er
 	return serializedAPk, serializedASksp, serializedASksn, nil
 }
 
-// TODO: split the ask to two parts as asksn and asksp? but how to do this?
 //	ask = (s, m_a), apk = (t = As, e = <a,s>+m_a). s is asksp, m_a is asksn
 func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 	vpk, vsk, err := pp.ValueKeyGen(seed)
@@ -175,7 +178,7 @@ func GetTxoSerializeSizeApprox(pp *PublicParameter) int {
 	return pp.TxoSerializeSize()
 }
 
-func (pp *PublicParameter) GetCoinbaseTxWitnessSerializeSizeApprox(outTxoNum int) int {
+func GetCbTxWitnessSerializeSizeApprox(pp *PublicParameter, outTxoNum int) int {
 	if outTxoNum == 0 {
 		return 0
 	}
@@ -191,97 +194,8 @@ func (pp *PublicParameter) GetCoinbaseTxWitnessSerializeSizeApprox(outTxoNum int
 	return 0
 }
 
+func GetTrTxWitnessSerializeSizeApprox(pp *PublicParameter, inputRingSizes []int, outputTxoNum int) int {
+	return pp.TrTxWitnessSerializeSizeApprox(inputRingSizes, outputTxoNum)
+}
+
 //	approximate Size end
-
-func (pp *PublicParameter) GetTrTxWitnessMaxLen() int {
-	maxOutNum := pp.paramJ
-	lenApprox := pp.boundingVecCSerializeSizeApprox() +
-		1 + (maxOutNum+2)*pp.PolyCNTTSerializeSize() +
-		1 + pp.paramDC*8 +
-		1 + maxOutNum*pp.PolyCNTTSerializeSize() + 3*pp.PolyCNTTSerializeSize() +
-		pp.challengeSeedCSerializeSizeApprox() +
-		1 + (maxOutNum)*pp.responseCSerializeSizeApprox() +
-		pp.responseCSerializeSizeApprox()
-	return lenApprox
-}
-
-// TODO(20220320) check the length right?
-func (pp *PublicParameter) GetTrTxWitnessSerializeSize(inputRingSizes []int, outputTxoNum int) int {
-	inputNum := len(inputRingSizes)
-	length := VarIntSerializeSize2(uint64(inputNum)) + inputNum*pp.PolyANTTSerializeSize() + // ma_ps      []*PolyANTT
-		VarIntSerializeSize2(uint64(inputNum)) + inputNum*pp.ValueCommitmentSerializeSize() // cmt_ps     []*ValueCommitment
-
-	// elrsSigs   []*elrsSignaturev2
-	sigLen := 0
-	length += VarIntSerializeSize2(uint64(inputNum))
-	for i := 0; i < inputNum; i++ {
-		// sigLen := pp.ElrsSignatureSerializeSize(witness.elrsSigs[i])
-		// seeds [][]byte
-		length = VarIntSerializeSize2(uint64(inputRingSizes[i]))
-		for j := 0; j < inputRingSizes[i]; j++ {
-			length += VarIntSerializeSize2(uint64(HashBytesLen)) + HashBytesLen
-		}
-		//z_as  []*PolyANTTVec
-		length += VarIntSerializeSize2(uint64(inputRingSizes[i]))
-		for j := 0; j < inputRingSizes[i]; j++ {
-			length += VarIntSerializeSize2(uint64(pp.paramLA)) + pp.paramLA*pp.PolyANTTSerializeSize()
-		}
-		//z_cs  [][]*PolyCNTTVec
-		length += VarIntSerializeSize2(uint64(inputRingSizes[i]))
-		for j := 0; j < inputRingSizes[i]; j++ {
-			length += VarIntSerializeSize2(uint64(pp.paramK))
-			for k := 0; k < pp.paramK; k++ {
-				length += VarIntSerializeSize2(uint64(pp.paramLC)) + pp.paramLC*pp.PolyCNTTSerializeSize()
-			}
-		}
-		//z_cps [][]*PolyCNTTVec
-		length += VarIntSerializeSize2(uint64(inputRingSizes[i]))
-		for j := 0; j < inputRingSizes[i]; j++ {
-			length += VarIntSerializeSize2(uint64(pp.paramK))
-			for k := 0; k < pp.paramK; j++ {
-				length += VarIntSerializeSize2(uint64(pp.paramLC)) + pp.paramLC*pp.PolyCNTTSerializeSize()
-			}
-		}
-		length += VarIntSerializeSize2(uint64(sigLen)) + sigLen
-	}
-
-	length += VarIntSerializeSize2(uint64(pp.paramKC)) + pp.paramKC*pp.PolyCNTTSerializeSize() + //b_hat      *PolyCNTTVec
-		VarIntSerializeSize2(uint64(inputNum+outputTxoNum+2)) + (inputNum+outputTxoNum+2)*pp.PolyCNTTSerializeSize() + //c_hats     []*PolyCNTT
-		VarIntSerializeSize2(uint64(pp.paramDC)) + pp.paramDC*8 //u_p        []int64
-
-	//rpulpproof *rpulpProofv2
-	rpfLen := 0
-	for i := 0; i < len(inputRingSizes); i++ {
-		lengthOfPolyCNTT := pp.PolyCNTTSerializeSize()
-		rpfLen += VarIntSerializeSize2(uint64(inputRingSizes[i]+outputTxoNum)) + (inputRingSizes[i]+outputTxoNum)*lengthOfPolyCNTT + // c_waves []*PolyCNTT
-			+3*lengthOfPolyCNTT + //c_hat_g,psi,phi  *PolyCNTT
-			VarIntSerializeSize2(uint64(HashBytesLen)) + HashBytesLen //chseed  []byte
-		//cmt_zs  [][]*PolyCNTTVec
-		rpfLen += VarIntSerializeSize2(uint64(pp.paramK))
-		for j := 0; j < pp.paramK; j++ {
-			rpfLen += VarIntSerializeSize2(uint64(inputRingSizes[i] + outputTxoNum))
-			for k := 0; k < (inputRingSizes[i] + outputTxoNum); k++ {
-				rpfLen += VarIntSerializeSize2(uint64(pp.paramLC)) + pp.paramLC*pp.PolyCNTTSerializeSize()
-			}
-		}
-		//zs      []*PolyCNTTVec
-		rpfLen += VarIntSerializeSize2(uint64(pp.paramK))
-		for j := 0; j < pp.paramK; j++ {
-			rpfLen += VarIntSerializeSize2(uint64(pp.paramLC)) + pp.paramLC*pp.PolyCNTTSerializeSize()
-		}
-	}
-	length += VarIntSerializeSize2(uint64(rpfLen)) + rpfLen
-
-	return length
-}
-
-func (pp *PublicParameter) GetTxMemoMaxLen() int {
-	return 56
-}
-
-func (pp *PublicParameter) GetValuePublicKeySerializeSize() int {
-	return pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
-}
-func (pp *PublicParameter) GetAddressPublicKeySerializeSize() int {
-	return pp.AddressPublicKeySerializeSize()
-}
