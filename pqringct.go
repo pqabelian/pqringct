@@ -308,7 +308,7 @@ package pqringct
 //}*/
 //
 //type TxInputDesc struct {
-//	txoList []*TXO
+//	lgrTxoList []*TXO
 //	sidx    int
 //	mpk     *MasterPublicKey
 //	msvk    *MasterSecretViewKey
@@ -941,10 +941,10 @@ package pqringct
 //			return nil, errors.New("the value is more than max value")
 //		}
 //
-//		if len(inputDescItem.txoList) == 0 {
+//		if len(inputDescItem.lgrTxoList) == 0 {
 //			return nil, errors.New("the transaction output list is empty")
 //		}
-//		if inputDescItem.sidx < 0 || inputDescItem.sidx >= len(inputDescItem.txoList) {
+//		if inputDescItem.sidx < 0 || inputDescItem.sidx >= len(inputDescItem.lgrTxoList) {
 //			return nil, errors.New("the index is not suitable")
 //		}
 //		if inputDescItem.mpk == nil || inputDescItem.msvk == nil || inputDescItem.mssk == nil {
@@ -955,15 +955,15 @@ package pqringct
 //			return nil, errors.New("the master view key is not well-formed")
 //		}
 //
-//		b, v := pp.TxoCoinReceive(inputDescItem.txoList[inputDescItem.sidx], inputDescItem.mpk, inputDescItem.msvk)
+//		b, v := pp.TxoCoinReceive(inputDescItem.lgrTxoList[inputDescItem.sidx], inputDescItem.mpk, inputDescItem.msvk)
 //		if b == false || v != inputDescItem.value {
 //			return nil, errors.New("fail to receive some transaction output")
 //		}
 //
-//		//	check no repeated dpk in inputDescItem.txoList
+//		//	check no repeated dpk in inputDescItem.lgrTxoList
 //		var mapDpk map[*DerivedPubKey]struct{}
 //		mapDpk = make(map[*DerivedPubKey]struct{})
-//		for _, txo := range inputDescItem.txoList {
+//		for _, txo := range inputDescItem.lgrTxoList {
 //			_, ok := mapDpk[txo.dpk]
 //			if ok {
 //				return nil, errors.New("there are repeated derived public key")
@@ -972,16 +972,16 @@ package pqringct
 //		}
 //		txoListMap[index] = mapDpk
 //		// todo_DONE
-//		//	check inputDescItem[i].txoList[inputDescItem[i].sidx].dpk \neq inputDescItem[j].txoList[inputDescItem[j].sidx].dpk
-//		if _, ok := dpkMap[inputDescItem.txoList[inputDescItem.sidx].dpk]; !ok {
-//			dpkMap[inputDescItem.txoList[inputDescItem.sidx].dpk] = struct{}{}
+//		//	check inputDescItem[i].lgrTxoList[inputDescItem[i].sidx].dpk \neq inputDescItem[j].lgrTxoList[inputDescItem[j].sidx].dpk
+//		if _, ok := dpkMap[inputDescItem.lgrTxoList[inputDescItem.sidx].dpk]; !ok {
+//			dpkMap[inputDescItem.lgrTxoList[inputDescItem.sidx].dpk] = struct{}{}
 //		} else {
 //			return nil, errors.New("the same derived public key in the input")
 //		}
-//		//	TODO check (inputDescItem[i].txoList == inputDescItem[j].txoList) or (inputDescItem[i].txoList \cap inputDescItem[j].txoList = \emptyset)
-//		for i := 0; i < len(inputDescItem.txoList); i++ {
+//		//	TODO check (inputDescItem[i].lgrTxoList == inputDescItem[j].lgrTxoList) or (inputDescItem[i].lgrTxoList \cap inputDescItem[j].lgrTxoList = \emptyset)
+//		for i := 0; i < len(inputDescItem.lgrTxoList); i++ {
 //			for j := 0; j < index; j++ {
-//				if _, ok := txoListMap[j][inputDescItem.txoList[i].dpk]; ok {
+//				if _, ok := txoListMap[j][inputDescItem.lgrTxoList[i].dpk]; ok {
 //					return nil, errors.New("the intersection of txo list is not empty")
 //				}
 //
@@ -1024,8 +1024,8 @@ package pqringct
 //
 //	for i := 0; i < I; i++ {
 //		rettrTx.Inputs[i] = new(TrTxInput)
-//		rettrTx.Inputs[i].TxoList = inputDescs[i].txoList
-//		rettrTx.Inputs[i].SerialNumber, err = pp.TxoSerialNumberGen(inputDescs[i].txoList[inputDescs[i].sidx], inputDescs[i].mpk, inputDescs[i].msvk, inputDescs[i].mssk)
+//		rettrTx.Inputs[i].TxoList = inputDescs[i].lgrTxoList
+//		rettrTx.Inputs[i].SerialNumber, err = pp.TxoSerialNumberGen(inputDescs[i].lgrTxoList[inputDescs[i].sidx], inputDescs[i].mpk, inputDescs[i].msvk, inputDescs[i].mssk)
 //		if err != nil {
 //			return nil, err
 //		}
@@ -1046,8 +1046,8 @@ package pqringct
 //	for i := 0; i < I; i++ {
 //		msg_hats[i] = intToBinary(inputDescs[i].value, pp.paramDC)
 //
-//		//	dpk = inputDescs[i].txoList[inputDescs[i].sidx].dpk = (C, t)
-//		kappa := inputDescs[i].msvk.skkem.CryptoKemDec(inputDescs[i].txoList[inputDescs[i].sidx].dpk.ckem)
+//		//	dpk = inputDescs[i].lgrTxoList[inputDescs[i].sidx].dpk = (C, t)
+//		kappa := inputDescs[i].msvk.skkem.CryptoKemDec(inputDescs[i].lgrTxoList[inputDescs[i].sidx].dpk.ckem)
 //
 //		satmp, err := pp.expandRandomnessA(kappa)
 //		if err != nil {
@@ -1081,16 +1081,16 @@ package pqringct
 //
 //		t_c_p := cmtps[i].toPolyNTTVec()
 //
-//		ringSize := len(inputDescs[i].txoList)
+//		ringSize := len(inputDescs[i].lgrTxoList)
 //		t_as := make([]*PolyNTTVec, ringSize)
 //		t_cs := make([]*PolyNTTVec, ringSize)
 //		for j := 0; j < ringSize; j++ {
-//			t_as[j] = inputDescs[i].txoList[j].dpk.t
+//			t_as[j] = inputDescs[i].lgrTxoList[j].dpk.t
 //
-//			if len(inputDescs[i].txoList[j].cmt.b.polyNTTs) != pp.paramKC {
+//			if len(inputDescs[i].lgrTxoList[j].cmt.b.polyNTTs) != pp.paramKC {
 //				return nil, errors.New("the length of cmt.b is not accurate")
 //			}
-//			t_cs[j] = inputDescs[i].txoList[j].cmt.toPolyNTTVec()
+//			t_cs[j] = inputDescs[i].lgrTxoList[j].cmt.toPolyNTTVec()
 //			t_cs[j] = pp.PolyNTTVecSub(t_cs[j], t_c_p, pp.paramKC+1)
 //		}
 //
@@ -1355,7 +1355,7 @@ package pqringct
 //			dpkMap[input.TxoList[j].dpk] = struct{}{}
 //		}
 //
-//		// todo: check whether there exists two txoList such that they have common Txos but are different
+//		// todo: check whether there exists two lgrTxoList such that they have common Txos but are different
 //		// TODO: there are some wrong?
 //		for j := 0; j < len(input.TxoList); j++ {
 //			for k := 0; k < i; k++ {
