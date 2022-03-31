@@ -301,7 +301,7 @@ package pqringct
 //			args: args{
 //				inputDescs: []*TxInputDesc{
 //					&TxInputDesc{
-//						txoList: cbTx1.OutputTxos,
+//						lgrTxoList: cbTx1.OutputTxos,
 //						sidx:    0,
 //						mpk:     mpk1,
 //						msvk:    msvk1,
@@ -330,7 +330,7 @@ package pqringct
 //			args: args{
 //				inputDescs: []*TxInputDesc{
 //					&TxInputDesc{
-//						txoList: cbTx1.OutputTxos,
+//						lgrTxoList: cbTx1.OutputTxos,
 //						sidx:    0,
 //						mpk:     mpk1,
 //						msvk:    msvk1,
@@ -338,7 +338,7 @@ package pqringct
 //						value:   500,
 //					},
 //					&TxInputDesc{
-//						txoList: cbTx2.OutputTxos,
+//						lgrTxoList: cbTx2.OutputTxos,
 //						sidx:    0,
 //						mpk:     mpk1,
 //						msvk:    msvk1,
@@ -446,12 +446,12 @@ package pqringct
 //	// 0: 20, 1:30, 2: 50
 //	// 2: 50 --> 0:10, 1:30, 2:9, fee: 1
 //	txInputDescs := make([]*TxInputDesc, 1)
-//	txoList := make([]*TXO, 3)
-//	txoList[0] = cbtx.OutputTxos[0]
-//	txoList[1] = cbtx.OutputTxos[1]
-//	txoList[2] = cbtx.OutputTxos[2]
+//	lgrTxoList := make([]*TXO, 3)
+//	lgrTxoList[0] = cbtx.OutputTxos[0]
+//	lgrTxoList[1] = cbtx.OutputTxos[1]
+//	lgrTxoList[2] = cbtx.OutputTxos[2]
 //	txInputDescs[0] = &TxInputDesc{
-//		txoList,
+//		lgrTxoList,
 //		2,
 //		mpks[2],
 //		msvks[2],

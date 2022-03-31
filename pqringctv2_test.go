@@ -73,7 +73,7 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 	var err error
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cbTx, err = pp.CoinbaseTxGen(tt.args.vin, tt.args.txOutputDescs)
+			cbTx, err = pp.CoinbaseTxGen(tt.args.vin, tt.args.txOutputDescs, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -122,7 +122,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			serializedVPk: serializedVPk2,
 			value:         12,
 		},
-	})
+	}, nil)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -137,7 +137,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			serializedVPk: serializedVPk2,
 			value:         12,
 		},
-	})
+	}, nil)
 
 	if err != nil {
 		t.Errorf(err.Error())
@@ -154,7 +154,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			args: args{
 				inputDescs: []*TxInputDescv2{
 					{
-						txoList: []*LgrTxo{
+						lgrTxoList: []*LgrTxo{
 							{
 								Txo: cbTx1.OutputTxos[0],
 								Id:  []byte{1},
@@ -195,7 +195,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			args: args{
 				inputDescs: []*TxInputDescv2{
 					{
-						txoList: []*LgrTxo{
+						lgrTxoList: []*LgrTxo{
 							{
 								Txo: cbTx1.OutputTxos[0],
 								Id:  []byte{1},
@@ -213,7 +213,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						value:           500,
 					},
 					{
-						txoList: []*LgrTxo{
+						lgrTxoList: []*LgrTxo{
 							{
 								Txo: cbTx2.OutputTxos[0],
 								Id:  []byte{1},
