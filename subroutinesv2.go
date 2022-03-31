@@ -447,6 +447,7 @@ func rejectionUniformWithQc(seed []byte, length int) []int64 {
 
 // 137438953937= 0010_0000_0000_0000_0000_0000_0000_0001_1101_0001
 // 0001_0000_0000_0000_0000_0000_0000_0000_1110_1000
+// todo: 20220330 with name Q_a, shall we remove bound, and hardcode Q_a
 func rejectionUniformWithQa(seed []byte, length int, bound int64) []int64 {
 	res := make([]int64, length)
 	xof := sha3.NewShake128()
