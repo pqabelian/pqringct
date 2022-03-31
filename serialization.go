@@ -846,7 +846,7 @@ func (pp *PublicParameter) challengeSeedCSerializeSizeApprox() int {
 	return 1 + HashBytesLen
 }
 func (pp *PublicParameter) responseCSerializeSizeApprox() int {
-	//	r \in \in (Ring_{q_c})^{L_c}
+	//	r \in (Ring_{q_c})^{L_c}
 	//	z \in (Ring_{q_c})^{L_c}
 	//	k
 	return 1 + pp.paramK*(1+pp.PolyCNTTSerializeSize()*pp.paramLC)
@@ -944,7 +944,8 @@ func (pp *PublicParameter) DeserializeCbTxWitnessJ1(serializedWitness []byte) (*
 
 func (pp *PublicParameter) boundingVecCSerializeSizeApprox() int {
 	//	PolyCNTTVec[k_c]
-	return 1 + pp.paramKC*pp.PolyCNTTSerializeSize()
+	lenTmp := pp.paramKC * pp.PolyCNTTSerializeSize()
+	return VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 }
 
 func (pp *PublicParameter) CbTxWitnessJ2SerializeSizeApprox(outTxoNum int) int {
@@ -955,20 +956,25 @@ func (pp *PublicParameter) CbTxWitnessJ2SerializeSizeApprox(outTxoNum int) int {
 	lenApprox = pp.boundingVecCSerializeSizeApprox()
 
 	//	c_hats
-	lenApprox += 1 + (outTxoNum+2)*pp.PolyCNTTSerializeSize()
+	lenTmp := (outTxoNum + 2) * pp.PolyCNTTSerializeSize()
+	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 
 	// u_p
-	lenApprox += 1 + pp.paramDC*8
+	lenTmp = pp.paramDC * 8
+	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 
 	// rpulpproof
 	// c_waves []*PolyCNTT
-	lenApprox += 1 + outTxoNum*pp.PolyCNTTSerializeSize()
+	lenTmp = outTxoNum * pp.PolyCNTTSerializeSize()
+	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 	// c_hat_g,psi,phi  *PolyCNTT
-	lenApprox += 3 * pp.PolyCNTTSerializeSize()
+	lenTmp = 3 * pp.PolyCNTTSerializeSize()
+	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 	// chseed  []byte
 	lenApprox += pp.challengeSeedCSerializeSizeApprox()
 	//cmt_zs  [][]*PolyCNTTVec
-	lenApprox += 1 + (outTxoNum)*pp.responseCSerializeSizeApprox()
+	lenTmp = (outTxoNum) * pp.responseCSerializeSizeApprox()
+	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 	//zs      []*PolyCNTTVec
 	lenApprox += pp.responseCSerializeSizeApprox()
 
@@ -1281,6 +1287,36 @@ func (pp *PublicParameter) DeserializeCoinbaseTx(serializedCbTx []byte, withWitn
 	}, nil
 }
 
+func (pp *PublicParameter) challengeSeedASerializeSizeApprox() int {
+	return 1 + HashBytesLen
+}
+func (pp *PublicParameter) responseASerializeSizeApprox() int {
+	//	r \in (Ring_{q_a})^{L_a}
+	//	z \in (Ring_{q_a})^{L_a}
+	return 1 + (1 + pp.PolyANTTSerializeSize()*pp.paramLA)
+}
+
+func (pp *PublicParameter) ElrsSignatureSerializeSizeApprox(ringSize int) int {
+	var lenApprxo int
+	// seeds [][]byte, each ring member has a seed []byte
+	lenApprxo = VarIntSerializeSize2(uint64(ringSize))
+	lenApprxo += ringSize * pp.challengeSeedASerializeSizeApprox()
+
+	//z_as  []*PolyANTTVec, each ring member has a z_a, each z_a is a response A
+	lenApprxo += VarIntSerializeSize2(uint64(ringSize))
+	lenApprxo += ringSize * pp.responseASerializeSizeApprox()
+
+	//z_cs  [][]*PolyCNTTVec
+	lenApprxo += VarIntSerializeSize2(uint64(ringSize))
+	lenApprxo += ringSize * pp.responseCSerializeSizeApprox()
+
+	//z_cps [][]*PolyCNTTVec
+	lenApprxo += VarIntSerializeSize2(uint64(ringSize))
+	lenApprxo += ringSize * pp.responseCSerializeSizeApprox()
+
+	return lenApprxo
+}
+
 func (pp *PublicParameter) ElrsSignatureSerializeSize(sig *elrsSignaturev2) int {
 	var length int
 	// seeds [][]byte
@@ -1472,6 +1508,52 @@ func (pp *PublicParameter) DeserializeElrsSignature(serializeElrsSignature []byt
 		z_cs:  z_cs,
 		z_cps: z_cps,
 	}, nil
+}
+
+//	TrTxWitnessSerializeSizeApprox() returns the approximate size of TrTxWitnessSerializeSize, based on the inputRingSizes and outputTxoNum.
+func (pp *PublicParameter) TrTxWitnessSerializeSizeApprox(inputRingSizes []int, outputTxoNum int) int {
+	lenApprox := VarIntSerializeSize2(uint64(len(inputRingSizes))) + len(inputRingSizes)*pp.PolyANTTSerializeSize() + // ma_ps      []*PolyANTT, each ring has a ma_ps
+		VarIntSerializeSize2(uint64(len(inputRingSizes))) + len(inputRingSizes)*pp.ValueCommitmentSerializeSize() // cmt_ps     []*ValueCommitment, each ring has a cnt_ps
+
+	// elrsSigs   []*elrsSignaturev2, each ring has a elrsSig
+	lenApprox += VarIntSerializeSize2(uint64(len(inputRingSizes)))
+	for i := 0; i < len(inputRingSizes); i++ {
+		sigLenApprox := pp.ElrsSignatureSerializeSizeApprox(inputRingSizes[i])
+		lenApprox += VarIntSerializeSize2(uint64(sigLenApprox)) + sigLenApprox
+	}
+
+	// b_hats
+	lenApprox += pp.boundingVecCSerializeSizeApprox()
+
+	// c_hats
+	if len(inputRingSizes) == 1 { // n_2 = I+J+2
+		lenTmp := (len(inputRingSizes) + outputTxoNum + 2) * pp.PolyCNTTSerializeSize()
+		lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	} else { // I > 1, n_2 = I+J+4
+		lenTmp := (len(inputRingSizes) + outputTxoNum + 4) * pp.PolyCNTTSerializeSize()
+		lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	}
+
+	// u_p
+	lenTmp := pp.paramDC * 8
+	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+
+	// rpulpproof
+	// c_waves []*PolyCNTT
+	lenTmp = (len(inputRingSizes) + outputTxoNum) * pp.PolyCNTTSerializeSize()
+	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	// c_hat_g,psi,phi  *PolyCNTT
+	lenTmp = 3 * pp.PolyCNTTSerializeSize()
+	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	// chseed  []byte
+	lenApprox += pp.challengeSeedCSerializeSizeApprox()
+	//cmt_zs  [][]*PolyCNTTVec
+	lenTmp = (len(inputRingSizes) + outputTxoNum) * pp.responseCSerializeSizeApprox()
+	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	//zs      []*PolyCNTTVec
+	lenApprox += pp.responseCSerializeSizeApprox()
+
+	return lenApprox
 }
 
 func (pp *PublicParameter) TrTxWitnessSerializeSize(witness *TrTxWitnessv2) int {
