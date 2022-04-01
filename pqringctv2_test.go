@@ -208,6 +208,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 		fmt.Println("CbTx2 (J=2) serialze and deserialize Pass")
 	}
 
+	fmt.Println("CbTxWitnessJ1SizeApprox:", pp.CbTxWitnessJ1SerializeSizeApprox())
+	fmt.Println("CbTxWitnessJ1SizeExact:", pp.CbTxWitnessJ1SerializeSize(cbTx0.TxWitnessJ1))
+	fmt.Println("CbTxWitnessJ2SizeApprox(J=2):", pp.CbTxWitnessJ2SerializeSizeApprox(2))
+	fmt.Println("CbTxWitnessJ2SizeExact(J=2):", pp.CbTxWitnessJ2SerializeSize(cbTx1.TxWitnessJ2))
+
 	tests := []struct {
 		name    string
 		args    args
@@ -332,6 +337,13 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			if err != nil {
 				t.Errorf(err.Error())
 			}
+
+			ringSizes := make([]int, len(gotTrTx.Inputs))
+			for i := 0; i < len(gotTrTx.Inputs); i++ {
+				ringSizes[i] = 2
+			}
+			fmt.Println("TrTxWitnessSizeApprox:", pp.TrTxWitnessSerializeSizeApprox(ringSizes, len(gotTrTx.OutputTxos)))
+			fmt.Println("TrTxWitnessSizeExact:", pp.TrTxWitnessSerializeSize(gotTrTx.TxWitness))
 
 			got, err := pp.TransferTxVerify(gotTrTxDeser)
 			if (err != nil) != tt.wantErr {
