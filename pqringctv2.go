@@ -80,8 +80,10 @@ type rpulpProofv2 struct {
 	psi     *PolyCNTT
 	phi     *PolyCNTT
 	chseed  []byte
-	cmt_zs  [][]*PolyCNTTVec
-	zs      []*PolyCNTTVec
+	//	cmt_zs and zs, as the responses, need to have the infinite normal in a scope, say [-(eta_c-beta_c), (eta_c-beta_c)].
+	//	That is why here we use PolyCVec rather than PolyCNTTVec.
+	cmt_zs [][]*PolyCVec
+	zs     []*PolyCVec
 }
 
 type CoinbaseTxv2 struct {
@@ -94,7 +96,9 @@ type CoinbaseTxv2 struct {
 
 type CbTxWitnessJ1 struct {
 	chseed []byte
-	zs     []*PolyCNTTVec
+	// zs, as the response, need to have infinite normal in a scopr, say [-(eta_c - beta_c), (eta_c - beta_c)].
+	// That is why we use PolyCVec rather than PolyCNTTVec.
+	zs []*PolyCVec
 }
 
 type CbTxWitnessJ2 struct {
@@ -377,9 +381,12 @@ type TrTxWitnessv2 struct {
 
 type elrsSignaturev2 struct {
 	seeds [][]byte
-	z_as  []*PolyANTTVec
-	z_cs  [][]*PolyCNTTVec
-	z_cps [][]*PolyCNTTVec
+	//	z_as, as the responses, need to have the infinite normal ina scope, say [-(eta_a - beta_a), (eta_a - beta_a)].
+	//	z_cs, z_cps, as the responses, need to have the infinite normal ina scope, say [-(eta_c - beta_c), (eta_c - beta_c)].
+	//	That is why we use PolyAVec (resp. PolyCVec), rather than PolyANTTVec (resp. PolyCNTTVec).
+	z_as  []*PolyAVec
+	z_cs  [][]*PolyCVec
+	z_cps [][]*PolyCVec
 }
 
 func (pp *PublicParameter) AddressKeyGen(seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
@@ -479,6 +486,8 @@ func (pp *PublicParameter) txoGen(apk *AddressPublicKey, vpk []byte, vin uint64)
 
 	return rettxo, cmtr, nil
 }
+
+//	todo: why define a rpulpProve method and a rpulpProve function?
 func (pp *PublicParameter) rpulpProve(message []byte, cmts []*ValueCommitment, cmt_rs []*PolyCNTTVec,
 	n int, b_hat *PolyCNTTVec, r_hat *PolyCNTTVec, c_hats []*PolyCNTT, msg_hats [][]int64, n2 int,
 	n1 int, rpulpType RpUlpType, binMatrixB [][]byte,
@@ -698,24 +707,29 @@ rpUlpProveRestart:
 	}
 	ch := pp.NTTPolyC(ctmp)
 	// z = y + sigma^t(c) * r
-	cmt_zs := make([][]*PolyCNTTVec, pp.paramK)
-	zs := make([]*PolyCNTTVec, pp.paramK)
+	cmt_zs_ntt := make([][]*PolyCNTTVec, pp.paramK)
+	zs_ntt := make([]*PolyCNTTVec, pp.paramK)
+	cmt_zs := make([][]*PolyCVec, pp.paramK)
+	zs := make([]*PolyCVec, pp.paramK)
 	for t := 0; t < pp.paramK; t++ {
-		cmt_zs[t] = make([]*PolyCNTTVec, n)
+		cmt_zs_ntt[t] = make([]*PolyCNTTVec, n)
+		cmt_zs[t] = make([]*PolyCVec, n)
 		sigma_t_ch := pp.sigmaPowerPolyCNTT(ch, t)
 		for i := 0; i < n; i++ {
-			cmt_zs[t][i] = pp.PolyCNTTVecAdd(
+			cmt_zs_ntt[t][i] = pp.PolyCNTTVecAdd(
 				cmt_ys[t][i],
 				pp.PolyCNTTVecScaleMul(sigma_t_ch, cmt_rs[i], pp.paramLC),
 				pp.paramLC)
-			if pp.NTTInvPolyCVec(cmt_zs[t][i]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
+
+			cmt_zs[t][i] = pp.NTTInvPolyCVec(cmt_zs_ntt[t][i])
+			if cmt_zs[t][i].infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 				goto rpUlpProveRestart
 			}
 		}
 
-		zs[t] = pp.PolyCNTTVecAdd(ys[t], pp.PolyCNTTVecScaleMul(sigma_t_ch, r_hat, pp.paramLC), pp.paramLC)
-
-		if pp.NTTInvPolyCVec(zs[t]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
+		zs_ntt[t] = pp.PolyCNTTVecAdd(ys[t], pp.PolyCNTTVecScaleMul(sigma_t_ch, r_hat, pp.paramLC), pp.paramLC)
+		zs[t] = pp.NTTInvPolyCVec(zs_ntt[t])
+		if zs[t].infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 			goto rpUlpProveRestart
 		}
 	}
@@ -777,7 +791,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 
 	}
 	// check the well-formness of the \pi
-	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramDC || len(rpulppi.psi.coeffs) != pp.paramDC || len(rpulppi.phi.coeffs) != pp.paramDC || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyCNTTs) != pp.paramLC {
+	if len(rpulppi.c_waves) != n || len(rpulppi.c_hat_g.coeffs) != pp.paramDC || len(rpulppi.psi.coeffs) != pp.paramDC || len(rpulppi.phi.coeffs) != pp.paramDC || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyCs) != pp.paramLC {
 		return false
 	}
 	if rpulppi == nil {
@@ -815,12 +829,12 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 	for t := 0; t < pp.paramK; t++ {
 
 		for i := 0; i < n; i++ {
-			if pp.NTTInvPolyCVec(rpulppi.cmt_zs[t][i]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
+			if rpulppi.cmt_zs[t][i].infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 				return false
 			}
 		}
 
-		if pp.NTTInvPolyCVec(rpulppi.zs[t]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
+		if rpulppi.zs[t].infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 			return false
 		}
 
@@ -835,18 +849,28 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 	//	w^t_i, w_t
 	cmt_ws := make([][]*PolyCNTTVec, pp.paramK)
 	ws := make([]*PolyCNTTVec, pp.paramK)
+
+	cmt_zs_ntt := make([][]*PolyCNTTVec, pp.paramK)
+	zs_ntt := make([]*PolyCNTTVec, pp.paramK)
+
 	for t := 0; t < pp.paramK; t++ {
 		sigma_chs[t] = pp.sigmaPowerPolyCNTT(ch, t)
 
 		cmt_ws[t] = make([]*PolyCNTTVec, n)
+		cmt_zs_ntt[t] = make([]*PolyCNTTVec, n)
+
 		for i := 0; i < n; i++ {
+			cmt_zs_ntt[t][i] = pp.NTTPolyCVec(rpulppi.cmt_zs[t][i])
+
 			cmt_ws[t][i] = pp.PolyCNTTVecSub(
-				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, rpulppi.cmt_zs[t][i], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cmt_zs_ntt[t][i], pp.paramKC, pp.paramLC),
 				pp.PolyCNTTVecScaleMul(sigma_chs[t], cmts[i].b, pp.paramKC),
 				pp.paramKC)
 		}
+
+		zs_ntt[t] = pp.NTTPolyCVec(rpulppi.zs[t])
 		ws[t] = pp.PolyCNTTVecSub(
-			pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, rpulppi.zs[t], pp.paramKC, pp.paramLC),
+			pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, zs_ntt[t], pp.paramKC, pp.paramLC),
 			pp.PolyCNTTVecScaleMul(sigma_chs[t], b_hat, pp.paramKC),
 			pp.paramKC)
 	}
@@ -875,7 +899,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 			delta_waves[t][i] = pp.PolyCNTTSub(
 				pp.PolyCNTTVecInnerProduct(
 					pp.PolyCNTTVecSub(pp.paramMatrixH[i+1], pp.paramMatrixH[0], pp.paramLC),
-					rpulppi.cmt_zs[t][i],
+					cmt_zs_ntt[t][i],
 					pp.paramLC),
 				pp.PolyCNTTMul(sigma_chs[t], pp.PolyCNTTSub(rpulppi.c_waves[i], cmts[i].c)),
 			)
@@ -883,12 +907,13 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 			delta_hats[t][i] = pp.PolyCNTTSub(
 				pp.PolyCNTTVecInnerProduct(
 					pp.paramMatrixH[i+1],
-					pp.PolyCNTTVecSub(rpulppi.zs[t], rpulppi.cmt_zs[t][i], pp.paramLC),
+					pp.PolyCNTTVecSub(zs_ntt[t], cmt_zs_ntt[t][i], pp.paramLC),
 					pp.paramLC),
 				pp.PolyCNTTMul(sigma_chs[t], pp.PolyCNTTSub(c_hats[i], rpulppi.c_waves[i])),
 			)
 		}
 	}
+
 	// psi'
 	psip := pp.NewZeroPolyCNTT()
 	mu := &PolyCNTT{coeffs: pp.paramMu}
@@ -900,7 +925,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 		for i := 0; i < n1; i++ {
 			f_t_i := pp.PolyCNTTSub(
 				//<h_i,z_t>
-				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], rpulppi.zs[t], pp.paramLC),
+				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[i+1], zs_ntt[t], pp.paramLC),
 				// sigma_c_t
 				pp.PolyCNTTMul(sigma_chs[t], c_hats[i]),
 			)
@@ -929,7 +954,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 
 	psip = pp.PolyCNTTSub(psip, pp.PolyCNTTMul(ch, rpulppi.psi))
 	psip = pp.PolyCNTTAdd(psip,
-		pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], rpulppi.zs[0], pp.paramLC))
+		pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+6], zs_ntt[0], pp.paramLC))
 	//fmt.Printf("Verify\n")
 	//fmt.Printf("psip = %v\n", psip)
 	//	p^(t)_j:
@@ -991,7 +1016,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 				tmp1 = pp.PolyCNTTAdd(
 					tmp1,
 					pp.sigmaPowerPolyCNTT(
-						pp.PolyCNTTVecInnerProduct(tmp, rpulppi.zs[(xi-tau+pp.paramK)%pp.paramK], pp.paramLC),
+						pp.PolyCNTTVecInnerProduct(tmp, zs_ntt[(xi-tau+pp.paramK)%pp.paramK], pp.paramLC),
 						tau),
 				)
 			}
@@ -1006,7 +1031,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 
 		phips[xi] = pp.PolyCNTTAdd(
 			phips[xi],
-			pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], rpulppi.zs[xi], pp.paramLC))
+			pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], zs_ntt[xi], pp.paramLC))
 
 		phips[xi] = pp.PolyCNTTSub(
 			phips[xi],
@@ -1067,13 +1092,16 @@ func (pp *PublicParameter) ELRSSign(
 	}
 
 	seeds := make([][]byte, ringLen)
-	z_as := make([]*PolyANTTVec, ringLen)
+	z_as_ntt := make([]*PolyANTTVec, ringLen)
+	z_as := make([]*PolyAVec, ringLen)
 
 	w_as := make([]*PolyANTTVec, ringLen)
 	delta_as := make([]*PolyANTT, ringLen)
 
-	z_cs := make([][]*PolyCNTTVec, ringLen)
-	z_cps := make([][]*PolyCNTTVec, ringLen)
+	z_cs_ntt := make([][]*PolyCNTTVec, ringLen)
+	z_cps_ntt := make([][]*PolyCNTTVec, ringLen)
+	z_cs := make([][]*PolyCVec, ringLen)
+	z_cps := make([][]*PolyCVec, ringLen)
 
 	w_cs := make([][]*PolyCNTTVec, ringLen)
 	w_cps := make([][]*PolyCNTTVec, ringLen)
@@ -1098,15 +1126,15 @@ func (pp *PublicParameter) ELRSSign(
 		dc := pp.NTTPolyC(tmpC)
 
 		// sample randomness for z_a_j
-		tmpZa, err := pp.sampleZetaA()
+		z_as[j], err = pp.sampleZetaA()
 		if err != nil {
 			return nil, err
 		}
-		z_as[j] = pp.NTTPolyAVec(tmpZa)
+		z_as_ntt[j] = pp.NTTPolyAVec(z_as[j])
 
 		// w_a_j = A*z_a_j - d_a_j*t_j
 		w_as[j] = pp.PolyANTTVecSub(
-			pp.PolyANTTMatrixMulVector(pp.paramMatrixA, z_as[j], pp.paramKA, pp.paramLA),
+			pp.PolyANTTMatrixMulVector(pp.paramMatrixA, z_as_ntt[j], pp.paramKA, pp.paramLA),
 			pp.PolyANTTVecScaleMul(da, lgrTxoList[j].Txo.AddressPublicKey.t, pp.paramKA),
 			pp.paramKA,
 		)
@@ -1116,7 +1144,7 @@ func (pp *PublicParameter) ELRSSign(
 			return nil, err
 		}
 		delta_as[j] = pp.PolyANTTSub(
-			pp.PolyANTTVecInnerProduct(pp.paramVecA, z_as[j], pp.paramLA),
+			pp.PolyANTTVecInnerProduct(pp.paramVecA, z_as_ntt[j], pp.paramLA),
 			pp.PolyANTTMul(
 				da,
 				pp.PolyANTTSub(
@@ -1129,27 +1157,30 @@ func (pp *PublicParameter) ELRSSign(
 			),
 		)
 
-		z_cs[j] = make([]*PolyCNTTVec, pp.paramK)
-		z_cps[j] = make([]*PolyCNTTVec, pp.paramK)
+		z_cs_ntt[j] = make([]*PolyCNTTVec, pp.paramK)
+		z_cps_ntt[j] = make([]*PolyCNTTVec, pp.paramK)
+		z_cs[j] = make([]*PolyCVec, pp.paramK)
+		z_cps[j] = make([]*PolyCVec, pp.paramK)
 
 		w_cs[j] = make([]*PolyCNTTVec, pp.paramK)
 		w_cps[j] = make([]*PolyCNTTVec, pp.paramK)
 
 		delta_cs[j] = make([]*PolyCNTT, pp.paramK)
 		for tao := 0; tao < pp.paramK; tao++ {
-			tmpZc, err := pp.sampleZetaC2v2()
+			z_cs[j][tao], err = pp.sampleZetaC2v2()
 			if err != nil {
 				return nil, err
 			}
-			tmpZcp, err := pp.sampleZetaC2v2()
+			z_cps[j][tao], err = pp.sampleZetaC2v2()
 			if err != nil {
 				return nil, err
 			}
-			z_cs[j][tao] = pp.NTTPolyCVec(tmpZc)
-			z_cps[j][tao] = pp.NTTPolyCVec(tmpZcp)
+
+			z_cs_ntt[j][tao] = pp.NTTPolyCVec(z_cs[j][tao])
+			z_cps_ntt[j][tao] = pp.NTTPolyCVec(z_cps[j][tao])
 			sigmatao := pp.sigmaPowerPolyCNTT(dc, tao)
 			w_cs[j][tao] = pp.PolyCNTTVecSub(
-				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, z_cs[j][tao], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, z_cs_ntt[j][tao], pp.paramKC, pp.paramLC),
 				pp.PolyCNTTVecScaleMul(
 					sigmatao,
 					lgrTxoList[j].Txo.ValueCommitment.b,
@@ -1158,7 +1189,7 @@ func (pp *PublicParameter) ELRSSign(
 				pp.paramKC,
 			)
 			w_cps[j][tao] = pp.PolyCNTTVecSub(
-				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, z_cps[j][tao], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, z_cps_ntt[j][tao], pp.paramKC, pp.paramLC),
 				pp.PolyCNTTVecScaleMul(
 					sigmatao,
 					cmt_p.b,
@@ -1169,7 +1200,7 @@ func (pp *PublicParameter) ELRSSign(
 			delta_cs[j][tao] = pp.PolyCNTTSub(
 				pp.PolyCNTTVecInnerProduct(
 					pp.paramMatrixH[0],
-					pp.PolyCNTTVecSub(z_cs[j][tao], z_cps[j][tao], pp.paramLC),
+					pp.PolyCNTTVecSub(z_cs_ntt[j][tao], z_cps_ntt[j][tao], pp.paramLC),
 					pp.paramLC,
 				),
 				pp.PolyCNTTMul(
@@ -1180,8 +1211,10 @@ func (pp *PublicParameter) ELRSSign(
 		}
 	}
 
-	z_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
-	z_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
+	z_cs_ntt[sindex] = make([]*PolyCNTTVec, pp.paramK)
+	z_cps_ntt[sindex] = make([]*PolyCNTTVec, pp.paramK)
+	z_cs[sindex] = make([]*PolyCVec, pp.paramK)
+	z_cps[sindex] = make([]*PolyCVec, pp.paramK)
 
 	w_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
 	w_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
@@ -1250,33 +1283,36 @@ ELRSSignRestartv2:
 	dA := pp.NTTPolyA(tmpA)
 	dC := pp.NTTPolyC(tmpC)
 
-	z_as[sindex] = pp.PolyANTTVecAdd(y_a, pp.PolyANTTVecScaleMul(dA, sa, pp.paramLA), pp.paramLA)
-	z_cs[sindex] = make([]*PolyCNTTVec, pp.paramK)
-	z_cps[sindex] = make([]*PolyCNTTVec, pp.paramK)
+	z_as_ntt[sindex] = pp.PolyANTTVecAdd(y_a, pp.PolyANTTVecScaleMul(dA, sa, pp.paramLA), pp.paramLA)
+	z_as[sindex] = pp.NTTInvPolyAVec(z_as_ntt[sindex])
+
 	for tao := 0; tao < pp.paramK; tao++ {
 		sigmaTao := pp.sigmaPowerPolyCNTT(dC, tao)
-		z_cs[sindex][tao] = pp.PolyCNTTVecAdd(
+		z_cs_ntt[sindex][tao] = pp.PolyCNTTVecAdd(
 			y_cs[tao],
 			pp.PolyCNTTVecScaleMul(sigmaTao, rc, pp.paramLC),
 			pp.paramLC,
 		)
-		z_cps[sindex][tao] = pp.PolyCNTTVecAdd(
+		z_cps_ntt[sindex][tao] = pp.PolyCNTTVecAdd(
 			y_cps[tao],
 			pp.PolyCNTTVecScaleMul(sigmaTao, rc_p, pp.paramLC),
 			pp.paramLC,
 		)
+
+		z_cs[sindex][tao] = pp.NTTInvPolyCVec(z_cs_ntt[sindex][tao])
+		z_cps[sindex][tao] = pp.NTTInvPolyCVec(z_cps_ntt[sindex][tao])
 	}
 
 	// todo: here we assume pp.paramThetaA*pp.paramGammaA is small
-	if pp.NTTInvPolyAVec(z_as[sindex]).infNorm() > pp.paramEtaA-int64(pp.paramBetaA) {
+	if z_as[sindex].infNorm() > pp.paramEtaA-int64(pp.paramBetaA) {
 		goto ELRSSignRestartv2
 	}
 	for tao := 0; tao < pp.paramK; tao++ {
 		bound := pp.paramEtaC - int64(pp.paramBetaC)
-		if pp.NTTInvPolyCVec(z_cs[sindex][tao]).infNorm() > bound {
+		if z_cs[sindex][tao].infNorm() > bound {
 			goto ELRSSignRestartv2
 		}
-		if pp.NTTInvPolyCVec(z_cps[sindex][tao]).infNorm() > bound {
+		if z_cps[sindex][tao].infNorm() > bound {
 			goto ELRSSignRestartv2
 		}
 	}
@@ -1395,14 +1431,14 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 	boundA := pp.paramEtaA - int64(pp.paramBetaA)
 	boundC := pp.paramEtaC - int64(pp.paramBetaC)
 	for j := 0; j < ringLen; j++ {
-		if pp.NTTInvPolyAVec(sig.z_as[j]).infNorm() > boundA {
+		if sig.z_as[j].infNorm() > boundA {
 			return false, nil
 		}
 		for tao := 0; tao < pp.paramK; tao++ {
-			if pp.NTTInvPolyCVec(sig.z_cs[j][tao]).infNorm() > boundC {
+			if sig.z_cs[j][tao].infNorm() > boundC {
 				return false, nil
 			}
-			if pp.NTTInvPolyCVec(sig.z_cps[j][tao]).infNorm() > boundC {
+			if sig.z_cps[j][tao].infNorm() > boundC {
 				return false, nil
 			}
 		}
@@ -1427,9 +1463,10 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 		}
 		dc := pp.NTTPolyC(tmpDC)
 
+		z_as_ntt := pp.NTTPolyAVec(sig.z_as[j])
 		// w_a_j = A*z_a_j - d_a_j*t_j
 		w_as[j] = pp.PolyANTTVecSub(
-			pp.PolyANTTMatrixMulVector(pp.paramMatrixA, sig.z_as[j], pp.paramKA, pp.paramLA),
+			pp.PolyANTTMatrixMulVector(pp.paramMatrixA, z_as_ntt, pp.paramKA, pp.paramLA),
 			pp.PolyANTTVecScaleMul(da, lgrTxoList[j].Txo.AddressPublicKey.t, pp.paramKA),
 			pp.paramKA,
 		)
@@ -1439,7 +1476,7 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 			return false, err
 		}
 		delta_as[j] = pp.PolyANTTSub(
-			pp.PolyANTTVecInnerProduct(pp.paramVecA, sig.z_as[j], pp.paramLA),
+			pp.PolyANTTVecInnerProduct(pp.paramVecA, z_as_ntt, pp.paramLA),
 			pp.PolyANTTMul(
 				da,
 				pp.PolyANTTSub(
@@ -1456,9 +1493,12 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 		w_cps[j] = make([]*PolyCNTTVec, pp.paramK)
 		delta_cs[j] = make([]*PolyCNTT, pp.paramK)
 		for tao := 0; tao < pp.paramK; tao++ {
+			z_cs_ntt := pp.NTTPolyCVec(sig.z_cs[j][tao])
+			z_cps_ntt := pp.NTTPolyCVec(sig.z_cps[j][tao])
 			sigmatao := pp.sigmaPowerPolyCNTT(dc, tao)
+
 			w_cs[j][tao] = pp.PolyCNTTVecSub(
-				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, sig.z_cs[j][tao], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, z_cs_ntt, pp.paramKC, pp.paramLC),
 				pp.PolyCNTTVecScaleMul(
 					sigmatao,
 					lgrTxoList[j].Txo.ValueCommitment.b,
@@ -1467,7 +1507,7 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 				pp.paramKC,
 			)
 			w_cps[j][tao] = pp.PolyCNTTVecSub(
-				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, sig.z_cps[j][tao], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, z_cps_ntt, pp.paramKC, pp.paramLC),
 				pp.PolyCNTTVecScaleMul(
 					sigmatao,
 					cmt_p.b,
@@ -1478,7 +1518,7 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 			delta_cs[j][tao] = pp.PolyCNTTSub(
 				pp.PolyCNTTVecInnerProduct(
 					pp.paramMatrixH[0],
-					pp.PolyCNTTVecSub(sig.z_cs[j][tao], sig.z_cps[j][tao], pp.paramLC),
+					pp.PolyCNTTVecSub(z_cs_ntt, z_cps_ntt, pp.paramLC),
 					pp.paramLC,
 				),
 				pp.PolyCNTTMul(
@@ -1591,7 +1631,8 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		// delta = <h,y^t>
 		deltas := make([]*PolyCNTT, pp.paramK)
 		// z^t = y^t + sigma^t(c) * r_(out,j), r_(out,j) is from txoGen, in there, r_(out,j) is cmt_rs_j
-		zs := make([]*PolyCNTTVec, pp.paramK)
+		zs_ntt := make([]*PolyCNTTVec, pp.paramK)
+		zs := make([]*PolyCVec, pp.paramK)
 
 	cbTxGenJ1Restart:
 		for t := 0; t < pp.paramK; t++ {
@@ -1617,7 +1658,7 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		}
 		ch := pp.NTTPolyC(chtmp)
 		for t := 0; t < pp.paramK; t++ {
-			zs[t] = pp.PolyCNTTVecAdd(
+			zs_ntt[t] = pp.PolyCNTTVecAdd(
 				ys[t],
 				pp.PolyCNTTVecScaleMul(
 					pp.sigmaPowerPolyCNTT(ch, t),
@@ -1627,7 +1668,8 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 				pp.paramLC,
 			)
 			// check the norm
-			if pp.NTTInvPolyCVec(zs[t]).infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
+			zs[t] = pp.NTTInvPolyCVec(zs_ntt[t])
+			if zs[t].infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
 				goto cbTxGenJ1Restart
 			}
 		}
@@ -1831,7 +1873,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) (bool, error) {
 		// infNorm of z^t
 		bound := pp.paramEtaC - int64(pp.paramBetaC)
 		for t := 0; t < pp.paramK; t++ {
-			if pp.NTTInvPolyCVec(cbTx.TxWitnessJ1.zs[t]).infNorm() > bound {
+			if cbTx.TxWitnessJ1.zs[t].infNorm() > bound {
 				return false, nil
 			}
 		}
@@ -1850,13 +1892,15 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) (bool, error) {
 		for t := 0; t < pp.paramK; t++ {
 			sigma_t_ch := pp.sigmaPowerPolyCNTT(ch, t)
 
+			zs_ntt := pp.NTTPolyCVec(cbTx.TxWitnessJ1.zs[t])
+
 			ws[t] = pp.PolyCNTTVecSub(
-				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, cbTx.TxWitnessJ1.zs[t], pp.paramKC, pp.paramLC),
+				pp.PolyCNTTMatrixMulVector(pp.paramMatrixB, zs_ntt, pp.paramKC, pp.paramLC),
 				pp.PolyCNTTVecScaleMul(sigma_t_ch, cbTx.OutputTxos[0].ValueCommitment.b, pp.paramKC),
 				pp.paramKC,
 			)
 			deltas[t] = pp.PolyCNTTSub(
-				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], cbTx.TxWitnessJ1.zs[t], pp.paramLC),
+				pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[0], zs_ntt, pp.paramLC),
 				pp.PolyCNTTMul(
 					sigma_t_ch,
 					pp.PolyCNTTSub(cbTx.OutputTxos[0].c, msg),

@@ -83,12 +83,19 @@ func TestPublicParameter_writePolyCNTT_readPolyCNTT(t *testing.T) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	//for i := 0; i < pp.paramDC; i++ {
+	//	fmt.Println(a.coeffs[i])
+	//}
+	//fmt.Println("wait")
 	serializedA := w.Bytes()
 	r := bytes.NewReader(serializedA)
 	got, err := pp.readPolyCNTT(r)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	//for i := 0; i < pp.paramDC; i++ {
+	//	fmt.Println(got.coeffs[i])
+	//}
 	for i := 0; i < pp.paramDC; i++ {
 		if got.coeffs[i] != a.coeffs[i] {
 			t.Fatal("i=", i, " got[i]=", got.coeffs[i], " origin[i]=", a.coeffs[i])
@@ -146,6 +153,72 @@ func TestPublicParameter_writePolyCNTTVec_readPolyCNTTVec(t *testing.T) {
 		for j := 0; j < pp.paramDC; j++ {
 			if got.polyCNTTs[i].coeffs[j] != as.polyCNTTs[i].coeffs[j] {
 				t.Fatal("j=", j, " got[i][j]=", got.polyCNTTs[i].coeffs[j], " origin[i][j]=", as.polyCNTTs[i].coeffs[j])
+			}
+		}
+	}
+}
+
+func TestPublicParameter_writePolyAVecEta_readPolyAVecEta(t *testing.T) {
+	pp := DefaultPP
+	as := pp.NewPolyAVec(pp.paramLA)
+	for i := 0; i < pp.paramLA; i++ {
+		seed := RandomBytes(pp.paramSeedBytesLen)
+		tmp, err := randomnessFromEtaAv2(seed, pp.paramDA)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		as.polyAs[i] = &PolyA{coeffs: tmp}
+	}
+
+	w := bytes.NewBuffer(make([]byte, 0, pp.PolyAVecSerializeSizeEta(as)))
+	err := pp.writePolyAVecEta(w, as)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	serializedA := w.Bytes()
+	r := bytes.NewReader(serializedA)
+	got, err := pp.readPolyAVecEta(r)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for i := 0; i < pp.paramLA; i++ {
+		for j := 0; j < pp.paramDA; j++ {
+			if got.polyAs[i].coeffs[j] != as.polyAs[i].coeffs[j] {
+				t.Fatal("j=", j, " got[i][j]=", got.polyAs[i].coeffs[j], " origin[i][j]=", as.polyAs[i].coeffs[j])
+			}
+		}
+	}
+}
+
+func TestPublicParameter_writePolyCVecEta_readPolyCVecEta(t *testing.T) {
+	pp := DefaultPP
+	as := pp.NewPolyCVec(pp.paramLC)
+	for i := 0; i < pp.paramLC; i++ {
+		seed := RandomBytes(pp.paramSeedBytesLen)
+		tmp, err := randomnessFromEtaCv2(seed, pp.paramDC)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		as.polyCs[i] = &PolyC{coeffs: tmp}
+	}
+
+	w := bytes.NewBuffer(make([]byte, 0, pp.PolyCVecSerializeSizeEta(as)))
+	err := pp.writePolyCVecEta(w, as)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	serializedC := w.Bytes()
+	r := bytes.NewReader(serializedC)
+	got, err := pp.readPolyCVecEta(r)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for i := 0; i < pp.paramLC; i++ {
+		for j := 0; j < pp.paramDC; j++ {
+			if got.polyCs[i].coeffs[j] != as.polyCs[i].coeffs[j] {
+				t.Fatal("i=", i, "j=", j, " got[i][j]=", got.polyCs[i].coeffs[j], " origin[i][j]=", as.polyCs[i].coeffs[j])
 			}
 		}
 	}
@@ -314,10 +387,12 @@ func TestPublicParameter_SerializeTxo_DeserializeTxo(t *testing.T) {
 		c: c,
 	}
 
-	vct := RandomBytes(pp.paramN)
-	for i := 0; i < pp.paramN; i++ {
-		vct[i] = vct[i] & 1
+	value := uint64(123)
+	vct, err := pp.encodeTxoValueToBytes(value)
+	if err != nil {
+		log.Fatalln(err)
 	}
+
 	Ckem := RandomBytes(pqringctkem.GetKemCiphertextBytesLen(pp.paramKem))
 
 	txo := &Txo{

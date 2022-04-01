@@ -1,6 +1,7 @@
 package pqringct
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -78,7 +79,12 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 				t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got := pp.CoinbaseTxVerify(cbTx); got != tt.want {
+			got, err := pp.CoinbaseTxVerify(cbTx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
 				t.Errorf("CoinbaseTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
@@ -111,6 +117,32 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
 	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)
 
+	cbTx0, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
+		{
+			serializedAPk: serializedAPk1,
+			serializedVPk: serializedVPk1,
+			value:         512,
+		},
+	}, nil)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	cbTx0Serialized, err := pp.SerializeCoinbaseTx(cbTx0, true)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	cbTx0Deser, err := pp.DeserializeCoinbaseTx(cbTx0Serialized, true)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	validCbTx0, err := pp.CoinbaseTxVerify(cbTx0Deser)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	if validCbTx0 {
+		fmt.Println("CbTx0 (J=1) serialze and deserialize Pass")
+	}
+
 	cbTx1, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
 		{
 			serializedAPk: serializedAPk1,
@@ -126,6 +158,23 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	if err != nil {
 		t.Errorf(err.Error())
 	}
+
+	cbTx1Serialized, err := pp.SerializeCoinbaseTx(cbTx1, true)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	cbTx1Deser, err := pp.DeserializeCoinbaseTx(cbTx1Serialized, true)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	validCbTx1, err := pp.CoinbaseTxVerify(cbTx1Deser)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	if validCbTx1 {
+		fmt.Println("CbTx1 (J=2) serialze and deserialize Pass")
+	}
+
 	cbTx2, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
 		{
 			serializedAPk: serializedAPk1,
@@ -142,6 +191,23 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	if err != nil {
 		t.Errorf(err.Error())
 	}
+
+	cbTx2Serialized, err := pp.SerializeCoinbaseTx(cbTx2, true)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	cbTx2Deser, err := pp.DeserializeCoinbaseTx(cbTx2Serialized, true)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	validCbTx2, err := pp.CoinbaseTxVerify(cbTx2Deser)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	if validCbTx2 {
+		fmt.Println("CbTx2 (J=2) serialze and deserialize Pass")
+	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -157,11 +223,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						lgrTxoList: []*LgrTxo{
 							{
 								Txo: cbTx1.OutputTxos[0],
-								Id:  []byte{1},
+								Id:  make([]byte, HashBytesLen),
 							},
 							{
 								Txo: cbTx1.OutputTxos[1],
-								Id:  []byte{2},
+								Id:  make([]byte, HashBytesLen),
 							},
 						},
 						sidx:            0,
@@ -198,11 +264,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						lgrTxoList: []*LgrTxo{
 							{
 								Txo: cbTx1.OutputTxos[0],
-								Id:  []byte{1},
+								Id:  make([]byte, HashBytesLen),
 							},
 							{
 								Txo: cbTx1.OutputTxos[1],
-								Id:  []byte{2},
+								Id:  make([]byte, HashBytesLen),
 							},
 						},
 						sidx:            0,
@@ -216,11 +282,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						lgrTxoList: []*LgrTxo{
 							{
 								Txo: cbTx2.OutputTxos[0],
-								Id:  []byte{1},
+								Id:  make([]byte, HashBytesLen),
 							},
 							{
 								Txo: cbTx2.OutputTxos[1],
-								Id:  []byte{2},
+								Id:  make([]byte, HashBytesLen),
 							},
 						},
 						sidx:            0,
@@ -257,7 +323,22 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 				t.Errorf("TransferTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got := pp.TransferTxVerify(gotTrTx); got != tt.want {
+
+			gotTrTxSerialized, err := pp.SerializeTransferTx(gotTrTx, true)
+			if err != nil {
+				t.Errorf(err.Error())
+			}
+			gotTrTxDeser, err := pp.DeserializeTransferTx(gotTrTxSerialized, true)
+			if err != nil {
+				t.Errorf(err.Error())
+			}
+
+			got, err := pp.TransferTxVerify(gotTrTxDeser)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TransferTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
 				t.Errorf("TransferTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
