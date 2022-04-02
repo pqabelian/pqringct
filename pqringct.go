@@ -21,7 +21,9 @@ type AddressSecretKey struct {
 }
 
 type AddressSecretKeySp struct {
-	s *PolyANTTVec
+	//	s \in (S_{\gamma_a})^{L_a}, where \gamma_a is small, say 5 at this moment.
+	//	As s' infinity normal lies in [-5, 5], here we define s as PolyAVec, rather than PolyANTTVec.
+	s *PolyAVec
 }
 type AddressSecretKeySn struct {
 	ma *PolyANTT
@@ -392,8 +394,6 @@ type elrsSignaturev2 struct {
 }
 
 func (pp *PublicParameter) AddressKeyGen(seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
-	var s *PolyANTTVec
-
 	// check the validity of the length of seed
 	if seed != nil && len(seed) != pp.paramSeedBytesLen {
 		return nil, nil, errors.New("the length of seed is invalid")
@@ -407,11 +407,10 @@ func (pp *PublicParameter) AddressKeyGen(seed []byte) (apk *AddressPublicKey, as
 	for i := 0; i < pp.paramSeedBytesLen; i++ {
 		tmp[i] = seed[i]
 	}
-	ts, err := pp.expandRandomnessA(tmp)
+	s, err := pp.expandRandomnessA(tmp)
 	if err != nil {
 		return nil, nil, err
 	}
-	s = pp.NTTPolyAVec(ts)
 
 	tmp = make([]byte, pp.paramSeedBytesLen+2)
 	for i := 0; i < pp.paramSeedBytesLen; i++ {
@@ -422,10 +421,11 @@ func (pp *PublicParameter) AddressKeyGen(seed []byte) (apk *AddressPublicKey, as
 	ma := &PolyANTT{coeffs: mat}
 
 	// t = A * s, will be as a part of public key
-	t := pp.PolyANTTMatrixMulVector(pp.paramMatrixA, s, pp.paramKA, pp.paramLA)
+	s_ntt := pp.NTTPolyAVec(s)
+	t := pp.PolyANTTMatrixMulVector(pp.paramMatrixA, s_ntt, pp.paramKA, pp.paramLA)
 
 	// e = <a,s>+ma
-	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVecA, s, pp.paramLA), ma)
+	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVecA, s_ntt, pp.paramLA), ma)
 
 	apk = &AddressPublicKey{
 		t: t,
@@ -2216,8 +2216,9 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 
 	elrsSigs := make([]*elrsSignaturev2, I)
 	for i := 0; i < I; i++ {
+		asksp_ntt := pp.NTTPolyAVec(asks[i].AddressSecretKeySp.s)
 		elrsSigs[i], err = pp.ELRSSign(inputDescs[i].lgrTxoList, ma_ps[i], cmt_ps[i], msgTrTxCon,
-			inputDescs[i].sidx, asks[i].s, cmtrs_in[i], cmtr_ps[i])
+			inputDescs[i].sidx, asksp_ntt, cmtrs_in[i], cmtr_ps[i])
 		if err != nil {
 			return nil, errors.New("fail to generate the extend linkable signature")
 		}

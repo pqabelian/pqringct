@@ -191,6 +191,69 @@ func TestPublicParameter_writePolyAVecEta_readPolyAVecEta(t *testing.T) {
 	}
 }
 
+func TestPublicParameter_writePolyAGamma_readPolyAGamma(t *testing.T) {
+	pp := DefaultPP
+	seed := RandomBytes(pp.paramSeedBytesLen)
+	tmp, err := randomnessFromGammaA5(seed, pp.paramDA)
+	as := &PolyA{
+		coeffs: tmp,
+	}
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	w := bytes.NewBuffer(make([]byte, 0, pp.PolyASerializeSizeGamma()))
+	err = pp.writePolyAGamma(w, as)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	serializedA := w.Bytes()
+	r := bytes.NewReader(serializedA)
+	got, err := pp.readPolyAGamma(r)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for j := 0; j < pp.paramDA; j++ {
+		if got.coeffs[j] != as.coeffs[j] {
+			t.Fatal("j=", j, " got[i][j]=", got.coeffs[j], " origin[i][j]=", as.coeffs[j])
+		}
+	}
+}
+
+//func TestPublicParameter_writePolyAVecGamma_readPolyAVecGamma(t *testing.T) {
+//	pp := DefaultPP
+//	as := pp.NewPolyAVec(pp.paramLA)
+//	for i := 0; i < pp.paramLA; i++ {
+//		seed := RandomBytes(pp.paramSeedBytesLen)
+//		tmp, err := randomnessFromGammaA5(seed, pp.paramDA)
+//		if err != nil {
+//			log.Fatalln(err)
+//		}
+//		as.polyAs[i] = &PolyA{coeffs: tmp}
+//	}
+//
+//	w := bytes.NewBuffer(make([]byte, 0, pp.PolyAVecSerializeSizeGamma(as)))
+//	err := pp.writePolyAVecGamma(w, as)
+//	if err != nil {
+//		log.Fatalln(err)
+//	}
+//
+//	serializedA := w.Bytes()
+//	r := bytes.NewReader(serializedA)
+//	got, err := pp.readPolyAVecGamma(r)
+//	if err != nil {
+//		log.Fatalln(err)
+//	}
+//	for i := 0; i < pp.paramLA; i++ {
+//		for j := 0; j < pp.paramDA; j++ {
+//			if got.polyAs[i].coeffs[j] != as.polyAs[i].coeffs[j] {
+//				t.Fatal("j=", j, " got[i][j]=", got.polyAs[i].coeffs[j], " origin[i][j]=", as.polyAs[i].coeffs[j])
+//			}
+//		}
+//	}
+//}
+
 func TestPublicParameter_writePolyCVecEta_readPolyCVecEta(t *testing.T) {
 	pp := DefaultPP
 	as := pp.NewPolyCVec(pp.paramLC)
@@ -226,11 +289,14 @@ func TestPublicParameter_writePolyCVecEta_readPolyCVecEta(t *testing.T) {
 
 func TestPublicParameter_SerializeAddressSecretSpAndSnKey_DeserializeAddressSecretSpAndSnKey(t *testing.T) {
 	pp := DefaultPP
-	ts := pp.NewPolyANTTVec(pp.paramLA)
+	ts := pp.NewPolyAVec(pp.paramLA)
 	for i := 0; i < pp.paramLA; i++ {
 		seed := RandomBytes(pp.paramSeedBytesLen)
-		tmp := rejectionUniformWithQa(seed, pp.paramDA, pp.paramQA)
-		ts.polyANTTs[i] = &PolyANTT{coeffs: tmp}
+		tmp, err := randomnessFromGammaA5(seed, pp.paramDA)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		ts.polyAs[i] = &PolyA{coeffs: tmp}
 	}
 	var e *PolyANTT
 	seed := RandomBytes(pp.paramSeedBytesLen)
@@ -248,10 +314,10 @@ func TestPublicParameter_SerializeAddressSecretSpAndSnKey_DeserializeAddressSecr
 	if err != nil {
 		log.Fatalln(err)
 	}
-	for i := 0; i < len(got.s.polyANTTs); i++ {
-		for j := 0; j < len(got.s.polyANTTs[i].coeffs); j++ {
-			if got.s.polyANTTs[i].coeffs[j] != asksp.s.polyANTTs[i].coeffs[j] {
-				t.Fatal("j=", j, " got[i][j]=", got.s.polyANTTs[i].coeffs[j], " origin[i][j]=", asksp.s.polyANTTs[i].coeffs[j])
+	for i := 0; i < len(got.s.polyAs); i++ {
+		for j := 0; j < len(got.s.polyAs[i].coeffs); j++ {
+			if got.s.polyAs[i].coeffs[j] != asksp.s.polyAs[i].coeffs[j] {
+				t.Fatal("j=", j, " got[i][j]=", got.s.polyAs[i].coeffs[j], " origin[i][j]=", asksp.s.polyAs[i].coeffs[j])
 			}
 		}
 	}
