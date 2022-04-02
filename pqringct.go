@@ -1,5 +1,7 @@
 package pqringct
 
+//	Based on v510 2022.04
+
 import (
 	"bytes"
 	"crypto/sha256"
