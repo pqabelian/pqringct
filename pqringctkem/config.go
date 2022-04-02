@@ -3,6 +3,7 @@ package pqringctkem
 import (
 	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
+	"github.com/cryptosuite/pqringct/pqringctkem/pqringctOQSKem"
 	"github.com/cryptosuite/pqringct/pqringctkem/pqringctkyber"
 	"log"
 )
@@ -11,11 +12,13 @@ type VersionKEM uint32
 
 const (
 	KEM_KYBER VersionKEM = iota
+	KEM_OQS_KYBER
 )
 
 type ParamKem struct {
-	Version VersionKEM
-	Kyber   *kyber.ParameterSet
+	Version  VersionKEM
+	Kyber    *kyber.ParameterSet
+	OQSKyber string
 }
 
 type ValuePublicKey struct {
@@ -34,6 +37,18 @@ func KeyGen(ppkem *ParamKem, seed []byte, seedLen int) ([]byte, []byte, error) {
 	switch ppkem.Version {
 	case KEM_KYBER:
 		originSerializedPK, originSerializedSK, err = pqringctkyber.KeyPair(ppkem.Kyber, seed, seedLen)
+		if err != nil {
+			return nil, nil, err
+		}
+	case KEM_OQS_KYBER:
+		var recovery bool
+		if seed == nil || seedLen < 32 {
+			seed = make([]byte, 32)
+			recovery = false
+		} else {
+			recovery = true
+		}
+		originSerializedPK, originSerializedSK, err = pqringctOQSKem.KeyPair(ppkem.OQSKyber, seed, recovery)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -71,6 +86,11 @@ func Encaps(ppkem *ParamKem, pk []byte) ([]byte, []byte, error) {
 	switch ppkem.Version {
 	case KEM_KYBER:
 		serializedC, kappa, err = pqringctkyber.Encaps(ppkem.Kyber, pk[4:])
+		if err != nil {
+			return nil, nil, err
+		}
+	case KEM_OQS_KYBER:
+		serializedC, kappa, err = pqringctOQSKem.Encaps(ppkem.OQSKyber, pk[4:])
 		if err != nil {
 			return nil, nil, err
 		}
@@ -112,6 +132,11 @@ func Decaps(ppkem *ParamKem, serializedC []byte, sk []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+	case KEM_OQS_KYBER:
+		kappa, err = pqringctOQSKem.Decaps(ppkem.OQSKyber, serializedC[4:], sk[4:])
+		if err != nil {
+			return nil, err
+		}
 	default:
 		log.Fatalln("Unsupported KEM version.")
 	}
@@ -119,7 +144,8 @@ func Decaps(ppkem *ParamKem, serializedC []byte, sk []byte) ([]byte, error) {
 }
 
 func GetKemCiphertextBytesLen(ppkem *ParamKem) int {
-	return 4 + ppkem.Kyber.CryptoCiphertextBytes()
+	//return 4 + ppkem.Kyber.CryptoCiphertextBytes()
+	return 4 + 32
 }
 
 func (vpk *ValuePublicKey) WellformCheck() bool {
@@ -132,7 +158,7 @@ func (vsk *ValueSecretKey) WellformCheck() bool {
 	return true
 }
 
-func NewParamKem(version VersionKEM, kyber *kyber.ParameterSet) *ParamKem {
+func NewParamKem(version VersionKEM, kyber *kyber.ParameterSet, oqsKEM string) *ParamKem {
 	switch version {
 	case KEM_KYBER:
 		return &ParamKem{
@@ -147,5 +173,5 @@ func NewParamKem(version VersionKEM, kyber *kyber.ParameterSet) *ParamKem {
 var KyberKem *ParamKem
 
 func init() {
-	KyberKem = NewParamKem(KEM_KYBER, kyber.Kyber768)
+	KyberKem = NewParamKem(KEM_OQS_KYBER, nil, "Kyber768")
 }

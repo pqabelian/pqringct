@@ -1,7 +1,6 @@
 package pqringct
 
 import (
-	"github.com/cryptosuite/kyber-go/kyber"
 	"github.com/cryptosuite/pqringct/pqringctkem"
 	"golang.org/x/crypto/sha3"
 	"log"
@@ -479,8 +478,10 @@ func init() {
 
 		[]byte("Welcome to Post Quantum World!"), // todo: a more interesting sentence
 		&pqringctkem.ParamKem{
-			Version: pqringctkem.KEM_KYBER,
-			Kyber:   kyber.Kyber768,
+			Version: pqringctkem.KEM_OQS_KYBER,
+			//Kyber:   kyber.Kyber768,
+			Kyber:    nil,
+			OQSKyber: "Kyber768",
 		},
 	)
 	if err != nil {
