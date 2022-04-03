@@ -547,9 +547,86 @@ func TestPublicParameter_SerializeLgrTxo_DeserializeLgrTxo(t *testing.T) {
 	if !equal {
 		t.Fatal("error for serialize and deserialize lgrTxo")
 	}
-
 }
 
 func TestPublicParameter_SerializeRpulpProof_DeserializeRpulpProof(t *testing.T) {
+	pp := DefaultPP
+	J := 2
+	var seed []byte
+	// c_waves []*PolyCNTT
+	c_waves := make([]*PolyCNTT, J)
+	for i := 0; i < J; i++ {
+		seed = RandomBytes(pp.paramSeedBytesLen)
+		tmp := rejectionUniformWithQc(seed, pp.paramDC)
+		c_waves[i] = &PolyCNTT{coeffs: tmp}
+	}
 
+	//	c_hat_g *PolyCNTT
+	var c_hat_g *PolyCNTT
+	seed = RandomBytes(pp.paramSeedBytesLen)
+	tmp := rejectionUniformWithQc(seed, pp.paramDC)
+	c_hat_g = &PolyCNTT{coeffs: tmp}
+
+	//	psi     *PolyCNTT
+	var psi *PolyCNTT
+	seed = RandomBytes(pp.paramSeedBytesLen)
+	tmp = rejectionUniformWithQc(seed, pp.paramDC)
+	psi = &PolyCNTT{coeffs: tmp}
+
+	//	phi     *PolyCNTT
+	var phi *PolyCNTT
+	seed = RandomBytes(pp.paramSeedBytesLen)
+	tmp = rejectionUniformWithQc(seed, pp.paramDC)
+	phi = &PolyCNTT{coeffs: tmp}
+
+	//	chseed  []byte
+	chseed := RandomBytes(pp.paramSeedBytesLen)
+
+	//	cmt_zs [][]*PolyCVec
+	cmt_zs := make([][]*PolyCVec, pp.paramK)
+	for i := 0; i < pp.paramK; i++ {
+		cmt_zs[i] = make([]*PolyCVec, J)
+		for j := 0; j < J; j++ {
+			cmt_zs[i][j] = pp.NewPolyCVec(pp.paramLC)
+			for k := 0; k < pp.paramLC; k++ {
+				seed = RandomBytes(pp.paramSeedBytesLen)
+				tmp, _ = randomnessFromEtaCv2(seed, pp.paramDC)
+				cmt_zs[i][j].polyCs[k] = &PolyC{coeffs: tmp}
+			}
+		}
+	}
+
+	//	zs     []*PolyCVec
+	zs := make([]*PolyCVec, pp.paramK)
+	for i := 0; i < pp.paramK; i++ {
+		zs[i] = pp.NewPolyCVec(pp.paramLC)
+		for j := 0; j < J; j++ {
+			seed = RandomBytes(pp.paramSeedBytesLen)
+			tmp, _ = randomnessFromEtaCv2(seed, pp.paramDC)
+			zs[i].polyCs[j] = &PolyC{coeffs: tmp}
+		}
+	}
+
+	rpulpProof := &rpulpProofv2{
+		c_waves: c_waves,
+		c_hat_g: c_hat_g,
+		psi:     psi,
+		phi:     phi,
+		chseed:  chseed,
+		cmt_zs:  cmt_zs,
+		zs:      zs,
+	}
+
+	serializedRpulpProof, err := pp.SerializeRpulpProof(rpulpProof)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	got, err := pp.DeserializeRpulpProof(serializedRpulpProof)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	equal := reflect.DeepEqual(got, rpulpProof)
+	if !equal {
+		t.Fatal("error for serialize and deserialize lgrTxo")
+	}
 }

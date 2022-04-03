@@ -1030,7 +1030,10 @@ func (pp *PublicParameter) SerializeRpulpProof(prf *rpulpProofv2) ([]byte, error
 			return nil, err
 		}
 		for j := 0; j < n1; j++ {
-			pp.writePolyCVecEta(w, prf.cmt_zs[i][j])
+			err = pp.writePolyCVecEta(w, prf.cmt_zs[i][j])
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

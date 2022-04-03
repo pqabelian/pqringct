@@ -144,8 +144,15 @@ func Decaps(ppkem *ParamKem, serializedC []byte, sk []byte) ([]byte, error) {
 }
 
 func GetKemCiphertextBytesLen(ppkem *ParamKem) int {
-	//return 4 + ppkem.Kyber.CryptoCiphertextBytes()
-	return 4 + 32
+	switch ppkem.Version {
+	case KEM_KYBER:
+		return 4 + ppkem.Kyber.CryptoCiphertextBytes()
+	case KEM_OQS_KYBER:
+		return 4 + 1088 // k*320 + 88 (k==4)
+	default:
+		log.Fatalln("Unsupported KEM version.")
+	}
+	return 0
 }
 
 func (vpk *ValuePublicKey) WellformCheck() bool {

@@ -109,6 +109,12 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	seed1 := RandomBytes(pp.paramSeedBytesLen)
 	apk1, ask1, _ := pp.AddressKeyGen(seed1)
 	serializedVPk1, serializedVSk1, _ := pp.ValueKeyGen(seed1)
+	serializedVSk1C0 := make([]byte, len(serializedVSk1))
+	copy(serializedVSk1C0, serializedVSk1)
+	serializedVSk1C1 := make([]byte, len(serializedVSk1))
+	copy(serializedVSk1C1, serializedVSk1)
+	serializedVSk1C2 := make([]byte, len(serializedVSk1))
+	copy(serializedVSk1C2, serializedVSk1)
 	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
 	serializedASksp1, _ := pp.SerializeAddressSecretKeySp(ask1.AddressSecretKeySp)
 	serializedASksn1, _ := pp.SerializeAddressSecretKeySn(ask1.AddressSecretKeySn)
@@ -239,7 +245,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						serializedASksp: serializedASksp1,
 						serializedASksn: serializedASksn1,
 						serializedVPk:   serializedVPk1,
-						serializedVSk:   serializedVSk1,
+						serializedVSk:   serializedVSk1C0,
 						value:           500,
 					},
 				},
@@ -280,7 +286,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						serializedASksp: serializedASksp1,
 						serializedASksn: serializedASksn1,
 						serializedVPk:   serializedVPk1,
-						serializedVSk:   serializedVSk1,
+						serializedVSk:   serializedVSk1C1,
 						value:           500,
 					},
 					{
@@ -298,7 +304,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						serializedASksp: serializedASksp1,
 						serializedASksn: serializedASksn1,
 						serializedVPk:   serializedVPk1,
-						serializedVSk:   serializedVSk1,
+						serializedVSk:   serializedVSk1C2,
 						value:           500,
 					},
 				},
