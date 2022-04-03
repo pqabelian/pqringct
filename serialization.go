@@ -1257,6 +1257,61 @@ func (pp *PublicParameter) boundingVecCSerializeSizeApprox() int {
 	return VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 }
 
+// For carry vector f, u_p = B*f + e servers as its range proof, where u_p's infinite normal should be smaller than q_c/16.
+// e is sampled from [-eta_f, eta_f].
+// B*f is bounded by d_c*J (for coinbaseTx with J>1), d_c * (J+1) (for transferTx with I=1), and d_c * (I+J+1) (for transferTx with I>1).
+// A valid proof for u_p should have infinite normal in [-(eta_f - beta_f), (eta_f - beta_f)].
+// Note q_c = 9007199254746113 = 2^{53} + 2^{12} + 2^{10} + 2^{0} is a 54-bit number, and 2^{49}-1 < q_c/16.
+// Any eta_f smaller than 2^{49}-1 will be fine.
+// We set eta_f = 2^{31}-1.
+// Each coefficient of u_p, say in [-(eta_f - beta_f), (eta_f - beta_f)], can be encoded by 4 bytes.
+func (pp *PublicParameter) CarryVectorRProofSerializeSize() int {
+	return pp.paramDC * 4
+}
+
+func (pp *PublicParameter) writeCarryVectorRProof(w io.Writer, u_p []int64) error {
+	if len(u_p) != pp.paramDC {
+		return errors.New("The carry vector should have size equal to paramDc")
+	}
+
+	var coeff int64
+	tmp := make([]byte, 4)
+	for i := 0; i < pp.paramDC; i++ {
+		coeff = u_p[i]
+		tmp[0] = byte(coeff >> 0)
+		tmp[1] = byte(coeff >> 8)
+		tmp[2] = byte(coeff >> 16)
+		tmp[3] = byte(coeff >> 24)
+		_, err := w.Write(tmp)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (pp *PublicParameter) readCarryVectorRProof(r io.Reader) ([]int64, error) {
+	u_p := make([]int64, pp.paramDC)
+
+	var coeff int64
+	tmp := make([]byte, 4)
+	for i := 0; i < pp.paramDC; i++ {
+		_, err := r.Read(tmp)
+		if err != nil {
+			return nil, err
+		}
+		coeff = int64(tmp[0]) << 0
+		coeff |= int64(tmp[1]) << 8
+		coeff |= int64(tmp[2]) << 16
+		coeff |= int64(tmp[3]) << 24
+		if tmp[3]>>7 == 1 {
+			//	31-bit for absolute
+			coeff = int64(uint64(coeff) | 0xFFFFFFFF00000000)
+		}
+		u_p[i] = coeff
+	}
+	return u_p, nil
+}
+
 func (pp *PublicParameter) CbTxWitnessJ2SerializeSizeApprox(outTxoNum int) int {
 	var lenApprox int
 
@@ -1269,8 +1324,7 @@ func (pp *PublicParameter) CbTxWitnessJ2SerializeSizeApprox(outTxoNum int) int {
 	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 
 	// u_p
-	lenTmp = pp.paramDC * 8
-	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	lenApprox += pp.CarryVectorRProofSerializeSize()
 
 	// rpulpproof
 	// c_waves []*PolyCNTT
@@ -1298,7 +1352,7 @@ func (pp *PublicParameter) CbTxWitnessJ2SerializeSize(witness *CbTxWitnessJ2) in
 	length = pp.PolyCNTTVecSerializeSize(witness.b_hat) +
 		VarIntSerializeSize2(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize()
 
-	length += VarIntSerializeSize2(uint64(len(witness.u_p))) + len(witness.u_p)*8
+	length += pp.CarryVectorRProofSerializeSize()
 	rplPrfLen := pp.RpulpProofSerializeSize(witness.rpulpproof)
 	length += VarIntSerializeSize2(uint64(rplPrfLen)) + rplPrfLen
 
@@ -1330,26 +1384,30 @@ func (pp *PublicParameter) SerializeCbTxWitnessJ2(witness *CbTxWitnessJ2) ([]byt
 		}
 	}
 	// u_p        []int64
-	//	todo: use a function for EtaF
-	err = WriteVarInt(w, uint64(len(witness.u_p)))
+	err = pp.writeCarryVectorRProof(w, witness.u_p)
 	if err != nil {
 		return nil, err
 	}
-	tmp := make([]byte, 8)
-	for i := 0; i < len(witness.u_p); i++ {
-		tmp[0] = byte(witness.u_p[i] >> 0)
-		tmp[1] = byte(witness.u_p[i] >> 8)
-		tmp[2] = byte(witness.u_p[i] >> 16)
-		tmp[3] = byte(witness.u_p[i] >> 24)
-		tmp[4] = byte(witness.u_p[i] >> 32)
-		tmp[5] = byte(witness.u_p[i] >> 40)
-		tmp[6] = byte(witness.u_p[i] >> 48)
-		tmp[7] = byte(witness.u_p[i] >> 56)
-		_, err = w.Write(tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
+	////	todo_done: use a function for EtaF
+	//err = WriteVarInt(w, uint64(len(witness.u_p)))
+	//if err != nil {
+	//	return nil, err
+	//}
+	//tmp := make([]byte, 8)
+	//for i := 0; i < len(witness.u_p); i++ {
+	//	tmp[0] = byte(witness.u_p[i] >> 0)
+	//	tmp[1] = byte(witness.u_p[i] >> 8)
+	//	tmp[2] = byte(witness.u_p[i] >> 16)
+	//	tmp[3] = byte(witness.u_p[i] >> 24)
+	//	tmp[4] = byte(witness.u_p[i] >> 32)
+	//	tmp[5] = byte(witness.u_p[i] >> 40)
+	//	tmp[6] = byte(witness.u_p[i] >> 48)
+	//	tmp[7] = byte(witness.u_p[i] >> 56)
+	//	_, err = w.Write(tmp)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 	// rpulpproof *rpulpProofv2
 	serializedRpuProof, err := pp.SerializeRpulpProof(witness.rpulpproof)
 	if err != nil {
@@ -1400,29 +1458,33 @@ func (pp *PublicParameter) DeserializeCbTxWitnessJ2(serializedCbTxWitness []byte
 
 	// u_p        []int64
 	//	todo: a function for EtaF
-	var u_p []int64
-	count, err = ReadVarInt(r)
+	u_p, err := pp.readCarryVectorRProof(r)
 	if err != nil {
 		return nil, err
 	}
-	if count != 0 {
-		u_p = make([]int64, count)
-		tmp := make([]byte, 8)
-		for i := uint64(0); i < count; i++ {
-			n, err := r.Read(tmp)
-			if n != 8 || err != nil {
-				return nil, err
-			}
-			u_p[i] = int64(tmp[0]) << 0
-			u_p[i] |= int64(tmp[1]) << 8
-			u_p[i] |= int64(tmp[2]) << 16
-			u_p[i] |= int64(tmp[3]) << 24
-			u_p[i] |= int64(tmp[4]) << 32
-			u_p[i] |= int64(tmp[5]) << 40
-			u_p[i] |= int64(tmp[6]) << 48
-			u_p[i] |= int64(tmp[7]) << 56
-		}
-	}
+	//var u_p []int64
+	//count, err = ReadVarInt(r)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//if count != 0 {
+	//	u_p = make([]int64, count)
+	//	tmp := make([]byte, 8)
+	//	for i := uint64(0); i < count; i++ {
+	//		n, err := r.Read(tmp)
+	//		if n != 8 || err != nil {
+	//			return nil, err
+	//		}
+	//		u_p[i] = int64(tmp[0]) << 0
+	//		u_p[i] |= int64(tmp[1]) << 8
+	//		u_p[i] |= int64(tmp[2]) << 16
+	//		u_p[i] |= int64(tmp[3]) << 24
+	//		u_p[i] |= int64(tmp[4]) << 32
+	//		u_p[i] |= int64(tmp[5]) << 40
+	//		u_p[i] |= int64(tmp[6]) << 48
+	//		u_p[i] |= int64(tmp[7]) << 56
+	//	}
+	//}
 
 	// rpulpproof *rpulpProofv2
 	serializedRpulpProof, err := readVarBytes(r, MAXALLOWED, "CbTxWitnessJ2.rpulpproof")
@@ -1858,12 +1920,11 @@ func (pp *PublicParameter) TrTxWitnessSerializeSizeApprox(inputRingSizes []int, 
 	}
 
 	// u_p
-	lenTmp := pp.paramDC * 8
-	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	lenApprox += pp.CarryVectorRProofSerializeSize()
 
 	// rpulpproof
 	// c_waves []*PolyCNTT
-	lenTmp = (len(inputRingSizes) + outputTxoNum) * pp.PolyCNTTSerializeSize()
+	lenTmp := (len(inputRingSizes) + outputTxoNum) * pp.PolyCNTTSerializeSize()
 	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 	// c_hat_g,psi,phi  *PolyCNTT
 	lenTmp = 3 * pp.PolyCNTTSerializeSize()
@@ -1896,7 +1957,7 @@ func (pp *PublicParameter) TrTxWitnessSerializeSize(witness *TrTxWitnessv2) int 
 
 	length += pp.PolyCNTTVecSerializeSize(witness.b_hat) + //b_hat      *PolyCNTTVec
 		VarIntSerializeSize2(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize() + //c_hats     []*PolyCNTT
-		VarIntSerializeSize2(uint64(len(witness.u_p))) + len(witness.u_p)*8 //u_p        []int64
+		pp.CarryVectorRProofSerializeSize() //u_p        []int64
 
 	//rpulpproof *rpulpProofv2
 	rpfLen := pp.RpulpProofSerializeSize(witness.rpulpproof)
@@ -1984,27 +2045,31 @@ func (pp *PublicParameter) SerializeTrTxWitness(witness *TrTxWitnessv2) ([]byte,
 		}
 	}
 	// u_p        []int64
-	// todo: use a fucntion for EtaF
-	err = WriteVarInt(w, uint64(len(witness.u_p)))
+	err = pp.writeCarryVectorRProof(w, witness.u_p)
 	if err != nil {
 		return nil, err
 	}
-	tmp := make([]byte, 8)
-	for i := 0; i < len(witness.u_p); i++ {
-		tmp[0] = byte(witness.u_p[i] >> 0)
-		tmp[1] = byte(witness.u_p[i] >> 8)
-		tmp[2] = byte(witness.u_p[i] >> 16)
-		tmp[3] = byte(witness.u_p[i] >> 24)
-		tmp[4] = byte(witness.u_p[i] >> 32)
-		tmp[5] = byte(witness.u_p[i] >> 40)
-		tmp[6] = byte(witness.u_p[i] >> 48)
-		tmp[7] = byte(witness.u_p[i] >> 56)
-		//	err = writeVarBytes(w, tmp)
-		_, err = w.Write(tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
+	//// todo_done: use a fucntion for EtaF
+	//err = WriteVarInt(w, uint64(len(witness.u_p)))
+	//if err != nil {
+	//	return nil, err
+	//}
+	//tmp := make([]byte, 8)
+	//for i := 0; i < len(witness.u_p); i++ {
+	//	tmp[0] = byte(witness.u_p[i] >> 0)
+	//	tmp[1] = byte(witness.u_p[i] >> 8)
+	//	tmp[2] = byte(witness.u_p[i] >> 16)
+	//	tmp[3] = byte(witness.u_p[i] >> 24)
+	//	tmp[4] = byte(witness.u_p[i] >> 32)
+	//	tmp[5] = byte(witness.u_p[i] >> 40)
+	//	tmp[6] = byte(witness.u_p[i] >> 48)
+	//	tmp[7] = byte(witness.u_p[i] >> 56)
+	//	//	err = writeVarBytes(w, tmp)
+	//	_, err = w.Write(tmp)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	// rpulpproof *rpulpProofv2
 	serializedRpuProof, err := pp.SerializeRpulpProof(witness.rpulpproof)
@@ -2121,29 +2186,34 @@ func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) 
 		}
 	}
 	// u_p        []int64
-	var u_p []int64
-	count, err = ReadVarInt(r)
+	u_p, err := pp.readCarryVectorRProof(r)
 	if err != nil {
 		return nil, err
 	}
-	if count != 0 {
-		u_p = make([]int64, count)
-		tmp := make([]byte, 8)
-		for i := uint64(0); i < count; i++ {
-			n, err := r.Read(tmp)
-			if n != 8 || err != nil {
-				return nil, err
-			}
-			u_p[i] = int64(tmp[0]) << 0
-			u_p[i] |= int64(tmp[1]) << 8
-			u_p[i] |= int64(tmp[2]) << 16
-			u_p[i] |= int64(tmp[3]) << 24
-			u_p[i] |= int64(tmp[4]) << 32
-			u_p[i] |= int64(tmp[5]) << 40
-			u_p[i] |= int64(tmp[6]) << 48
-			u_p[i] |= int64(tmp[7]) << 56
-		}
-	}
+	//var u_p []int64
+	//count, err = ReadVarInt(r)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//if count != 0 {
+	//	u_p = make([]int64, count)
+	//	tmp := make([]byte, 8)
+	//	for i := uint64(0); i < count; i++ {
+	//		n, err := r.Read(tmp)
+	//		if n != 8 || err != nil {
+	//			return nil, err
+	//		}
+	//		u_p[i] = int64(tmp[0]) << 0
+	//		u_p[i] |= int64(tmp[1]) << 8
+	//		u_p[i] |= int64(tmp[2]) << 16
+	//		u_p[i] |= int64(tmp[3]) << 24
+	//		u_p[i] |= int64(tmp[4]) << 32
+	//		u_p[i] |= int64(tmp[5]) << 40
+	//		u_p[i] |= int64(tmp[6]) << 48
+	//		u_p[i] |= int64(tmp[7]) << 56
+	//	}
+	//}
+	
 	// rpulpproof *rpulpProofv2
 	// var rpulpproof *rpulpProofv2
 	serializedProof, err := readVarBytes(r, MAXALLOWED, "TrTxWitness.rpulpproof")
