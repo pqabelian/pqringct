@@ -1739,9 +1739,12 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			)
 		}
 
-		//	todo: check the scope of u_p in theory
-		u_p := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
-		u_p_tmp := make([]int64, pp.paramDC)
+		//	todo_done 2022.04.03: check the scope of u_p in theory
+		//	u_p = B f + e, where e \in [-eta_f, eta_f], with eta_f < q_c/16.
+		//	As Bf should be bound by d_c J, so that |B f + e| < q_c/2, there should not modular reduction.
+		betaF := pp.paramDC * J
+		u_p := make([]int64, pp.paramDC)
+		//u_p_tmp := make([]int64, pp.paramDC)
 
 		seed_binM, err := Hash(pp.collectBytesForCoinbase2(cbTxCon, b_hat, c_hats)) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 
@@ -1752,24 +1755,27 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		if err != nil {
 			return nil, err
 		}
-		// todo: check B f + e
+		// compute B f + e and check the normal
 		for i := 0; i < pp.paramDC; i++ {
-			u_p_tmp[i] = e[i]
+			//u_p_tmp[i] = e[i]
+			u_p[i] = e[i]
 			for j := 0; j < pp.paramDC; j++ {
 				if (binM[i][j/8]>>(j%8))&1 == 1 {
-					u_p_tmp[i] = u_p_tmp[i] + f[j]
+					// u_p_tmp[i] = u_p_tmp[i] + f[j]
+					u_p[i] = u_p[i] + f[j]
 				}
 			}
 
-			infNorm := u_p_tmp[i]
+			//infNorm := u_p_tmp[i]
+			infNorm := u_p[i]
 			if infNorm < 0 {
 				infNorm = -infNorm
 			}
-			if infNorm > pp.paramEtaF-int64(J-1) {
+			if infNorm > pp.paramEtaF-int64(betaF) {
 				goto cbTxGenJ2Restart
 			}
 
-			u_p[i] = reduceInt64(u_p_tmp[i], pp.paramQC) // todo: 202203 Do need reduce?
+			//			u_p[i] = reduceInt64(u_p_tmp[i], pp.paramQC) // todo_done: 202203 Do need reduce? no.
 		}
 
 		u_hats[1] = make([]int64, pp.paramDC)
@@ -1931,6 +1937,9 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) (bool, error) {
 		}
 
 		//	infNorm of u'
+		//	u_p = B f + e, where e \in [-eta_f, eta_f], with eta_f < q_c/16.
+		//	As Bf should be bound by d_c J, so that |B f + e| < q_c/2, there should not modular reduction.
+		betaF := pp.paramDC * J
 		infNorm := int64(0)
 		if len(cbTx.TxWitnessJ2.u_p) != pp.paramDC {
 			return false, nil
@@ -1941,7 +1950,7 @@ func (pp *PublicParameter) CoinbaseTxVerify(cbTx *CoinbaseTxv2) (bool, error) {
 				infNorm = -infNorm
 			}
 
-			if infNorm >= (pp.paramEtaF - int64(J-1)) { // todo: q/12 or eta_f - (J-1)
+			if infNorm > (pp.paramEtaF - int64(betaF)) {
 				return false, nil
 			}
 		}
@@ -2294,9 +2303,12 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 			&PolyCNTT{coeffs: msg_hats[n+1]},
 		)
 
-		// todo: check the scope of u_p in theory
+		//	todo_done 2022.04.03: check the scope of u_p in theory
+		//	u_p = B f + e, where e \in [-eta_f, eta_f], with eta_f < q_c/16.
+		//	As Bf should be bound by d_c J, so that |B f + e| < q_c/2, there should not modular reduction.
+		betaF := pp.paramDC * (J + 1)
 		u_p := make([]int64, pp.paramDC)
-		u_p_temp := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		//u_p_temp := make([]int64, pp.paramDC) // todo_done 2022.04.03: make sure that (eta_f, d) will not make the value of u_p[i] over int32
 		preMsg, err := pp.collectBytesForTransfer(msgTrTxCon, b_hat, c_hats)
 		if err != nil {
 			return nil, err
@@ -2309,26 +2321,29 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		if err != nil {
 			return nil, err
 		}
-		// todo: check B f + e
+		// compute B f + e and check the normal
 		// up = B * f + e
 		for i := 0; i < pp.paramDC; i++ {
-			u_p_temp[i] = e[i]
+			//u_p_temp[i] = e[i]
+			u_p[i] = e[i]
 			for j := 0; j < pp.paramDC; j++ {
 				if (binM[i][j/8]>>(j%8))&1 == 1 {
-					u_p_temp[i] += f[j]
+					//u_p_temp[i] += f[j]
+					u_p[i] += f[j]
 				}
 			}
 
-			infNorm := u_p_temp[i]
+			//infNorm := u_p_temp[i]
+			infNorm := u_p[i]
 			if infNorm < 0 {
 				infNorm = -infNorm
 			}
 
-			if infNorm > (pp.paramEtaF - int64(J)) {
+			if infNorm > (pp.paramEtaF - int64(betaF)) {
 				goto trTxGenI1Restart
 			}
 
-			u_p[i] = reduceInt64(u_p_temp[i], pp.paramQC) // todo: need to confirm
+			// u_p[i] = reduceInt64(u_p_temp[i], pp.paramQC) // todo_done: need to confirm. Do not need to modulo.
 		}
 
 		u_hats := make([][]int64, 3)
@@ -2410,9 +2425,12 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 			&PolyCNTT{coeffs: msg_hats[n+3]},
 		)
 
-		// todo: check the scope of u_p in theory
+		// todo_done: (2022.04.03) check the scope of u_p in theory
+		//	u_p = B f + e, where e \in [-eta_f, eta_f], with eta_f < q_c/16.
+		//	As Bf should be bound by d_c J, so that |B f + e| < q_c/2, there should not modular reduction.
+		betaF := pp.paramDC * (I + J + 1)
 		u_p := make([]int64, pp.paramDC)
-		u_p_temp := make([]int64, pp.paramDC) // todo: make sure that (eta_f, d) will not make the value of u_p[i] over int32
+		//u_p_temp := make([]int64, pp.paramDC) // todo_done: make sure that (eta_f, d) will not make the value of u_p[i] over int32
 		preMsg, err := pp.collectBytesForTransfer(msgTrTxCon, b_hat, c_hats)
 		if err != nil {
 			return nil, err
@@ -2425,27 +2443,25 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 		if err != nil {
 			return nil, err
 		}
-		// todo: check B (f_1 || f_2) + e
-		betaF := I
-		if J+1 > betaF {
-			betaF = J + 1
-		}
-		betaF = betaF - 1
-
+		// compute B (f_1 || f_2) + e and check the normal
 		for i := 0; i < pp.paramDC; i++ {
-			u_p_temp[i] = e[i]
+			//u_p_temp[i] = e[i]
+			u_p[i] = e[i]
 			for j := 0; j < pp.paramDC; j++ {
 				//	u_p_temp[i] = u_p_temp[i] + int64(e[j])
 
 				if (binM[i][j/8]>>(j%8))&1 == 1 {
-					u_p_temp[i] += f1[j]
+					//u_p_temp[i] += f1[j]
+					u_p[i] += f1[j]
 				}
 				if (binM[i][(pp.paramDC+j)/8]>>((pp.paramDC+j)%8))&1 == 1 {
-					u_p_temp[i] += f2[j]
+					//u_p_temp[i] += f2[j]
+					u_p[i] += f2[j]
 				}
 			}
 
-			infNorm := u_p_temp[i]
+			//infNorm := u_p_temp[i]
+			infNorm := u_p[i]
 			if infNorm < 0 {
 				infNorm = -infNorm
 			}
@@ -2454,7 +2470,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 				goto trTxGenI2Restart
 			}
 
-			u_p[i] = reduceInt64(u_p_temp[i], pp.paramQC) // todo: confirm whether need to reduce
+			// u_p[i] = reduceInt64(u_p_temp[i], pp.paramQC) // todo_done: 2022.04.03 confirm whether need to reduce
 		}
 
 		u_hats := make([][]int64, 5)
@@ -2555,7 +2571,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) (bool, error) {
 		n2 := n + 2
 		n1 := n
 
-		betaF := J
+		betaF := pp.paramDC * (J + 1)
 
 		//	todo: consider with TransferTxGen
 		for i := 0; i < len(trTx.TxWitness.u_p); i++ {
@@ -2598,11 +2614,7 @@ func (pp *PublicParameter) TransferTxVerify(trTx *TransferTxv2) (bool, error) {
 		n2 := n + 4
 		n1 := n + 1
 
-		betaF := I
-		if J+1 > betaF {
-			betaF = J + 1
-		}
-		betaF = betaF - 1
+		betaF := pp.paramDC * (I + J + 1)
 
 		//	todo: consider with TransferTxGen
 		for i := 0; i < len(trTx.TxWitness.u_p); i++ {
