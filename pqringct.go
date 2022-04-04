@@ -2095,7 +2095,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDescv2, outputDesc
 	msgs_in := make([][]int64, I)
 
 	inputTotal := uint64(0)
-	asks := make([]*AddressSecretKey, len(outputDescs))
+	asks := make([]*AddressSecretKey, len(inputDescs))
 	for i, inputDescItem := range inputDescs {
 		if inputDescItem.value > V {
 			return nil, errors.New("the value is more than max value")
