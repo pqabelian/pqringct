@@ -128,40 +128,43 @@ func NewPublicParameter(
 	}
 
 	// generate the public matrix paramMatrixA from seed
-	tmpa := make([]byte, 32)
-	sha3.ShakeSum256(tmpa, append([]byte{'M', 'C'}, seed...))
-	res.paramMatrixA, err = res.expandPubMatrixA(tmpa)
+	seedMatrixA := make([]byte, 32)
+	sha3.ShakeSum256(seedMatrixA, append([]byte{'M', 'A'}, seed...))
+	res.paramMatrixA, err = res.expandPubMatrixA(seedMatrixA)
 	if err != nil {
 		return nil, err
 	}
 
 	// generate the public matrix paramVecA from seed
-	tmpamin := make([]byte, 32)
-	sha3.ShakeSum256(tmpamin, append([]byte{'M', 'C', 'a'}, seed...))
-	res.paramVecA, err = res.expandPubVecA(tmpamin)
+	seedVeca := make([]byte, 32)
+	sha3.ShakeSum256(seedVeca, append([]byte{'M', 'a'}, seed...))
+	res.paramVecA, err = res.expandPubVecA(seedVeca)
 
 	// generate the public matrix paramMatrixB from seed
-	tmpb := make([]byte, 32)
-	sha3.ShakeSum256(tmpb, append([]byte{'M', 'B'}, seed...))
-	res.paramMatrixB, err = res.expandPubMatrixB(tmpb)
+	seedMatrixB := make([]byte, 32)
+	sha3.ShakeSum256(seedMatrixB, append([]byte{'M', 'B'}, seed...))
+	res.paramMatrixB, err = res.expandPubMatrixB(seedMatrixB)
 	if err != nil {
 		return nil, err
 	}
 
 	// generate the public matrix paramMatrixH from seed
-	tmpc := make([]byte, 32)
-	sha3.ShakeSum256(tmpc, append([]byte{'M', 'H'}, seed...))
-	res.paramMatrixH, err = res.expandPubMatrixH(tmpc)
+	seedMatrixH := make([]byte, 32)
+	sha3.ShakeSum256(seedMatrixH, append([]byte{'M', 'H'}, seed...))
+	res.paramMatrixH, err = res.expandPubMatrixH(seedMatrixH)
 	if err != nil {
 		return nil, err
 	}
 
-	res.paramMu = make([]int64, res.paramDC)
+	muCoeff := make([]int64, paramDC)
 	for i := 0; i < res.paramN; i++ {
-		res.paramMu[i] = 1
+		muCoeff[i] = 1
 	}
-	// initial the paramNTTCFactors
-	res.NTTPolyC(&PolyC{coeffs: make([]int64, res.paramDC)})
+	for i := res.paramN; i < res.paramDC; i++ {
+		muCoeff[i] = 0
+	}
+	res.paramMu = &PolyCNTT{muCoeff}
+
 	return res, nil
 }
 
@@ -238,34 +241,25 @@ type PublicParameter struct {
 	//paramKInv = k^{-1} mod q_c
 	paramKInv int64
 
-	paramZetaA int64
 	// For splitting
+	// paramZetaA is a primitive paramZetaAOrder-th root of unity in Z_{q_a}^*.
+	paramZetaA       int64
 	paramZetasA      []int64
 	paramZetaAOrder  int
 	paramNTTAFactors []int
 
-	// paramZetaC is a primitive 2d-th root of unity in Z_q^*.
-	// As zeta \in Z_q, we define it with 'int32' type.
-	paramZetaC int64
-	// For splitting
+	// paramZetaC is a primitive paramZetaCOrder(=2d_c)-th root of unity in Z_{q_c}^*.
+	// As zeta_c \in Z_q, we define it with 'int64' type.
+	paramZetaC       int64
 	paramZetasC      []int64
 	paramZetaCOrder  int
 	paramNTTCFactors []int
 
-	// paramSigmaPermutations is determined by (d,k) and the selection of sigma
+	// paramSigmaPermutations is determined by (d_c,k) and the selection of sigma
 	// paramSigmaPermutations [t] with t=0~(k-1) works for sigma^t
 	paramSigmaPermutations [][]int
 
-	///*
-	//	paramSigmaInvPermutations is determined by (d,k) and the selection of sigma
-	//	paramSigmaInvPermutations [t] with t=0~(k-1) works for sigma^{-t}
-	//*/
-	//paramSigmaInvPermutations [][]int
-
-	// As we need to loop paramKA, we define it with 'int' type
-	//paramKA int
-
-	// As paramCStr is used to generate the public matrix, such as paramMatrixA, paramMatrixB, paramMatrixH
+	// As paramCStr is used to generate the public matrix, such as paramMatrixA, paramVecA, paramMatrixB, paramMatrixH
 	paramCStr []byte
 
 	// paramMatrixA is expand from paramCStr, with size k_a rows, each row with size l_a
@@ -281,7 +275,8 @@ type PublicParameter struct {
 	paramMatrixH []*PolyCNTTVec
 
 	// paramMu defines the const mu, which is determined by the value of N and d
-	paramMu []int64
+	// paramMu will be used as a constant PolyCNTT, where coeff[0]~coeff[N-1] is 1, and the remainder coeffs are 0.
+	paramMu *PolyCNTT
 
 	// paramKem defines the key encapsulate mechanism
 	paramKem *pqringctkem.ParamKem
@@ -291,7 +286,6 @@ func (pp *PublicParameter) ParamSeedBytesLen() int {
 	return pp.paramSeedBytesLen
 }
 
-// todo: review, 20220331 to be continued
 func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
 	res := make([]*PolyANTTVec, pp.paramKA)
 
@@ -299,8 +293,8 @@ func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error)
 	unit.coeffs[0] = 1
 	unitNTT := pp.NTTPolyA(unit)
 
-	// generate the remained sub-matrix
-	matrix, err := pp.generatePolyANTTMatrix(seed, pp.paramKA, 1+pp.paramLambdaA)
+	// generate the right sub-matrix A'
+	matrixAp, err := pp.generatePolyANTTMatrix(seed, pp.paramKA, 1+pp.paramLambdaA)
 	if err != nil {
 		return nil, err
 	}
@@ -308,13 +302,14 @@ func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error)
 	for i := 0; i < pp.paramKA; i++ {
 		res[i] = pp.NewZeroPolyANTTVec(pp.paramLA)
 
-		for t := 0; t < pp.paramDA; t++ {
-			// repeatedly use unitNTT, set the coeffs rather than the pointer
-			res[i].polyANTTs[i].coeffs[t] = unitNTT.coeffs[t]
-		}
+		//for t := 0; t < pp.paramDA; t++ {
+		//	// repeatedly use unitNTT, set the coeffs rather than the pointer
+		//	res[i].polyANTTs[i].coeffs[t] = unitNTT.coeffs[t]
+		//}
+		copy(res[i].polyANTTs[i].coeffs, unitNTT.coeffs)
 
 		for j := 0; j < 1+pp.paramLambdaA; j++ {
-			res[i].polyANTTs[pp.paramKA+j] = matrix[i].polyANTTs[j]
+			res[i].polyANTTs[pp.paramKA+j] = matrixAp[i].polyANTTs[j]
 		}
 
 	}
@@ -327,19 +322,19 @@ func (pp *PublicParameter) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
 	unit.coeffs[0] = 1
 	unitNTT := pp.NTTPolyA(unit)
 
-	// generate the remained sub-matrix
-	matrix, err := pp.generatePolyANTTMatrix(seed, 1, pp.paramLambdaA)
+	// generate the right vector a'
+	vecAp, err := pp.generatePolyANTTMatrix(seed, 1, pp.paramLambdaA)
 	if err != nil {
 		return nil, err
 	}
 
-	// [0 ... 0(k_a) 1 r ... r(lambda_a)]
+	// [0 ... 0(k_a) , 1, vecAp (lambda_a)]
 	res := pp.NewZeroPolyANTTVec(pp.paramLA) // L_a = K_a+1+lambda_a
 
 	res.polyANTTs[pp.paramKA] = unitNTT
 
 	for j := 0; j < pp.paramLambdaA; j++ {
-		res.polyANTTs[pp.paramKA+1+j] = matrix[0].polyANTTs[j]
+		res.polyANTTs[pp.paramKA+1+j] = vecAp[0].polyANTTs[j]
 	}
 	return res, nil
 }
@@ -351,8 +346,8 @@ func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec
 	unit.coeffs[0] = 1
 	unitNTT := pp.NTTPolyC(unit)
 
-	// generate the remained sub-matrix
-	matrix, err := pp.generatePolyCNTTMatrix(seed, pp.paramKC, pp.paramI+pp.paramJ+7+pp.paramLambdaC)
+	// generate the right sub-matrix B'
+	matrixBp, err := pp.generatePolyCNTTMatrix(seed, pp.paramKC, pp.paramI+pp.paramJ+7+pp.paramLambdaC)
 	if err != nil {
 		return nil, err
 	}
@@ -360,12 +355,13 @@ func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec
 	for i := 0; i < pp.paramKC; i++ {
 		res[i] = pp.NewZeroPolyCNTTVec(pp.paramLC)
 
-		for t := 0; t < pp.paramDC; t++ {
-			res[i].polyCNTTs[i].coeffs[t] = unitNTT.coeffs[t]
-		}
+		//for t := 0; t < pp.paramDC; t++ {
+		//	res[i].polyCNTTs[i].coeffs[t] = unitNTT.coeffs[t]
+		//}
+		copy(res[i].polyCNTTs[i].coeffs, unitNTT.coeffs)
 
 		for j := 0; j < pp.paramI+pp.paramJ+7+pp.paramLambdaC; j++ {
-			res[i].polyCNTTs[pp.paramKC+j] = matrix[i].polyCNTTs[j]
+			res[i].polyCNTTs[pp.paramKC+j] = matrixBp[i].polyCNTTs[j]
 		}
 
 	}
@@ -380,8 +376,8 @@ func (pp *PublicParameter) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec
 	unitPoly.coeffs[0] = 1
 	unitNTT := pp.NTTPolyC(unitPoly)
 
-	// generate the remained sub-matrix
-	matrix, err := pp.generatePolyCNTTMatrix(seed, pp.paramI+pp.paramJ+7, pp.paramLambdaC)
+	// generate the right sub-matrix H'
+	matrixHp, err := pp.generatePolyCNTTMatrix(seed, pp.paramI+pp.paramJ+7, pp.paramLambdaC)
 	if err != nil {
 		return nil, err
 	}
@@ -389,12 +385,13 @@ func (pp *PublicParameter) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec
 	for i := 0; i < pp.paramI+pp.paramJ+7; i++ {
 		res[i] = pp.NewZeroPolyCNTTVec(pp.paramLC) // L_c=K_c+I+J+7+lambda_c
 
-		for t := 0; t < pp.paramDC; t++ {
-			res[i].polyCNTTs[pp.paramKC+i].coeffs[t] = unitNTT.coeffs[t]
-		}
+		//for t := 0; t < pp.paramDC; t++ {
+		//	res[i].polyCNTTs[pp.paramKC+i].coeffs[t] = unitNTT.coeffs[t]
+		//}
+		copy(res[i].polyCNTTs[pp.paramKC+i].coeffs, unitNTT.coeffs)
 
 		for j := 0; j < pp.paramLambdaC; j++ {
-			res[i].polyCNTTs[pp.paramKC+pp.paramI+pp.paramJ+7+j] = matrix[i].polyCNTTs[j]
+			res[i].polyCNTTs[pp.paramKC+pp.paramI+pp.paramJ+7+j] = matrixHp[i].polyCNTTs[j]
 		}
 	}
 
@@ -413,7 +410,7 @@ func init() {
 		5,
 		4,
 		5,
-		524287,
+		1<<19-1, //524287
 		300,
 		5,
 		5,
@@ -426,13 +423,15 @@ func init() {
 		16777215,
 		128,
 		1<<31-1, //	eta_f should be smaller than q_c/16, 2^49-1 is fine, but for size optimization, we use 2^{23}-1
-		256/8,
+		32,      // 32 bytes = 256 bits
 		-70368744177704,
 		-2251799813686528,
 		-12372710086,
 		16,
 		-3961374278055081,
 		256,
+		// todo: 2022.04.04 double check
+		//paramSigmaPermutations
 		[][]int{
 			{
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -488,14 +487,3 @@ func init() {
 		log.Fatalln(err)
 	}
 }
-
-//func powerAndModP(base int64, power int64, p int64) int64 {
-//	a := big.NewInt(base)
-//	b := big.NewInt(power)
-//	mod := big.NewInt(p)
-//	res := big.NewInt(1).Exp(a, b, mod).Int64()
-//	if res > (p-1)>>1 {
-//		res -= p
-//	}
-//	return res
-//}

@@ -588,7 +588,7 @@ rpUlpProveRestart:
 								&PolyCNTT{coeffs: msg_hats[i]},
 								&PolyCNTT{coeffs: msg_hats[i]},
 							),
-							&PolyCNTT{coeffs: pp.paramMu},
+							pp.paramMu,
 						),
 						tmp,
 					),
@@ -918,7 +918,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 
 	// psi'
 	psip := pp.NewZeroPolyCNTT()
-	mu := &PolyCNTT{coeffs: pp.paramMu}
+	//mu := pp.paramMu
 	for t := 0; t < pp.paramK; t++ {
 
 		tmp1 := pp.NewZeroPolyCNTT()
@@ -944,7 +944,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 				tmp,
 			)
 		}
-		tmp2 = pp.PolyCNTTMul(tmp2, mu)
+		tmp2 = pp.PolyCNTTMul(tmp2, pp.paramMu)
 		tmp2 = pp.PolyCNTTMul(tmp2, sigma_chs[t])
 
 		tmp1 = pp.PolyCNTTAdd(tmp1, tmp2)
@@ -1552,8 +1552,8 @@ func (pp *PublicParameter) ELRSVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDescv2, txMemo []byte) (cbTx *CoinbaseTxv2, err error) {
 	V := uint64(1)<<pp.paramN - 1
 
-	if vin >= V {
-		return nil, errors.New("vin is not in [0, V]") // todo: more accurate info
+	if vin > V {
+		return nil, errors.New("CoinbaseTxGen: vin is not in [0, V]") // todo: more accurate info
 	}
 
 	if len(txOutputDescs) == 0 || len(txOutputDescs) > pp.paramJ {
