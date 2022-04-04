@@ -26,7 +26,7 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 
 	type cbtxGenArgs struct {
 		vin           uint64
-		txOutputDescs []*TxOutputDescv2
+		txOutputDescs []*TxOutputDesc
 	}
 	tests := []struct {
 		name    string
@@ -38,7 +38,7 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 			"test one",
 			cbtxGenArgs{
 				vin: 512,
-				txOutputDescs: []*TxOutputDescv2{
+				txOutputDescs: []*TxOutputDesc{
 					{
 						serializedAPk: serializedAPk1,
 						serializedVPk: serializedVPk1,
@@ -53,7 +53,7 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 			"test two",
 			cbtxGenArgs{
 				vin: 512,
-				txOutputDescs: []*TxOutputDescv2{
+				txOutputDescs: []*TxOutputDesc{
 					{
 						serializedAPk: serializedAPk1,
 						serializedVPk: serializedVPk1,
@@ -70,7 +70,7 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 			true,
 		},
 	}
-	var cbTx *CoinbaseTxv2
+	var cbTx *CoinbaseTx
 	var err error
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -94,8 +94,8 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	pp := DefaultPP
 	type args struct {
-		inputDescs  []*TxInputDescv2
-		outputDescs []*TxOutputDescv2
+		inputDescs  []*TxInputDesc
+		outputDescs []*TxOutputDesc
 		fee         uint64
 		txMemo      []byte
 	}
@@ -123,7 +123,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
 	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)
 
-	cbTx0, err := pp.CoinbaseTxGen(1<<51-1, []*TxOutputDescv2{
+	cbTx0, err := pp.CoinbaseTxGen(1<<51-1, []*TxOutputDesc{
 		{
 			serializedAPk: serializedAPk1,
 			serializedVPk: serializedVPk1,
@@ -164,7 +164,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 		fmt.Println("CbTx0 (J=1) serialze and deserialize Pass")
 	}
 
-	cbTx1, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
+	cbTx1, err := pp.CoinbaseTxGen(512, []*TxOutputDesc{
 		{
 			serializedAPk: serializedAPk1,
 			serializedVPk: serializedVPk1,
@@ -196,7 +196,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 		fmt.Println("CbTx1 (J=2) serialze and deserialize Pass")
 	}
 
-	cbTx2, err := pp.CoinbaseTxGen(512, []*TxOutputDescv2{
+	cbTx2, err := pp.CoinbaseTxGen(512, []*TxOutputDesc{
 		{
 			serializedAPk: serializedAPk1,
 			serializedVPk: serializedVPk1,
@@ -242,16 +242,16 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 		{
 			name: "test 1",
 			args: args{
-				inputDescs: []*TxInputDescv2{
+				inputDescs: []*TxInputDesc{
 					{
 						lgrTxoList: []*LgrTxo{
 							{
-								Txo: cbTx1.OutputTxos[0],
-								Id:  make([]byte, HashBytesLen),
+								txo: cbTx1.OutputTxos[0],
+								id:  make([]byte, HashBytesLen),
 							},
 							{
-								Txo: cbTx1.OutputTxos[1],
-								Id:  make([]byte, HashBytesLen),
+								txo: cbTx1.OutputTxos[1],
+								id:  make([]byte, HashBytesLen),
 							},
 						},
 						sidx:            0,
@@ -262,7 +262,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						value:           500,
 					},
 				},
-				outputDescs: []*TxOutputDescv2{
+				outputDescs: []*TxOutputDesc{
 					{
 						serializedAPk: serializedAPk1,
 						serializedVPk: serializedVPk1,
@@ -283,16 +283,16 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 		{
 			name: "test 2",
 			args: args{
-				inputDescs: []*TxInputDescv2{
+				inputDescs: []*TxInputDesc{
 					{
 						lgrTxoList: []*LgrTxo{
 							{
-								Txo: cbTx1.OutputTxos[0],
-								Id:  make([]byte, HashBytesLen),
+								txo: cbTx1.OutputTxos[0],
+								id:  make([]byte, HashBytesLen),
 							},
 							{
-								Txo: cbTx1.OutputTxos[1],
-								Id:  make([]byte, HashBytesLen),
+								txo: cbTx1.OutputTxos[1],
+								id:  make([]byte, HashBytesLen),
 							},
 						},
 						sidx:            0,
@@ -305,12 +305,12 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 					{
 						lgrTxoList: []*LgrTxo{
 							{
-								Txo: cbTx2.OutputTxos[0],
-								Id:  make([]byte, HashBytesLen),
+								txo: cbTx2.OutputTxos[0],
+								id:  make([]byte, HashBytesLen),
 							},
 							{
-								Txo: cbTx2.OutputTxos[1],
-								Id:  make([]byte, HashBytesLen),
+								txo: cbTx2.OutputTxos[1],
+								id:  make([]byte, HashBytesLen),
 							},
 						},
 						sidx:            0,
@@ -321,7 +321,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						value:           500,
 					},
 				},
-				outputDescs: []*TxOutputDescv2{
+				outputDescs: []*TxOutputDesc{
 					{
 						serializedAPk: serializedAPk1,
 						serializedVPk: serializedVPk1,

@@ -39,17 +39,17 @@ func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 	return vpk, vsk, nil
 }
 
-func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDescv2, txMemo []byte) (cbTx *CoinbaseTxv2, err error) {
+func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDesc, txMemo []byte) (cbTx *CoinbaseTx, err error) {
 	return pp.CoinbaseTxGen(vin, txOutputDescs, txMemo)
 }
-func CoinbaseTxVerify(pp *PublicParameter, cbTx *CoinbaseTxv2) (bool, error) {
+func CoinbaseTxVerify(pp *PublicParameter, cbTx *CoinbaseTx) (bool, error) {
 	return pp.CoinbaseTxVerify(cbTx)
 }
 
-func TransferTxGen(pp *PublicParameter, inputDescs []*TxInputDescv2, outputDescs []*TxOutputDescv2, fee uint64, txMemo []byte) (trTx *TransferTxv2, err error) {
+func TransferTxGen(pp *PublicParameter, inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64, txMemo []byte) (trTx *TransferTx, err error) {
 	return pp.TransferTxGen(inputDescs, outputDescs, fee, txMemo)
 }
-func TransferTxVerify(pp *PublicParameter, trTx *TransferTxv2) (bool, error) {
+func TransferTxVerify(pp *PublicParameter, trTx *TransferTx) (bool, error) {
 	return pp.TransferTxVerify(trTx)
 }
 func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVPk []byte, serializedVSk []byte) (valid bool, v uint64, err error) {
@@ -80,12 +80,33 @@ func LedgerTxoSerialNumberGen(pp *PublicParameter, lgrTxo *LgrTxo, serializedAsk
 
 //	Data structures for Transaction generation/verify	begin
 
-func NewTxOutputDescv2(pp *PublicParameter, serializedAPk []byte, serializedVPk []byte, value uint64) *TxOutputDescv2 {
-	return pp.newTxOutputDescv2(serializedAPk, serializedVPk, value)
+func NewTxOutputDescv2(pp *PublicParameter, serializedAPk []byte, serializedVPk []byte, value uint64) *TxOutputDesc {
+	//return newTxOutputDescv2(serializedAPk, serializedVPk, value)
+	return &TxOutputDesc{
+		serializedAPk: serializedAPk,
+		serializedVPk: serializedVPk,
+		value:         value,
+	}
 }
 
-func NewTxInputDescv2(pp *PublicParameter, lgrTxoList []*LgrTxo, sidx int, serializedASksp []byte, serializedASksn []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDescv2 {
-	return pp.newTxInputDescv2(lgrTxoList, sidx, serializedASksn, serializedASksp, serializedVPk, serializedVSk, value)
+func NewTxInputDescv2(pp *PublicParameter, lgrTxoList []*LgrTxo, sidx int, serializedASksp []byte, serializedASksn []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDesc {
+	//return newTxInputDescv2(lgrTxoList, sidx, serializedASksn, serializedASksp, serializedVPk, serializedVSk, value)
+	return &TxInputDesc{
+		lgrTxoList:      lgrTxoList,
+		sidx:            sidx,
+		serializedASksp: serializedASksp,
+		serializedASksn: serializedASksn,
+		serializedVPk:   serializedVPk,
+		serializedVSk:   serializedVSk,
+		value:           value,
+	}
+}
+
+func NewLgrTxo(txo *Txo, id []byte) *LgrTxo {
+	return &LgrTxo{
+		txo: txo,
+		id:  id,
+	}
 }
 
 //	Data structures for Transaction generation/verify	end

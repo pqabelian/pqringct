@@ -465,7 +465,7 @@ func TestPublicParameter_SerializeTxo_DeserializeTxo(t *testing.T) {
 		AddressPublicKey: apk,
 		ValueCommitment:  vcmt,
 		Vct:              vct,
-		CkemSerialzed:    Ckem,
+		CtKemSerialized:  Ckem,
 	}
 
 	serializedTxo, err := pp.SerializeTxo(txo)
@@ -527,13 +527,13 @@ func TestPublicParameter_SerializeLgrTxo_DeserializeLgrTxo(t *testing.T) {
 		AddressPublicKey: apk,
 		ValueCommitment:  vcmt,
 		Vct:              vct,
-		CkemSerialzed:    Ckem,
+		CtKemSerialized:  Ckem,
 	}
 
 	id := RandomBytes(HashBytesLen)
 	lgrTxo := &LgrTxo{
-		Txo: txo,
-		Id:  id,
+		txo: txo,
+		id:  id,
 	}
 	serializedLgrTxo, err := pp.SerializeLgrTxo(lgrTxo)
 	if err != nil {
@@ -607,7 +607,7 @@ func TestPublicParameter_SerializeRpulpProof_DeserializeRpulpProof(t *testing.T)
 		}
 	}
 
-	rpulpProof := &rpulpProofv2{
+	rpulpProof := &rpulpProof{
 		c_waves: c_waves,
 		c_hat_g: c_hat_g,
 		psi:     psi,
