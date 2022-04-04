@@ -112,3 +112,23 @@ func TestPublicParameter_NTTPolyA(t *testing.T) {
 	}
 
 }
+
+func TestZetaAsList(t *testing.T) {
+	pp := DefaultPP
+	bigQa := new(big.Int).SetInt64(pp.paramQA)
+	//for i := 0; i < pp.paramZetaAOrder; i++ {
+	//	zetaABig := new(big.Int).SetInt64(pp.paramZetasA[i])
+	//	zetaAinv := new(big.Int).SetInt64(pp.paramZetasA[(pp.paramZetaAOrder-i)%pp.paramZetaAOrder])
+	//	zetaABig.Mul(zetaABig, zetaAinv)
+	//	zetaABig.Mod(zetaABig, bigQa)
+	//	fmt.Println(zetaABig.Int64())
+	//}
+
+	for k := 0; k < len(pp.paramNTTAFactors); k++ {
+		zetaABig := new(big.Int).SetInt64(pp.paramZetasA[pp.paramNTTAFactors[k]])
+		zetaAinv := new(big.Int).SetInt64(pp.paramZetasA[pp.paramZetaAOrder-pp.paramNTTAFactors[k]])
+		zetaABig.Mul(zetaABig, zetaAinv)
+		zetaABig.Mod(zetaABig, bigQa)
+		fmt.Println(zetaABig.Int64())
+	}
+}
