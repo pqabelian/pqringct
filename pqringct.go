@@ -616,6 +616,7 @@ rpUlpProveRestart:
 
 	var inprd, dcInv big.Int
 	dcInv.SetInt64(pp.paramDCInv)
+	bigQc := new(big.Int).SetInt64(pp.paramQC)
 
 	for t := 0; t < pp.paramK; t++ {
 		tmp1 := pp.NewZeroPolyCNTT()
@@ -627,10 +628,12 @@ rpUlpProveRestart:
 			}
 
 			constPoly := pp.NewZeroPolyC()
-			//constPoly.coeffs[0] = reduceToQc(intMatrixInnerProductWithReduction(u_hats, gammas[t], m, pp.paramDC, pp.paramQC) * int64(pp.paramDCInv))
-			inprd.SetInt64(intMatrixInnerProductWithReduction(u_hats, gammas[t], m, pp.paramDC, pp.paramQC))
+			//constPoly.coeffs[0] = reduceToQc(intMatrixInnerProductWithReductionQc(u_hats, gammas[t], m, pp.paramDC, pp.paramQC) * int64(pp.paramDCInv))
+			inprd.SetInt64(pp.intMatrixInnerProductWithReductionQc(u_hats, gammas[t], m, pp.paramDC))
 			inprd.Mul(&inprd, &dcInv)
-			constPoly.coeffs[0] = reduceBigInt(&inprd, pp.paramQC)
+			//constPoly.coeffs[0] = reduceBigInt(&inprd, pp.paramQC)
+			inprd.Mod(&inprd, bigQc)
+			constPoly.coeffs[0] = reduceInt64(inprd.Int64(), pp.paramQC)
 
 			tmp = pp.PolyCNTTSub(tmp, pp.NTTPolyC(constPoly))
 			tmp1 = pp.PolyCNTTAdd(tmp1, pp.sigmaPowerPolyCNTT(tmp, tau))
@@ -966,6 +969,7 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 	phip := pp.NewZeroPolyCNTT()
 	var inprd, dcInv big.Int
 	dcInv.SetInt64(pp.paramDCInv)
+	bigQc := new(big.Int).SetInt64(pp.paramQC)
 
 	for t := 0; t < pp.paramK; t++ {
 		tmp1 := pp.NewZeroPolyCNTT()
@@ -977,9 +981,11 @@ func (pp PublicParameter) rpulpVerify(message []byte,
 			}
 
 			constPoly := pp.NewZeroPolyC()
-			inprd.SetInt64(intMatrixInnerProductWithReduction(u_hats, gammas[t], m, pp.paramDC, pp.paramQC))
+			inprd.SetInt64(pp.intMatrixInnerProductWithReductionQc(u_hats, gammas[t], m, pp.paramDC))
 			inprd.Mul(&inprd, &dcInv)
-			constPoly.coeffs[0] = reduceBigInt(&inprd, pp.paramQC)
+			//constPoly.coeffs[0] = reduceBigInt(&inprd, pp.paramQC)
+			inprd.Mod(&inprd, bigQc)
+			constPoly.coeffs[0] = reduceInt64(inprd.Int64(), pp.paramQC)
 
 			tmp = pp.PolyCNTTSub(tmp, pp.NTTPolyC(constPoly))
 

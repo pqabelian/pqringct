@@ -933,7 +933,7 @@ func (pp *PublicParameter) genUlpPolyCNTTs(rpulpType RpUlpType, binMatrixB [][]b
 			for i := 0; i < pp.paramDC; i++ {
 				// F^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
 				// B^T[i]: ith-col of B
-				coeffs[i] = intVecInnerProductWithReduction(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC, pp.paramQC)
+				coeffs[i] = pp.intVecInnerProductWithReductionQc(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC)
 				if i == 0 {
 					//coeffs[i] = pp.reduceBigInt(int64(coeffs[i] + gammas[t][1][i] + gammas[t][0][i]))
 					//					coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) + int64(gammas[t][0][i]))
@@ -999,7 +999,7 @@ func (pp *PublicParameter) genUlpPolyCNTTs(rpulpType RpUlpType, binMatrixB [][]b
 			for i := 0; i < pp.paramDC; i++ {
 				//(-F)^T[i] gamma[t][0] + F_1^T[i] gamma[t][1] + B^T[i] gamma[t][2]
 				// B^T[i]: ith-col of B
-				coeffs[i] = intVecInnerProductWithReduction(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC, pp.paramQC)
+				coeffs[i] = pp.intVecInnerProductWithReductionQc(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][2], pp.paramDC)
 				if i == 0 {
 					//coeffs[i] = pp.reduceBigInt(int64(coeffs[i] + gammas[t][1][i] - gammas[t][0][i]))
 					//coeffs[i] = reduceToQc(int64(coeffs[i]) + int64(gammas[t][1][i]) - int64(gammas[t][0][i]))
@@ -1074,7 +1074,7 @@ func (pp *PublicParameter) genUlpPolyCNTTs(rpulpType RpUlpType, binMatrixB [][]b
 			coeffs_np1 := make([]int64, pp.paramDC)
 			for i := 0; i < pp.paramDC; i++ {
 				//F^T[i] gamma[t][0] + F_1^T[i] gamma[t][2] + B^T[i] gamma[t][4]
-				coeffs_np1[i] = intVecInnerProductWithReduction(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][4], pp.paramDC, pp.paramQC)
+				coeffs_np1[i] = pp.intVecInnerProductWithReductionQc(getMatrixColumn(binMatrixB, pp.paramDC, i), gammas[t][4], pp.paramDC)
 				if i == 0 {
 					//coeffs_np1[i] = reduceToQc()(int64(coeffs_np1[i] + gammas[t][2][i] + gammas[t][0][i]))
 					//coeffs_np1[i] = reduceToQc(int64(coeffs_np1[i]) + int64(gammas[t][2][i]) + int64(gammas[t][0][i]))
@@ -1120,7 +1120,7 @@ func (pp *PublicParameter) genUlpPolyCNTTs(rpulpType RpUlpType, binMatrixB [][]b
 			coeffs_np2 := make([]int64, pp.paramDC)
 			for i := 0; i < pp.paramDC; i++ {
 				//F^T[i] gamma[t][1] + F_1^T[i] gamma[t][3] + B_2^T[i] gamma[t][4]
-				coeffs_np2[i] = intVecInnerProductWithReduction(getMatrixColumn(binMatrixB, pp.paramDC, pp.paramDC+i), gammas[t][4], pp.paramDC, pp.paramQC)
+				coeffs_np2[i] = pp.intVecInnerProductWithReductionQc(getMatrixColumn(binMatrixB, pp.paramDC, pp.paramDC+i), gammas[t][4], pp.paramDC)
 				if i == 0 {
 					//coeffs_np2[i] = reduceToQc()(int64(coeffs_np2[i] + gammas[t][3][i] + gammas[t][1][i]))
 					//coeffs_np2[i] = reduceToQc(int64(coeffs_np2[i]) + int64(gammas[t][3][i]) + int64(gammas[t][1][i]))
@@ -1169,60 +1169,63 @@ func (pp *PublicParameter) genUlpPolyCNTTs(rpulpType RpUlpType, binMatrixB [][]b
 	return p
 }
 
-func intVecInnerProductWithReduction(a []int64, b []int64, vecLen int, q int64) (r int64) {
-	var rst big.Int
+func (pp *PublicParameter) intVecInnerProductWithReductionQc(a []int64, b []int64, vecLen int) (r int64) {
 	var tmp1, tmp2 big.Int
-	rst.SetInt64(0)
+	bigQc := new(big.Int).SetInt64(pp.paramQC)
+
+	rst := new(big.Int).SetInt64(0)
 	for i := 0; i < vecLen; i++ {
 		tmp1.SetInt64(a[i])
 		tmp2.SetInt64(b[i])
 		tmp1.Mul(&tmp1, &tmp2)
-		tmp1.SetInt64(reduceBigInt(&tmp1, q))
-		rst.Add(&rst, &tmp1)
-		rst.SetInt64(reduceBigInt(&rst, q))
+		tmp1.Mod(&tmp1, bigQc)
+
+		rst.Add(rst, &tmp1)
+		rst.Mod(rst, bigQc)
 	}
-	return rst.Int64()
+
+	return reduceInt64(rst.Int64(), pp.paramQC)
 }
 
-func intMatrixInnerProductWithReduction(a [][]int64, b [][]int64, rowNum int, colNum int, q int64) (r int64) {
-	rst := int64(0)
-
+func (pp *PublicParameter) intMatrixInnerProductWithReductionQc(a [][]int64, b [][]int64, rowNum int, colNum int) (r int64) {
 	var tmp1, tmp2 big.Int
+
+	rst := new(big.Int).SetInt64(0)
+	bigQc := new(big.Int).SetInt64(pp.paramQC)
 	for i := 0; i < rowNum; i++ {
 		for j := 0; j < colNum; j++ {
 			tmp1.SetInt64(a[i][j])
 			tmp2.SetInt64(b[i][j])
 			tmp1.Mul(&tmp1, &tmp2)
-			rst = rst + reduceBigInt(&tmp1, q)
-			rst = reduceInt64(rst, q)
+			tmp1.Mod(&tmp1, bigQc)
+
+			rst.Add(rst, &tmp1)
+			rst.Mod(rst, bigQc)
 		}
 	}
 
-	return rst
+	return reduceInt64(rst.Int64(), pp.paramQC)
 }
 
-/*
-q is assumed to be an odd number
-*/
-func reduceBigInt(a *big.Int, q int64) int64 {
-	var b, rst big.Int
+////q is assumed to be an odd number
+//func reduceBigInt(a *big.Int, q int64) int64 {
+//	var b, rst big.Int
+//
+//	b.SetInt64(q)
+//
+//	rst.Mod(a, &b)
+//
+//	r := rst.Int64()
+//
+//	//	make sure the result in the scope [-(q-1)/2, (q-1)/2]
+//	if r > ((q - 1) >> 1) {
+//		r = r - q
+//	}
+//	return r
+//}
 
-	b.SetInt64(q)
-
-	rst.Mod(a, &b)
-
-	r := rst.Int64()
-
-	//	make sure the result in the scope [-(q-1)/2, (q-1)/2]
-	if r > ((q - 1) >> 1) {
-		r = r - q
-	}
-	return r
-}
-
-/*
-q is assumed to be an odd number
-*/
+// q is assumed to be an odd number
+//	applied to q_a and q_c
 func reduceInt64(a int64, q int64) int64 {
 	r := a % q
 
