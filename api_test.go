@@ -7,7 +7,7 @@ import (
 )
 
 func ledgerTxoIdGen(ringHash []byte, index uint8) []byte {
-	w := bytes.NewBuffer(make([]byte, 0, HashBytesLen+1))
+	w := bytes.NewBuffer(make([]byte, 0, HashOutputBytesLen+1))
 	var err error
 	// ringHash
 	_, err = w.Write(ringHash)
@@ -35,7 +35,7 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 		txMemo      []byte
 	}
 
-	ehash := make([]byte, HashBytesLen)
+	ehash := make([]byte, HashOutputBytesLen)
 
 	seed1 := RandomBytes(pp.paramSeedBytesLen)
 	apk1, ask1, _ := pp.AddressKeyGen(seed1)
@@ -182,11 +182,11 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 						lgrTxoList: []*LgrTxo{
 							{
 								txo: cbTx1.OutputTxos[0],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 							{
 								txo: cbTx1.OutputTxos[1],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 						},
 						sidx:            0,
@@ -200,11 +200,11 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 						lgrTxoList: []*LgrTxo{
 							{
 								txo: cbTx2.OutputTxos[0],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 							{
 								txo: cbTx2.OutputTxos[1],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 						},
 						sidx:            0,

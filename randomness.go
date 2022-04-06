@@ -27,6 +27,8 @@ var Sr Distribution = Distribution{
 	weights:     []int{5, 6, 5},
 }
 
+//	todo: review
+//	todo: refactor the two files randomness and randomnessV2
 // RandomBytes returns a byte array with given length from crypto/rand.Reader
 func RandomBytes(length int) []byte {
 	res := make([]byte, 0, length)
@@ -34,7 +36,7 @@ func RandomBytes(length int) []byte {
 		tmp := make([]byte, length)
 		n, err := rand.Read(tmp)
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalln(err) // todo: throw err?
 			return nil
 		}
 		res = append(res, tmp[:n]...)

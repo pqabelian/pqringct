@@ -89,7 +89,7 @@ func NewTxOutputDescv2(pp *PublicParameter, serializedAPk []byte, serializedVPk 
 	}
 }
 
-func NewTxInputDescv2(pp *PublicParameter, lgrTxoList []*LgrTxo, sidx int, serializedASksp []byte, serializedASksn []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDesc {
+func NewTxInputDescv2(pp *PublicParameter, lgrTxoList []*LgrTxo, sidx uint8, serializedASksp []byte, serializedASksn []byte, serializedVPk []byte, serializedVSk []byte, value uint64) *TxInputDesc {
 	//return newTxInputDescv2(lgrTxoList, sidx, serializedASksn, serializedASksp, serializedVPk, serializedVSk, value)
 	return &TxInputDesc{
 		lgrTxoList:      lgrTxoList,

@@ -422,7 +422,7 @@ func init() {
 		10,
 		16777215,
 		128,
-		1<<31-1, //	eta_f should be smaller than q_c/16, 2^49-1 is fine, but for size optimization, we use 2^{23}-1
+		1<<23-1, //	eta_f should be smaller than q_c/16, 2^49-1 is fine, but for size optimization, we use 2^{23}-1
 		32,      // 32 bytes = 256 bits
 		-70368744177704,
 		-2251799813686528,

@@ -247,11 +247,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						lgrTxoList: []*LgrTxo{
 							{
 								txo: cbTx1.OutputTxos[0],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 							{
 								txo: cbTx1.OutputTxos[1],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 						},
 						sidx:            0,
@@ -288,11 +288,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						lgrTxoList: []*LgrTxo{
 							{
 								txo: cbTx1.OutputTxos[0],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 							{
 								txo: cbTx1.OutputTxos[1],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 						},
 						sidx:            0,
@@ -306,11 +306,11 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 						lgrTxoList: []*LgrTxo{
 							{
 								txo: cbTx2.OutputTxos[0],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 							{
 								txo: cbTx2.OutputTxos[1],
-								id:  make([]byte, HashBytesLen),
+								id:  make([]byte, HashOutputBytesLen),
 							},
 						},
 						sidx:            0,

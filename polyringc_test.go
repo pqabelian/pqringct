@@ -39,7 +39,7 @@ func TestPublicParameter_NTTPolyC(t *testing.T) {
 	//}
 
 	seed := RandomBytes(pp.paramSeedBytesLen)
-	tmpC := rejectionUniformWithQc(seed, pp.paramDC)
+	tmpC := pp.randomDcIntegersInQc(seed)
 	//tmpA := make([]int64, pp.paramDA)
 	//for i := 0; i < pp.paramDA; i++ {
 	//	tmpA[i] = int64(1000 + i)

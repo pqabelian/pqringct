@@ -896,7 +896,7 @@ func (pp *PublicParameter) DeserializeTxo(serializedTxo []byte) (*Txo, error) {
 }
 
 func (pp *PublicParameter) LgrTxoIdSerializeSize() int {
-	return HashBytesLen
+	return HashOutputBytesLen
 }
 
 func (pp *PublicParameter) LgrTxoSerializeSize() int {
@@ -1150,7 +1150,7 @@ func (pp *PublicParameter) DeserializeRpulpProof(serializedRpulpProof []byte) (*
 }
 
 func (pp *PublicParameter) challengeSeedCSerializeSizeApprox() int {
-	return VarIntSerializeSize2(uint64(HashBytesLen)) + HashBytesLen
+	return VarIntSerializeSize2(uint64(HashOutputBytesLen)) + HashOutputBytesLen
 }
 func (pp *PublicParameter) responseCSerializeSizeApprox() int {
 	//	r \in (Ring_{q_c})^{L_c}
@@ -1257,16 +1257,17 @@ func (pp *PublicParameter) boundingVecCSerializeSizeApprox() int {
 	return VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
 }
 
+// todo: review
 // For carry vector f, u_p = B*f + e servers as its range proof, where u_p's infinite normal should be smaller than q_c/16.
 // e is sampled from [-eta_f, eta_f].
 // B*f is bounded by d_c*J (for coinbaseTx with J>1), d_c * (J+1) (for transferTx with I=1), and d_c * (I+J+1) (for transferTx with I>1).
 // A valid proof for u_p should have infinite normal in [-(eta_f - beta_f), (eta_f - beta_f)].
 // Note q_c = 9007199254746113 = 2^{53} + 2^{12} + 2^{10} + 2^{0} is a 54-bit number, and 2^{49}-1 < q_c/16.
 // Any eta_f smaller than 2^{49}-1 will be fine.
-// We set eta_f = 2^{31}-1.
-// Each coefficient of u_p, say in [-(eta_f - beta_f), (eta_f - beta_f)], can be encoded by 4 bytes.
+// We set eta_f = 2^{23}-1.
+// Each coefficient of u_p, say in [-(eta_f - beta_f), (eta_f - beta_f)], can be encoded by 3 bytes.
 func (pp *PublicParameter) CarryVectorRProofSerializeSize() int {
-	return pp.paramDC * 4
+	return pp.paramDC * 3
 }
 
 func (pp *PublicParameter) writeCarryVectorRProof(w io.Writer, u_p []int64) error {
@@ -1275,13 +1276,12 @@ func (pp *PublicParameter) writeCarryVectorRProof(w io.Writer, u_p []int64) erro
 	}
 
 	var coeff int64
-	tmp := make([]byte, 4)
+	tmp := make([]byte, 3)
 	for i := 0; i < pp.paramDC; i++ {
 		coeff = u_p[i]
 		tmp[0] = byte(coeff >> 0)
 		tmp[1] = byte(coeff >> 8)
 		tmp[2] = byte(coeff >> 16)
-		tmp[3] = byte(coeff >> 24)
 		_, err := w.Write(tmp)
 		if err != nil {
 			return err
@@ -1293,7 +1293,7 @@ func (pp *PublicParameter) readCarryVectorRProof(r io.Reader) ([]int64, error) {
 	u_p := make([]int64, pp.paramDC)
 
 	var coeff int64
-	tmp := make([]byte, 4)
+	tmp := make([]byte, 3)
 	for i := 0; i < pp.paramDC; i++ {
 		_, err := r.Read(tmp)
 		if err != nil {
@@ -1302,10 +1302,9 @@ func (pp *PublicParameter) readCarryVectorRProof(r io.Reader) ([]int64, error) {
 		coeff = int64(tmp[0]) << 0
 		coeff |= int64(tmp[1]) << 8
 		coeff |= int64(tmp[2]) << 16
-		coeff |= int64(tmp[3]) << 24
-		if tmp[3]>>7 == 1 {
-			//	31-bit for absolute
-			coeff = int64(uint64(coeff) | 0xFFFFFFFF00000000)
+		if tmp[2]>>7 == 1 {
+			//	23-bit for absolute
+			coeff = int64(uint64(coeff) | 0xFFFFFFFFFF000000)
 		}
 		u_p[i] = coeff
 	}
@@ -1677,7 +1676,7 @@ func (pp *PublicParameter) DeserializeCoinbaseTx(serializedCbTx []byte, withWitn
 }
 
 func (pp *PublicParameter) challengeSeedASerializeSizeApprox() int {
-	return VarIntSerializeSize2(uint64(HashBytesLen)) + HashBytesLen
+	return VarIntSerializeSize2(uint64(HashOutputBytesLen)) + HashOutputBytesLen
 }
 func (pp *PublicParameter) responseASerializeSizeApprox() int {
 	//	r \in (Ring_{q_a})^{L_a}

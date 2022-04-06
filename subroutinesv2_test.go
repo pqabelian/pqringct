@@ -4,7 +4,8 @@ import (
 	"testing"
 )
 
-func Test_rejectionUniformWithQc(t *testing.T) {
+func Test_randomDcIntegersInQc(t *testing.T) {
+	pp := DefaultPP
 	type args struct {
 		seed   []byte
 		length int
@@ -25,20 +26,21 @@ func Test_rejectionUniformWithQc(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := rejectionUniformWithQc(tt.args.seed, tt.args.length)
+			got := pp.randomDcIntegersInQc(tt.args.seed)
 			//if !reflect.DeepEqual(got, tt.want) {
-			//	t.Errorf("rejectionUniformWithQc() = %v, want %v", got, tt.want)
+			//	t.Errorf("randomDcIntegersInQc() = %v, want %v", got, tt.want)
 			//}
 			for i := 0; i < len(got); i++ {
 				if got[i] < -(DefaultPP.paramQC-1)>>1 || got[i] > (DefaultPP.paramQC-1)>>1 {
-					t.Errorf("rejectionUniformWithQc() sample a value %v", got[i])
+					t.Errorf("randomDcIntegersInQc() sample a value %v", got[i])
 				}
 			}
 		})
 	}
 }
 
-func Test_rejectionUniformWithQa(t *testing.T) {
+func Test_randomDaIntegersInQa(t *testing.T) {
+	pp := DefaultPP
 	type args struct {
 		seed   []byte
 		length int
@@ -59,14 +61,14 @@ func Test_rejectionUniformWithQa(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := rejectionUniformWithQa(tt.args.seed, tt.args.length, DefaultPP.paramQA)
+			got := pp.randomDaIntegersInQa(tt.args.seed)
 			//if !reflect.DeepEqual(got, tt.want) {
-			//	t.Errorf("rejectionUniformWithQc() = %v, want %v", got, tt.want)
+			//	t.Errorf("randomDcIntegersInQc() = %v, want %v", got, tt.want)
 			//}
 			for i := 0; i < len(got); i++ {
 				tmp := (DefaultPP.paramQA - 1) >> 1
 				if got[i] < -tmp || got[i] > tmp {
-					t.Errorf("rejectionUniformWithQc() sample a value %v", got[i])
+					t.Errorf("randomDaIntegersInQa() sample a value %v", got[i])
 				}
 			}
 		})

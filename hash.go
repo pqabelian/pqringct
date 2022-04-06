@@ -2,7 +2,7 @@ package pqringct
 
 import "golang.org/x/crypto/sha3"
 
-const HashBytesLen = 32
+const HashOutputBytesLen = 32
 
 // Hash encapsulates a hash function to output a byte stream of arbitrary length
 // TODO_DONE: Should be as a parameter not a function,in that way, it can be substituted by other function.
