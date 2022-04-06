@@ -438,20 +438,21 @@ func (pp *PublicParameter) generatePolyCNTTMatrix(seed []byte, rowLength int, co
 	tmpSeedLen := len(seed) + 2
 	tmpSeed := make([]byte, tmpSeedLen) //	1 byte for row index, and 1 byte for col index, assuming the row and col number is smaller than 127
 
-	res := make([]*PolyCNTTVec, rowLength)
+	rst := make([]*PolyCNTTVec, rowLength)
 	for i := 0; i < rowLength; i++ {
-		res[i] = pp.NewPolyCNTTVec(colLength)
+		rst[i] = pp.NewPolyCNTTVec(colLength)
 		for j := 0; j < colLength; j++ {
 			copy(tmpSeed, seed)
 			tmpSeed[tmpSeedLen-2] = byte(i)
 			tmpSeed[tmpSeedLen-1] = byte(j)
-			got := pp.randomDcIntegersInQc(tmpSeed)
-			for t := 0; t < pp.paramDC; t++ {
-				res[i].polyCNTTs[j].coeffs[t] = got[t]
-			}
+			rst[i].polyCNTTs[j].coeffs = pp.randomDcIntegersInQc(tmpSeed)
+			//got := pp.randomDcIntegersInQc(tmpSeed)
+			//for t := 0; t < pp.paramDC; t++ {
+			//	rst[i].polyCNTTs[j].coeffs[t] = got[t]
+			//}
 		}
 	}
-	return res, nil
+	return rst, nil
 }
 
 // todo: review 20220404
@@ -462,20 +463,21 @@ func (pp *PublicParameter) generatePolyANTTMatrix(seed []byte, rowLength int, co
 	tmpSeedLen := len(seed) + 2
 	tmpSeed := make([]byte, tmpSeedLen)
 
-	res := make([]*PolyANTTVec, rowLength)
+	rst := make([]*PolyANTTVec, rowLength)
 	for i := 0; i < rowLength; i++ {
-		res[i] = pp.NewZeroPolyANTTVec(colLength)
+		rst[i] = pp.NewZeroPolyANTTVec(colLength)
 		for j := 0; j < colLength; j++ {
 			copy(tmpSeed, seed)
 			tmpSeed[tmpSeedLen-2] = byte(i)
 			tmpSeed[tmpSeedLen-1] = byte(j)
-			got := pp.randomDaIntegersInQa(tmpSeed)
-			for t := 0; t < pp.paramDA; t++ {
-				res[i].polyANTTs[j].coeffs[t] = got[t]
-			}
+			rst[i].polyANTTs[j].coeffs = pp.randomDaIntegersInQa(tmpSeed)
+			//got := pp.randomDaIntegersInQa(tmpSeed)
+			//for t := 0; t < pp.paramDA; t++ {
+			//	rst[i].polyANTTs[j].coeffs[t] = got[t]
+			//}
 		}
 	}
-	return res, nil
+	return rst, nil
 }
 
 // 9007199254746113 = 0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
