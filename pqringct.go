@@ -1383,8 +1383,8 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 		cmts[j] = txo.ValueCommitment
 		retcbTx.OutputTxos[j] = txo
 	}
-	if vout > vin {
-		return nil, errors.New("the output value exceeds the input value") // todo: more accurate info
+	if vout != vin {
+		return nil, errors.New("the output value and the input value should be equal") // todo: more accurate info
 	}
 
 	cbTxCon, err := pp.SerializeCoinbaseTx(retcbTx, false)
@@ -1500,8 +1500,15 @@ func (pp *PublicParameter) CoinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 			for j := 0; j < J; j++ {
 				tmp = tmp + msg_hats[j][i-1]
 			}
-			//f[i] = (tmp + f[i-1] - u[i-1]) >> 1
-			f[i] = (tmp + f[i-1] - u[i-1]) / 2
+
+			//	-1 >> 1 = -1, -1/2=0
+			//	In our design, the carry should be in [0, J] and (tmp + f[i-1] - u[i-1]) >=0,
+			//	which means >> 1 and /2 are equivalent.
+			//	A negative carry bit will not pass the verification,
+			//	and the case (tmp + f[i-1] - u[i-1]) < 0 will not pass the verification.
+			//	f[0] = 0 and other proved verification (msg[i] \in {0,1}, |f[i]| < q_c/8) are important.
+			f[i] = (tmp + f[i-1] - u[i-1]) >> 1
+			// f[i] = (tmp + f[i-1] - u[i-1]) / 2
 		}
 		msg_hats[J] = f
 
@@ -1981,7 +1988,7 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 	}
 
 	if outputTotal != inputTotal {
-		return nil, errors.New("the total coin value is not balance")
+		return nil, errors.New("the input value and output value should be equal")
 	}
 
 	rettrTx := &TransferTx{}
@@ -2109,11 +2116,16 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			for j := 1; j < n; j++ {
 				tmp = tmp + msg_hats[j][i-1]
 			}
-			//f[i] = (tmp + u[i-1] + f[i-1] - msg_hats[0][i-1]) >> 1
-			// todo: >> 1 or /2 .Test more to see whether the carry could be < 0
+
 			//	-1 >> 1 = -1, -1/2=0
-			//	m1 = 9, m2 = 8, m3 = 6, u=0
-			f[i] = (tmp + u[i-1] + f[i-1] - msg_hats[0][i-1]) / 2
+			//	In our design, the carry should be in [0, J] and (tmp + u[i-1] + f[i-1] - msg_hats[0][i-1]) >=0,
+			//	which means >> 1 and /2 are equivalent.
+			//	A negative carry bit will not pass the verification,
+			//	and the case (tmp + u[i-1] + f[i-1] - msg_hats[0][i-1]) < 0 will not pass the verification.
+			//	f[0] = 0 and other proved verification (msg[i] \in {0,1}, |f[i]| < q_c/8) are important.
+
+			f[i] = (tmp + u[i-1] + f[i-1] - msg_hats[0][i-1]) >> 1
+			//f[i] = (tmp + u[i-1] + f[i-1] - msg_hats[0][i-1]) / 2
 		}
 		msg_hats[n] = f
 		c_hats[n] = pp.PolyCNTTAdd(
@@ -2216,9 +2228,15 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			for j := 0; j < I; j++ {
 				tmp = tmp + msg_hats[j][i-1]
 			}
-			// todo: 20220406 check the operaiotn >> ? /
-			//f1[i] = (tmp + f1[i-1] - msg_hats[n][i-1]) >> 1
-			f1[i] = (tmp + f1[i-1] - msg_hats[n][i-1]) / 2
+
+			//	-1 >> 1 = -1, -1/2=0
+			//	In our design, the carry should be in [0, J] and (tmp + f1[i-1] - msg_hats[n][i-1]) >=0,
+			//	which means >> 1 and /2 are equivalent.
+			//	A negative carry bit will not pass the verification,
+			//	and the case (tmp + f1[i-1] - msg_hats[n][i-1]) < 0 will not pass the verification.
+			//	f[0] = 0 and other proved verification (msg[i] \in {0,1}, |f[i]| < q_c/8) are important.
+			f1[i] = (tmp + f1[i-1] - msg_hats[n][i-1]) >> 1
+			//f1[i] = (tmp + f1[i-1] - msg_hats[n][i-1]) / 2
 		}
 		msg_hats[n+1] = f1
 		c_hats[n+1] = pp.PolyCNTTAdd(
@@ -2237,9 +2255,15 @@ func (pp *PublicParameter) TransferTxGen(inputDescs []*TxInputDesc, outputDescs 
 			for j := 0; j < J; j++ {
 				tmp = tmp + msg_hats[I+j][i-1]
 			}
-			// todo: 20220406 check the operaiotn >> ? /
-			//f2[i] = (tmp + u[i-1] + f2[i-1] - msg_hats[n][i-1]) >> 1
-			f2[i] = (tmp + u[i-1] + f2[i-1] - msg_hats[n][i-1]) / 2
+			//	-1 >> 1 = -1, -1/2=0
+			//	In our design, the carry should be in [0, J] and (tmp + u[i-1] + f2[i-1] - msg_hats[n][i-1]) >=0,
+			//	which means >> 1 and /2 are equivalent.
+			//	A negative carry bit will not pass the verification,
+			//	and the case (tmp + u[i-1] + f2[i-1] - msg_hats[n][i-1]) < 0 will not pass the verification.
+			//	f[0] = 0 and other proved verification (msg[i] \in {0,1}, |f[i]| < q_c/8) are important.
+
+			f2[i] = (tmp + u[i-1] + f2[i-1] - msg_hats[n][i-1]) >> 1
+			//f2[i] = (tmp + u[i-1] + f2[i-1] - msg_hats[n][i-1]) / 2
 		}
 		msg_hats[n+2] = f2
 		c_hats[n+2] = pp.PolyCNTTAdd(

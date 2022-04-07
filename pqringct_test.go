@@ -207,7 +207,9 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			serializedVPk: serializedVPk2,
 			value:         12,
 		},
-	}, nil)
+	},
+
+		nil)
 
 	if err != nil {
 		t.Errorf(err.Error())
