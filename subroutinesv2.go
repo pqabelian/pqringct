@@ -15,6 +15,56 @@ const (
 	RpUlpTypeTrTx2 RpUlpType = 3
 )
 
+//	todo: to review
+// generatePolyCNTTMatrix generate a matrix with rowLength * colLength, and the element in matrix is length
+func (pp *PublicParameter) generatePolyCNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyCNTTVec, error) {
+	// check the length of seed
+
+	tmpSeedLen := len(seed) + 2
+	tmpSeed := make([]byte, tmpSeedLen) //	1 byte for row index, and 1 byte for col index, assuming the row and col number is smaller than 127
+
+	rst := make([]*PolyCNTTVec, rowLength)
+	for i := 0; i < rowLength; i++ {
+		rst[i] = pp.NewPolyCNTTVec(colLength)
+		for j := 0; j < colLength; j++ {
+			copy(tmpSeed, seed)
+			tmpSeed[tmpSeedLen-2] = byte(i)
+			tmpSeed[tmpSeedLen-1] = byte(j)
+			rst[i].polyCNTTs[j].coeffs = pp.randomDcIntegersInQc(tmpSeed)
+			//got := pp.randomDcIntegersInQc(tmpSeed)
+			//for t := 0; t < pp.paramDC; t++ {
+			//	rst[i].polyCNTTs[j].coeffs[t] = got[t]
+			//}
+		}
+	}
+	return rst, nil
+}
+
+// todo: review 20220404
+// generatePolyANTTMatrix() expands the seed to a polyANTT matrix.
+func (pp *PublicParameter) generatePolyANTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyANTTVec, error) {
+	// check the length of seed
+
+	tmpSeedLen := len(seed) + 2
+	tmpSeed := make([]byte, tmpSeedLen)
+
+	rst := make([]*PolyANTTVec, rowLength)
+	for i := 0; i < rowLength; i++ {
+		rst[i] = pp.NewZeroPolyANTTVec(colLength)
+		for j := 0; j < colLength; j++ {
+			copy(tmpSeed, seed)
+			tmpSeed[tmpSeedLen-2] = byte(i)
+			tmpSeed[tmpSeedLen-1] = byte(j)
+			rst[i].polyANTTs[j].coeffs = pp.randomDaIntegersInQa(tmpSeed)
+			//got := pp.randomDaIntegersInQa(tmpSeed)
+			//for t := 0; t < pp.paramDA; t++ {
+			//	rst[i].polyANTTs[j].coeffs[t] = got[t]
+			//}
+		}
+	}
+	return rst, nil
+}
+
 //	todo: review
 //	expandValuePadRandomness() return pp.TxoValueBytesLen() bytes, which will be used to encrypt the value-bytes.
 //	pp.TxoValueBytesLen() is 7, which means we use XOF to generate 7*8 = 56 bits.
@@ -40,6 +90,7 @@ func (pp *PublicParameter) expandValuePadRandomness(seed []byte) ([]byte, error)
 	return buf, nil
 }
 
+//	todo (to remove): not used any more
 func (pp *PublicParameter) generateBits(seed []byte, length int) ([]byte, error) {
 	var err error
 	// check the length of seed
@@ -163,6 +214,21 @@ func (pp *PublicParameter) expandValueCmtRandomness(seed []byte) (*PolyCVec, err
 //}
 
 // todo: review
+// sampleValueCmtRandomness() return a random r \in (\chi^{d_c})^{L_c}.
+// \chi^{d_c} is regarded as a polyC, and r is regarded as a PolyCVec
+func (pp *PublicParameter) sampleValueCmtRandomness() (*PolyCVec, error) {
+	var err error
+	rst := pp.NewPolyCVec(pp.paramLC)
+	for i := 0; i < pp.paramLC; i++ {
+		rst.polyCs[i], err = pp.randomPolyCinDistributionChi(nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rst, nil
+}
+
+// todo: review
 //	todo (to remove): not used any more
 func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []byte, vecLen int) (*PolyCVec, error) {
 	var err error
@@ -270,6 +336,27 @@ func (pp PublicParameter) sampleMaskingVecA() (*PolyAVec, error) {
 	return rst, nil
 }
 
+// todo: review
+// sampleMaskingVecC() returns a masking vector y \in (S_{eta_c})^{L_c}
+func (pp *PublicParameter) sampleMaskingVecC() (*PolyCVec, error) {
+	// etaC
+	var err error
+
+	polys := make([]*PolyC, pp.paramLC)
+
+	for i := 0; i < pp.paramLC; i++ {
+		polys[i], err = pp.randomPolyCinEtaC()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &PolyCVec{
+		polyCs: polys,
+	}, nil
+
+}
+
 //	todo: review
 //	sampleResponseZetaA() returns a PolyAVec with length paramLa,
 //	where each coefficient lies in [-eta_a, eta_a], where eta_a = 2^{19}-1
@@ -302,6 +389,7 @@ func (pp PublicParameter) sampleResponseZetaC() (*PolyCVec, error) {
 	return rst, nil
 }
 
+// todo (to remove): not used any more
 func (pp *PublicParameter) sampleUniformWithinEtaFv2() ([]int64, error) {
 	//  qc =					0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
 	// <(qc-1)/16 = 562949953421632 = 	0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000<qc/12
@@ -432,59 +520,10 @@ func (pp *PublicParameter) sampleUniformWithinEtaFv2() ([]int64, error) {
 	return res, nil
 }
 
-// generatePolyCNTTMatrix generate a matrix with rowLength * colLength, and the element in matrix is length
-func (pp *PublicParameter) generatePolyCNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyCNTTVec, error) {
-	// check the length of seed
-
-	tmpSeedLen := len(seed) + 2
-	tmpSeed := make([]byte, tmpSeedLen) //	1 byte for row index, and 1 byte for col index, assuming the row and col number is smaller than 127
-
-	rst := make([]*PolyCNTTVec, rowLength)
-	for i := 0; i < rowLength; i++ {
-		rst[i] = pp.NewPolyCNTTVec(colLength)
-		for j := 0; j < colLength; j++ {
-			copy(tmpSeed, seed)
-			tmpSeed[tmpSeedLen-2] = byte(i)
-			tmpSeed[tmpSeedLen-1] = byte(j)
-			rst[i].polyCNTTs[j].coeffs = pp.randomDcIntegersInQc(tmpSeed)
-			//got := pp.randomDcIntegersInQc(tmpSeed)
-			//for t := 0; t < pp.paramDC; t++ {
-			//	rst[i].polyCNTTs[j].coeffs[t] = got[t]
-			//}
-		}
-	}
-	return rst, nil
-}
-
-// todo: review 20220404
-// generatePolyANTTMatrix() expands the seed to a polyANTT matrix.
-func (pp *PublicParameter) generatePolyANTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyANTTVec, error) {
-	// check the length of seed
-
-	tmpSeedLen := len(seed) + 2
-	tmpSeed := make([]byte, tmpSeedLen)
-
-	rst := make([]*PolyANTTVec, rowLength)
-	for i := 0; i < rowLength; i++ {
-		rst[i] = pp.NewZeroPolyANTTVec(colLength)
-		for j := 0; j < colLength; j++ {
-			copy(tmpSeed, seed)
-			tmpSeed[tmpSeedLen-2] = byte(i)
-			tmpSeed[tmpSeedLen-1] = byte(j)
-			rst[i].polyANTTs[j].coeffs = pp.randomDaIntegersInQa(tmpSeed)
-			//got := pp.randomDaIntegersInQa(tmpSeed)
-			//for t := 0; t < pp.paramDA; t++ {
-			//	rst[i].polyANTTs[j].coeffs[t] = got[t]
-			//}
-		}
-	}
-	return rst, nil
-}
-
 // 9007199254746113 = 0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
 // 4503599627373056 = 0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_000_1010_0000_0000
 //	todo: 202203 Qc hard code, but withQa does not hard code, make them consistent
-
+//	todo: to review and optimize
 //	randomDcIntegersInQc() outputs Dc int64,  by sampling uniformly (when seed is nil) or expanding from a seed (when seed is not nil)
 //	Each integer lies in [-(Q_c-1)/2, (Q_c-2)/2].
 func (pp *PublicParameter) randomDcIntegersInQc(seed []byte) []int64 {
@@ -601,6 +640,7 @@ func (pp *PublicParameter) randomDcIntegersInQc(seed []byte) []int64 {
 	return res
 }
 
+// todo: to review
 //	randomDcIntegersInQcEtaF() outputs Dc int64,  by sampling uniformly.
 //	Each integer lies in [-eta_f, eta_f].
 //	eta_f = 2^23-1.
@@ -645,6 +685,7 @@ func (pp *PublicParameter) randomDcIntegersInQcEtaF() ([]int64, error) {
 // 137438953937= 0010_0000_0000_0000_0000_0000_0000_0001_1101_0001
 // 0001_0000_0000_0000_0000_0000_0000_0000_1110_1000
 // todo: 20220330 with name Q_a, shall we remove bound, and use PP and hardcode Q_a
+//	todo: to review and optimize
 //	randomDaIntegersInQa() returns paramDA int64, each in the scope [-(q_a-1)/2, (q_a-1)/2].
 func (pp *PublicParameter) randomDaIntegersInQa(seed []byte) []int64 {
 	// todo: for fixing lenth, optimize
@@ -955,42 +996,6 @@ func (pp PublicParameter) expandChallengeC(seed []byte) (*PolyC, error) {
 //}
 
 // todo: review
-// sampleValueCmtRandomness() return a random r \in (\chi^{d_c})^{L_c}.
-// \chi^{d_c} is regarded as a polyC, and r is regarded as a PolyCVec
-func (pp *PublicParameter) sampleValueCmtRandomness() (*PolyCVec, error) {
-	var err error
-	rst := pp.NewPolyCVec(pp.paramLC)
-	for i := 0; i < pp.paramLC; i++ {
-		rst.polyCs[i], err = pp.randomPolyCinDistributionChi(nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return rst, nil
-}
-
-// todo: review
-// sampleMaskingVecC() returns a masking vector y \in (S_{eta_c})^{L_c}
-func (pp *PublicParameter) sampleMaskingVecC() (*PolyCVec, error) {
-	// etaC
-	var err error
-
-	polys := make([]*PolyC, pp.paramLC)
-
-	for i := 0; i < pp.paramLC; i++ {
-		polys[i], err = pp.randomPolyCinEtaC()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &PolyCVec{
-		polyCs: polys,
-	}, nil
-
-}
-
-// todo: review
 func (pp *PublicParameter) samplePloyCWithLowZeros() *PolyC {
 	rst := pp.NewZeroPolyC()
 	tmp := pp.randomDcIntegersInQc(nil)
@@ -1147,7 +1152,6 @@ func (pp *PublicParameter) collectBytesForRPULP2(
 
 	length := len(preMsg) + 3*pp.paramDC*8 + len(phips)*pp.paramDC*8
 	rst := make([]byte, 0, length)
-	rst = append(rst, preMsg...)
 
 	appendPolyNTTToBytes := func(a *PolyCNTT) {
 		for k := 0; k < pp.paramDC; k++ {
@@ -1161,6 +1165,9 @@ func (pp *PublicParameter) collectBytesForRPULP2(
 			rst = append(rst, byte(a.coeffs[k]>>56))
 		}
 	}
+
+	// preMsg
+	rst = append(rst, preMsg...)
 
 	// psi
 	appendPolyNTTToBytes(psi)
@@ -1232,6 +1239,7 @@ func (pp *PublicParameter) sigmaInvPolyCNTT(polyCNTT *PolyCNTT, t int) (r *PolyC
 	return &PolyCNTT{coeffs: coeffs}
 }
 
+//	todo (to remove): not used any more
 func (pp *PublicParameter) sigmaInvPolyNTT(polyNTT *PolyCNTT, t int) (r *PolyCNTT) {
 	coeffs := make([]int64, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
@@ -1578,6 +1586,8 @@ func (pp *PublicParameter) intToBinary(v uint64) (bits []int64) {
 	}
 	return rstBits
 }
+
+//	todo (to remove): not used any more
 func binaryToInt64(v uint64, bitNum int) (bits []int64) {
 	rstbits := make([]int64, bitNum)
 	for i := 0; i < bitNum; i++ {
@@ -1586,6 +1596,7 @@ func binaryToInt64(v uint64, bitNum int) (bits []int64) {
 	return rstbits
 }
 
+//	todo: review
 func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err error) {
 	binM = make([][]byte, rownum)
 	XOF := sha3.NewShake128()
@@ -1606,6 +1617,7 @@ func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err
 	return binM, nil
 }
 
+//	todo: to review
 func getMatrixColumn(matrix [][]byte, rowNum int, j int) (col []int64) {
 	retcol := make([]int64, rowNum)
 	for i := 0; i < rowNum; i++ {
