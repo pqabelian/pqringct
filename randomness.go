@@ -1,14 +1,13 @@
 package pqringct
 
 import (
-	"crypto/rand"
 	"errors"
 	"golang.org/x/crypto/sha3"
-	"log"
 )
 
 var ErrLength = errors.New("invalid length")
 
+//	todo (to remove): not used any more, could be removed.
 // Distribution defines the distribution in pqringct
 type Distribution struct {
 	totalWeight int
@@ -16,38 +15,25 @@ type Distribution struct {
 	weights     []int
 }
 
+//	todo (to remove): not used any more, could be removed.
 var Sc Distribution = Distribution{
 	totalWeight: 4,
 	values:      []int{-1, 0, 1},
 	weights:     []int{1, 2, 1},
 }
+
+//	todo (to remove): not used any more, could be removed.
 var Sr Distribution = Distribution{
 	totalWeight: 16,
 	values:      []int{-1, 0, 1},
 	weights:     []int{5, 6, 5},
 }
 
-//	todo: review
-//	todo: refactor the two files randomness and randomnessV2
-// RandomBytes returns a byte array with given length from crypto/rand.Reader
-func RandomBytes(length int) []byte {
-	res := make([]byte, 0, length)
-	for length > 0 {
-		tmp := make([]byte, length)
-		n, err := rand.Read(tmp)
-		if err != nil {
-			log.Fatalln(err) // todo: throw err?
-			return nil
-		}
-		res = append(res, tmp[:n]...)
-		length -= n
-	}
-	return res
-}
-
 // randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=6/16 and P(1)=P(-1)=5/16
 // and return an array with given length. If the length of seed is not 0 or length/2, will return ErrLength, and if the
 // seed is nil, then there will get a seed from the machine.
+//	todo: review, if this is more efficient than that of < 5, < 10, eles..., then use the design here
+//	todo: (to remove)
 func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte, []int64, error) {
 	res := make([]int64, length)
 	// if the seed is nil, acquire the seed from crypto/rand.Reader
@@ -82,6 +68,7 @@ func randomnessFromProbabilityDistributions(seed []byte, length int) ([]byte, []
 	return seed, res, nil
 }
 
+//	todo (to remove): not used any more
 func randomnessFromEtaC(seed []byte, length int) ([]int32, error) {
 	// 1<<25-1
 	bytes := make([]byte, (26*length+7)/8)
@@ -118,6 +105,8 @@ func randomnessFromEtaC(seed []byte, length int) ([]int32, error) {
 	}
 	return res[:length], nil
 }
+
+//	todo (to remove): not used any more
 func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
 	// 1<<22-1
 	bytes := make([]byte, (24*length+7)/8)
@@ -153,6 +142,8 @@ func randomnessFromEtaA(seed []byte, length int) ([]int32, error) {
 	}
 	return res[:length], nil
 }
+
+//	todo (to remove): not used any more
 func randomnessFromEtaC2(seed []byte, length int) ([]int32, error) {
 	// 1<<23-1
 	bytes := make([]byte, (24*length+7)/8)
@@ -193,6 +184,7 @@ func randomnessFromEtaC2(seed []byte, length int) ([]int32, error) {
 	return res[:length], nil
 }
 
+//	todo (to remove): not used any more
 func randomnessFromZetaA(seed []byte, length int) ([]int32, error) {
 	// etaA - betaA = 1<<15-1 - 256
 	res := make([]int32, 0, length)
@@ -282,6 +274,8 @@ func randomnessFromZetaA(seed []byte, length int) ([]int32, error) {
 
 	return res[:length], nil
 }
+
+//	todo (to remove): not used any more
 func randomnessFromZetaC2(seed []byte, length int) ([]int32, error) {
 	// etaC2 - betaC2 = 1<<16-1 - 256
 	res := make([]int32, 0, length)
@@ -342,6 +336,7 @@ func randomnessFromZetaC2(seed []byte, length int) ([]int32, error) {
 	return res[:length], nil
 }
 
+//	todo (to remove): not used any more
 // randomnessFromProbabilityDistributions sample randomness the distribution {-1,0,1} with P(0)=1/2 and P(1)=P(-1)=1/4
 // and return an array with given length
 func randomnessFromChallengeSpace(seed []byte, length int) ([]int64, error) {
@@ -372,6 +367,7 @@ func randomnessFromChallengeSpace(seed []byte, length int) ([]int64, error) {
 	return res, nil
 }
 
+//	todo (to remove): not used any more
 func randomFromDistribution(seed []byte, dist Distribution, length int) ([]byte, []int) {
 	if seed == nil || len(seed) == 0 {
 		seed = RandomBytes(64)

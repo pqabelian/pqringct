@@ -1,8 +1,29 @@
 package pqringct
 
-import "golang.org/x/crypto/sha3"
+import (
+	"crypto/rand"
+	"golang.org/x/crypto/sha3"
+	"log"
+)
 
 const RandSeedBytesLen = 64 // 512-bits
+
+//	todo: review
+// RandomBytes returns a byte array with given length from crypto/rand.Reader
+func RandomBytes(length int) []byte {
+	res := make([]byte, 0, length)
+	for length > 0 {
+		tmp := make([]byte, length)
+		n, err := rand.Read(tmp)
+		if err != nil {
+			log.Fatalln(err) // todo: throw err?
+			return nil
+		}
+		res = append(res, tmp[:n]...)
+		length -= n
+	}
+	return res
+}
 
 //	todo: review and optimize
 // 523987 = 0111_1111_1110_1101_0011

@@ -163,6 +163,7 @@ func (pp *PublicParameter) expandValueCmtRandomness(seed []byte) (*PolyCVec, err
 //}
 
 // todo: review
+//	todo (to remove): not used any more
 func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []byte, vecLen int) (*PolyCVec, error) {
 	var err error
 	// check the length of seed
