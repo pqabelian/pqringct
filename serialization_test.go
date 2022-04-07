@@ -2,12 +2,278 @@ package pqringct
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/cryptosuite/pqringct/pqringctkem"
 	"log"
 	"reflect"
 	"testing"
 )
+
+func Test_writePolyANTT_readPolyANTT(t *testing.T) {
+	testBound := false
+	//testBound := true
+
+	var polyANTT *PolyANTT
+	manualCheck := false
+
+	pp := DefaultPP
+
+	count := make([]int, 10)
+	slots := make([]int64, 10)
+	step := pp.paramQA / 10
+	start := -((pp.paramQA - 1) >> 1)
+	end := ((pp.paramQA - 1) >> 1)
+	for i := 0; i < 10; i++ {
+		slots[i] = start + int64(i)*step
+		count[i] = 0
+	}
+
+	leftOut := 0
+	rightOut := 0
+
+	for t := 0; t < 1000; t++ {
+		polyANTT = &PolyANTT{coeffs: pp.randomDaIntegersInQa(nil)}
+
+		if testBound {
+			polyANTT.coeffs[0] = (pp.paramQA - 1) >> 1
+			polyANTT.coeffs[1] = -polyANTT.coeffs[0]
+			polyANTT.coeffs[2] = 1
+			polyANTT.coeffs[3] = -1
+			polyANTT.coeffs[4] = 2
+			polyANTT.coeffs[5] = -2
+		}
+
+		size := pp.PolyANTTSerializeSize()
+		w := bytes.NewBuffer(make([]byte, 0, size))
+		err := pp.writePolyANTT(w, polyANTT)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		serialized := w.Bytes()
+		if len(serialized) != size {
+			log.Fatal(errors.New("size is worng"))
+		}
+
+		r := bytes.NewReader(serialized)
+		rePolyANTT, err := pp.readPolyANTT(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for i := 0; i < pp.paramDA; i++ {
+			if polyANTT.coeffs[i] != rePolyANTT.coeffs[i] {
+				log.Fatal("i=", i, " origin[i]=", polyANTT.coeffs[i], " read[i]=", rePolyANTT.coeffs[i])
+			}
+
+			if polyANTT.coeffs[i] < slots[0] {
+				leftOut++
+			} else if polyANTT.coeffs[i] < slots[1] {
+				count[0] = count[0] + 1
+			} else if polyANTT.coeffs[i] < slots[2] {
+				count[1] = count[1] + 1
+			} else if polyANTT.coeffs[i] < slots[3] {
+				count[2] = count[2] + 1
+			} else if polyANTT.coeffs[i] < slots[4] {
+				count[3] = count[3] + 1
+			} else if polyANTT.coeffs[i] < slots[5] {
+				count[4] = count[4] + 1
+			} else if polyANTT.coeffs[i] < slots[6] {
+				count[5] = count[5] + 1
+			} else if polyANTT.coeffs[i] < slots[7] {
+				count[6] = count[6] + 1
+			} else if polyANTT.coeffs[i] < slots[8] {
+				count[7] = count[7] + 1
+			} else if polyANTT.coeffs[i] < slots[9] {
+				count[8] = count[8] + 1
+			} else if polyANTT.coeffs[i] <= end {
+				count[9] = count[9] + 1
+			} else {
+				rightOut++
+			}
+		}
+	}
+
+	if manualCheck {
+		for i := 0; i < pp.paramDA; i++ {
+			fmt.Println(polyANTT.coeffs[i])
+		}
+	}
+
+	if leftOut > 0 {
+		log.Fatalln("ERROR: Sample in left out")
+	}
+	if rightOut > 0 {
+		log.Fatalln("ERROR: Sample in right out")
+	}
+
+	total := 0
+	for i := 0; i < 10; i++ {
+		total += count[i]
+	}
+	for i := 0; i < 10; i++ {
+		fmt.Println("slot ", i, "number:", count[i], "percent:", float64(count[i])/float64(total))
+	}
+}
+
+func Test_writePolyANTTVec_readPolyANTTVec(t *testing.T) {
+	pp := DefaultPP
+
+	polyANTTs := make([]*PolyANTT, pp.paramKA)
+	for i := 0; i < pp.paramKA; i++ {
+		polyANTTs[i] = &PolyANTT{pp.randomDaIntegersInQa(nil)}
+	}
+
+	polyANTTVec := &PolyANTTVec{polyANTTs: polyANTTs}
+
+	length := pp.PolyANTTVecSerializeSize(polyANTTVec)
+
+	w := bytes.NewBuffer(make([]byte, 0, length))
+	err := pp.writePolyANTTVec(w, polyANTTVec)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = pp.writePolyANTTVec(w, polyANTTVec)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	serialized := w.Bytes()
+
+	if len(serialized) == 0 {
+		log.Fatal("size is wrong")
+	}
+
+	r := bytes.NewReader(serialized)
+	recovered, err := pp.readPolyANTTVec(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i := 0; i < pp.paramKA; i++ {
+		for j := 0; j < pp.paramDA; j++ {
+			if polyANTTVec.polyANTTs[i].coeffs[j] != recovered.polyANTTs[i].coeffs[j] {
+				log.Fatal("i=", i, "j=", j, " origin[i]=", polyANTTVec.polyANTTs[i].coeffs[j], " read[i]=", recovered.polyANTTs[i].coeffs[j])
+			}
+		}
+
+	}
+
+}
+
+func Test_writePolyAEta_readPolyAEta(t *testing.T) {
+	pp := DefaultPP
+
+	testBound := false
+	//testBound := true
+
+	var polyA *PolyA
+	manualCheck := false
+
+	count := make([]int, 10)
+	slots := make([]int64, 10)
+	step := pp.paramEtaA / 5
+	start := -pp.paramEtaA
+	end := pp.paramEtaA
+	for i := 0; i < 10; i++ {
+		slots[i] = start + int64(i)*step
+		count[i] = 0
+	}
+
+	leftOut := 0
+	rightOut := 0
+
+	var err error
+	for t := 0; t < 10000; t++ {
+		polyA, err = pp.randomPolyAinEtaA()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if testBound {
+			polyA.coeffs[0] = pp.paramEtaA
+			polyA.coeffs[1] = -polyA.coeffs[0]
+			polyA.coeffs[2] = 1
+			polyA.coeffs[3] = -1
+			polyA.coeffs[4] = 2
+			polyA.coeffs[5] = -2
+		}
+
+		size := pp.PolyASerializeSizeEta()
+		w := bytes.NewBuffer(make([]byte, 0, size))
+		err := pp.writePolyAEta(w, polyA)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		serialized := w.Bytes()
+		if len(serialized) != size {
+			log.Fatal(errors.New("size is worng"))
+		}
+
+		r := bytes.NewReader(serialized)
+		rePolyA, err := pp.readPolyAEta(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for i := 0; i < pp.paramDA; i++ {
+			if polyA.coeffs[i] != rePolyA.coeffs[i] {
+				log.Fatal("i=", i, " origin[i]=", polyA.coeffs[i], " read[i]=", rePolyA.coeffs[i])
+			}
+
+			if polyA.coeffs[i] < slots[0] {
+				leftOut++
+			} else if polyA.coeffs[i] < slots[1] {
+				count[0] = count[0] + 1
+			} else if polyA.coeffs[i] < slots[2] {
+				count[1] = count[1] + 1
+			} else if polyA.coeffs[i] < slots[3] {
+				count[2] = count[2] + 1
+			} else if polyA.coeffs[i] < slots[4] {
+				count[3] = count[3] + 1
+			} else if polyA.coeffs[i] < slots[5] {
+				count[4] = count[4] + 1
+			} else if polyA.coeffs[i] < slots[6] {
+				count[5] = count[5] + 1
+			} else if polyA.coeffs[i] < slots[7] {
+				count[6] = count[6] + 1
+			} else if polyA.coeffs[i] < slots[8] {
+				count[7] = count[7] + 1
+			} else if polyA.coeffs[i] < slots[9] {
+				count[8] = count[8] + 1
+			} else if polyA.coeffs[i] <= end {
+				count[9] = count[9] + 1
+			} else {
+				rightOut++
+			}
+		}
+	}
+
+	if manualCheck {
+		for i := 0; i < pp.paramDA; i++ {
+			fmt.Println(polyA.coeffs[i])
+		}
+	}
+
+	if leftOut > 0 {
+		log.Fatalln("ERROR: Sample in left out")
+	}
+	if rightOut > 0 {
+		log.Fatalln("ERROR: Sample in right out")
+	}
+
+	total := 0
+	for i := 0; i < 10; i++ {
+		total += count[i]
+	}
+	for i := 0; i < 10; i++ {
+		fmt.Println("slot ", i, "number:", count[i], "percent:", float64(count[i])/float64(total))
+	}
+}
+
+// new test case end
 
 func TestSerializeTxoValue(t *testing.T) {
 	pp := DefaultPP
@@ -587,7 +853,7 @@ func TestPublicParameter_SerializeRpulpProof_DeserializeRpulpProof(t *testing.T)
 			cmt_zs[i][j] = pp.NewPolyCVec(pp.paramLC)
 			for k := 0; k < pp.paramLC; k++ {
 				seed = RandomBytes(pp.paramSeedBytesLen)
-				tmp, err := pp.randomnessPolyCForResponseZetaC()
+				tmp, err := pp.randomPolyCForResponseZetaC()
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -602,7 +868,7 @@ func TestPublicParameter_SerializeRpulpProof_DeserializeRpulpProof(t *testing.T)
 		zs[i] = pp.NewPolyCVec(pp.paramLC)
 		for j := 0; j < J; j++ {
 			seed = RandomBytes(pp.paramSeedBytesLen)
-			tmp, err := pp.randomnessPolyCForResponseZetaC()
+			tmp, err := pp.randomPolyCForResponseZetaC()
 			if err != nil {
 				log.Fatal(err)
 			}

@@ -38,8 +38,8 @@ func (pp *PublicParameter) writePolyANTT(w io.Writer, a *PolyANTT) error {
 	}
 	return nil
 }
-func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
 
+func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
 	tmp := make([]byte, 5)
 	var coeff int64
 

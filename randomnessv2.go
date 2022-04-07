@@ -27,9 +27,9 @@ func RandomBytes(length int) []byte {
 
 //	todo: review and optimize
 // 523987 = 0111_1111_1110_1101_0011
-// randomnessPolyAForResponseZetaA() returns a PolyA, where each coefficient lies in [-(eta_a - beta_a), (eta_a - beta_a)],
+// randomPolyAForResponseZetaA() returns a PolyA, where each coefficient lies in [-(eta_a - beta_a), (eta_a - beta_a)],
 // where eta_a = 2^{19}-1 and beta=300
-func (pp *PublicParameter) randomnessPolyAForResponseZetaA() (*PolyA, error) {
+func (pp *PublicParameter) randomPolyAForResponseZetaA() (*PolyA, error) {
 	bound := int64(523987)
 
 	// todo: use fix length = pp.paramDA, is thers any optimization
@@ -176,9 +176,9 @@ func (pp *PublicParameter) randomnessPolyAForResponseZetaA() (*PolyA, error) {
 
 //	todo: review and refactor, optimization
 // 16777087 = 1111_1111_1111_1111_0111_1111
-// randomnessPolyCForResponseZetaC() returns a PolyC, where each coefficient lies in [-(eta_c - beta_c), (eta_c - beta_c)],
+// randomPolyCForResponseZetaC() returns a PolyC, where each coefficient lies in [-(eta_c - beta_c), (eta_c - beta_c)],
 // where eta_c = 2^{24}-1 and beta_c=128
-func (pp *PublicParameter) randomnessPolyCForResponseZetaC() (*PolyC, error) {
+func (pp *PublicParameter) randomPolyCForResponseZetaC() (*PolyC, error) {
 	bound := int64(16777087)
 
 	length := pp.paramDC // todo: fix the length to be pp.paramDC, will there is optimization?

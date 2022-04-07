@@ -365,7 +365,7 @@ func (pp *PublicParameter) sampleResponseZetaA() (*PolyAVec, error) {
 
 	var err error
 	for i := 0; i < pp.paramLA; i++ {
-		rst.polyAs[i], err = pp.randomnessPolyAForResponseZetaA()
+		rst.polyAs[i], err = pp.randomPolyAForResponseZetaA()
 		if err != nil {
 			return nil, err
 		}
@@ -381,7 +381,7 @@ func (pp PublicParameter) sampleResponseZetaC() (*PolyCVec, error) {
 
 	var err error
 	for i := 0; i < pp.paramLC; i++ {
-		rst.polyCs[i], err = pp.randomnessPolyCForResponseZetaC()
+		rst.polyCs[i], err = pp.randomPolyCForResponseZetaC()
 		if err != nil {
 			return nil, err
 		}
