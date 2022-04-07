@@ -377,7 +377,7 @@ func (pp *PublicParameter) randomPolyAinEtaA() (*PolyA, error) {
 
 	var lowAbs, highAbs uint32
 	t := 0
-	for i := 0; i < pp.paramDC; i = i + 2 {
+	for i := 0; i < pp.paramDA; i = i + 2 {
 		lowAbs = uint32(buf[t]) << 0
 		lowAbs |= uint32(buf[t+1]) << 8
 		highAbs = uint32(buf[t+2]) << 0
