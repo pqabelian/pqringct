@@ -269,6 +269,137 @@ func TestNaive_randomPolyCinEtaC(t *testing.T) {
 	}
 }
 
+func TestNaive_randomPolyAinEtaA(t *testing.T) {
+	pp := DefaultPP
+
+	manualCheck := true
+
+	count := make([]int, 10)
+	slots := make([]int64, 10)
+	step := pp.paramEtaA / 5
+	start := -pp.paramEtaA
+	end := pp.paramEtaA
+	for i := 0; i < 10; i++ {
+		slots[i] = start + int64(i)*step
+		count[i] = 0
+	}
+	leftOut := 0
+	rightOut := 0
+
+	var polyA *PolyA
+	var err error
+	for t := 0; t < 10000; t++ {
+		polyA, err = pp.randomPolyAinEtaA()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for i := 0; i < pp.paramDA; i++ {
+			if polyA.coeffs[i] < slots[0] {
+				leftOut++
+			} else if polyA.coeffs[i] < slots[1] {
+				count[0] = count[0] + 1
+			} else if polyA.coeffs[i] < slots[2] {
+				count[1] = count[1] + 1
+			} else if polyA.coeffs[i] < slots[3] {
+				count[2] = count[2] + 1
+			} else if polyA.coeffs[i] < slots[4] {
+				count[3] = count[3] + 1
+			} else if polyA.coeffs[i] < slots[5] {
+				count[4] = count[4] + 1
+			} else if polyA.coeffs[i] < slots[6] {
+				count[5] = count[5] + 1
+			} else if polyA.coeffs[i] < slots[7] {
+				count[6] = count[6] + 1
+			} else if polyA.coeffs[i] < slots[8] {
+				count[7] = count[7] + 1
+			} else if polyA.coeffs[i] < slots[9] {
+				count[8] = count[8] + 1
+			} else if polyA.coeffs[i] <= end {
+				count[9] = count[9] + 1
+			} else {
+				rightOut++
+			}
+		}
+	}
+
+	if leftOut > 0 {
+		log.Fatalln("ERROR: Sample in left out")
+	}
+	if rightOut > 0 {
+		log.Fatalln("ERROR: Sample in right out")
+	}
+
+	total := 0
+	for i := 0; i < 10; i++ {
+		total += count[i]
+	}
+	for i := 0; i < 10; i++ {
+		fmt.Println("slot ", i, "number:", count[i], "percent:", float64(count[i])/float64(total))
+	}
+
+	if manualCheck {
+		for i := 0; i < pp.paramDA; i++ {
+			fmt.Println(polyA.coeffs[i])
+		}
+	}
+}
+
+func TestNaive_randomPolyAinGammaA5(t *testing.T) {
+	pp := DefaultPP
+
+	manualCheck := true
+
+	count := make([]int, 11)
+	slots := make([]int64, 11)
+	for i := 0; i < 11; i++ {
+		slots[i] = int64(-5 + i)
+		count[i] = 0
+	}
+	leftOut := 0
+	rightOut := 0
+
+	var polyA *PolyA
+	var err error
+	for t := 0; t < 10000; t++ {
+		polyA, err = pp.randomPolyAinGammaA5(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for i := 0; i < pp.paramDA; i++ {
+			if polyA.coeffs[i] < -5 {
+				leftOut++
+			} else if polyA.coeffs[i] > 5 {
+				rightOut++
+			} else {
+				count[polyA.coeffs[i]+5] = count[polyA.coeffs[i]+5] + 1
+			}
+		}
+	}
+
+	if leftOut > 0 {
+		log.Fatalln("ERROR: Sample in left out")
+	}
+	if rightOut > 0 {
+		log.Fatalln("ERROR: Sample in right out")
+	}
+
+	total := 0
+	for i := 0; i < 11; i++ {
+		total += count[i]
+	}
+	for i := 0; i < 11; i++ {
+		fmt.Println("slot ", i, "number:", count[i], "percent:", float64(count[i])/float64(total))
+	}
+
+	if manualCheck {
+		for i := 0; i < pp.paramDA; i++ {
+			fmt.Println(polyA.coeffs[i])
+		}
+	}
+}
+
 //	new test cases end
 func Test_randomBytes(t *testing.T) {
 	type args struct {

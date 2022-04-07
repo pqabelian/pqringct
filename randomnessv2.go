@@ -540,6 +540,7 @@ func (pp *PublicParameter) randomPolyAinEtaA() (*PolyA, error) {
 //}
 
 //	todo: review
+//	todo: to fix: the current probability of zero is two times of others
 // [-5,5]
 func (pp *PublicParameter) randomPolyAinGammaA5(seed []byte) (*PolyA, error) {
 
@@ -548,7 +549,7 @@ func (pp *PublicParameter) randomPolyAinGammaA5(seed []byte) (*PolyA, error) {
 	bytes := make([]byte, (pp.paramDA+1)/2)
 
 	if seed == nil {
-		seed = RandomBytes(32)
+		seed = RandomBytes(RandSeedBytesLen)
 	}
 	xof := sha3.NewShake128()
 	xof.Reset()
