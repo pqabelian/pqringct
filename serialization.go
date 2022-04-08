@@ -766,6 +766,7 @@ func (pp *PublicParameter) DeserializeAddressSecretKeySn(serialziedASkSn []byte)
 //	}, nil
 //}
 
+// todo: review, to be continue
 func (pp *PublicParameter) ValueCommitmentRandSerializeSize() int {
 	//	return pp.PolyCNTTVecSerializeSize(v.b) + pp.PolyCNTTSerializeSize()
 	return pp.paramLC * pp.PolyCNTTSerializeSize()
