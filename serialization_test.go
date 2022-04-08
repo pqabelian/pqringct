@@ -11,26 +11,13 @@ import (
 )
 
 func Test_writePolyANTT_readPolyANTT(t *testing.T) {
-	testBound := false
+	testBound := true
 	//testBound := true
 
 	var polyANTT *PolyANTT
-	manualCheck := false
+	manualCheck := true
 
 	pp := DefaultPP
-
-	count := make([]int, 10)
-	slots := make([]int64, 10)
-	step := pp.paramQA / 10
-	start := -((pp.paramQA - 1) >> 1)
-	end := ((pp.paramQA - 1) >> 1)
-	for i := 0; i < 10; i++ {
-		slots[i] = start + int64(i)*step
-		count[i] = 0
-	}
-
-	leftOut := 0
-	rightOut := 0
 
 	for t := 0; t < 1000; t++ {
 		polyANTT = &PolyANTT{coeffs: pp.randomDaIntegersInQa(nil)}
@@ -55,6 +42,7 @@ func Test_writePolyANTT_readPolyANTT(t *testing.T) {
 		if len(serialized) != size {
 			log.Fatal(errors.New("size is worng"))
 		}
+		//fmt.Println("serilaizeSize of a PolyANTT:", size)
 
 		r := bytes.NewReader(serialized)
 		rePolyANTT, err := pp.readPolyANTT(r)
@@ -67,53 +55,15 @@ func Test_writePolyANTT_readPolyANTT(t *testing.T) {
 				log.Fatal("i=", i, " origin[i]=", polyANTT.coeffs[i], " read[i]=", rePolyANTT.coeffs[i])
 			}
 
-			if polyANTT.coeffs[i] < slots[0] {
-				leftOut++
-			} else if polyANTT.coeffs[i] < slots[1] {
-				count[0] = count[0] + 1
-			} else if polyANTT.coeffs[i] < slots[2] {
-				count[1] = count[1] + 1
-			} else if polyANTT.coeffs[i] < slots[3] {
-				count[2] = count[2] + 1
-			} else if polyANTT.coeffs[i] < slots[4] {
-				count[3] = count[3] + 1
-			} else if polyANTT.coeffs[i] < slots[5] {
-				count[4] = count[4] + 1
-			} else if polyANTT.coeffs[i] < slots[6] {
-				count[5] = count[5] + 1
-			} else if polyANTT.coeffs[i] < slots[7] {
-				count[6] = count[6] + 1
-			} else if polyANTT.coeffs[i] < slots[8] {
-				count[7] = count[7] + 1
-			} else if polyANTT.coeffs[i] < slots[9] {
-				count[8] = count[8] + 1
-			} else if polyANTT.coeffs[i] <= end {
-				count[9] = count[9] + 1
-			} else {
-				rightOut++
-			}
 		}
 	}
 
 	if manualCheck {
+		fmt.Println("SerializeSize of a PolyANTT:", pp.PolyANTTSerializeSize())
+
 		for i := 0; i < pp.paramDA; i++ {
 			fmt.Println(polyANTT.coeffs[i])
 		}
-	}
-
-	if leftOut > 0 {
-		log.Fatalln("ERROR: Sample in left out")
-	}
-	if rightOut > 0 {
-		log.Fatalln("ERROR: Sample in right out")
-	}
-
-	total := 0
-	for i := 0; i < 10; i++ {
-		total += count[i]
-	}
-	for i := 0; i < 10; i++ {
-		fmt.Println("slot ", i, "number:", count[i], "percent:", float64(count[i])/float64(total))
 	}
 }
 
@@ -135,14 +85,9 @@ func Test_writePolyANTTVec_readPolyANTTVec(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	err = pp.writePolyANTTVec(w, polyANTTVec)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	serialized := w.Bytes()
 
-	if len(serialized) == 0 {
+	if len(serialized) != length {
 		log.Fatal("size is wrong")
 	}
 
@@ -160,29 +105,35 @@ func Test_writePolyANTTVec_readPolyANTTVec(t *testing.T) {
 
 	}
 
+	//	test nil
+	w = bytes.NewBuffer(make([]byte, 0, pp.PolyANTTVecSerializeSize(nil)))
+	err = pp.writePolyANTTVec(w, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ss := w.Bytes()
+	ssLen := len(ss)
+	fmt.Println("serialize empty, length:", ssLen)
+
+	r = bytes.NewReader(ss)
+	recovered, err = pp.readPolyANTTVec(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if recovered != nil {
+		log.Fatal("serialize empty FAIL")
+	}
 }
 
 func Test_writePolyAEta_readPolyAEta(t *testing.T) {
 	pp := DefaultPP
 
-	testBound := false
+	testBound := true
 	//testBound := true
 
 	var polyA *PolyA
-	manualCheck := false
-
-	count := make([]int, 10)
-	slots := make([]int64, 10)
-	step := pp.paramEtaA / 5
-	start := -pp.paramEtaA
-	end := pp.paramEtaA
-	for i := 0; i < 10; i++ {
-		slots[i] = start + int64(i)*step
-		count[i] = 0
-	}
-
-	leftOut := 0
-	rightOut := 0
+	manualCheck := true
 
 	var err error
 	for t := 0; t < 10000; t++ {
@@ -222,54 +173,491 @@ func Test_writePolyAEta_readPolyAEta(t *testing.T) {
 			if polyA.coeffs[i] != rePolyA.coeffs[i] {
 				log.Fatal("i=", i, " origin[i]=", polyA.coeffs[i], " read[i]=", rePolyA.coeffs[i])
 			}
+		}
+	}
 
-			if polyA.coeffs[i] < slots[0] {
-				leftOut++
-			} else if polyA.coeffs[i] < slots[1] {
-				count[0] = count[0] + 1
-			} else if polyA.coeffs[i] < slots[2] {
-				count[1] = count[1] + 1
-			} else if polyA.coeffs[i] < slots[3] {
-				count[2] = count[2] + 1
-			} else if polyA.coeffs[i] < slots[4] {
-				count[3] = count[3] + 1
-			} else if polyA.coeffs[i] < slots[5] {
-				count[4] = count[4] + 1
-			} else if polyA.coeffs[i] < slots[6] {
-				count[5] = count[5] + 1
-			} else if polyA.coeffs[i] < slots[7] {
-				count[6] = count[6] + 1
-			} else if polyA.coeffs[i] < slots[8] {
-				count[7] = count[7] + 1
-			} else if polyA.coeffs[i] < slots[9] {
-				count[8] = count[8] + 1
-			} else if polyA.coeffs[i] <= end {
-				count[9] = count[9] + 1
-			} else {
-				rightOut++
+	if manualCheck {
+		fmt.Println("SerializeSize of a PolyAEta:", pp.PolyASerializeSizeEta())
+
+		for i := 0; i < pp.paramDA; i++ {
+			fmt.Println(polyA.coeffs[i])
+		}
+	}
+}
+
+func Test_writePolyANTTVecEta_readPolyANTTVecEta(t *testing.T) {
+	pp := DefaultPP
+
+	var err error
+
+	polyAs := make([]*PolyA, pp.paramKA)
+	for i := 0; i < pp.paramKA; i++ {
+		polyAs[i], err = pp.randomPolyAinEtaA()
+	}
+
+	polyAVec := &PolyAVec{polyAs: polyAs}
+
+	length := pp.PolyAVecSerializeSizeEta(polyAVec)
+
+	fmt.Println("serializeSize:", length)
+
+	w := bytes.NewBuffer(make([]byte, 0, length))
+	err = pp.writePolyAVecEta(w, polyAVec)
+	if err != nil {
+		log.Fatal(err)
+	}
+	serialized := w.Bytes()
+
+	if len(serialized) != length {
+		log.Fatal("size is wrong")
+	}
+
+	r := bytes.NewReader(serialized)
+	recovered, err := pp.readPolyAVecEta(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i := 0; i < pp.paramKA; i++ {
+		for j := 0; j < pp.paramDA; j++ {
+			if polyAVec.polyAs[i].coeffs[j] != recovered.polyAs[i].coeffs[j] {
+				log.Fatal("i=", i, "j=", j, " origin[i]=", polyAVec.polyAs[i].coeffs[j], " read[i]=", recovered.polyAs[i].coeffs[j])
+			}
+		}
+	}
+
+	//	test nil
+	w = bytes.NewBuffer(make([]byte, 0, pp.PolyAVecSerializeSizeEta(nil)))
+	err = pp.writePolyAVecEta(w, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ss := w.Bytes()
+	ssLen := len(ss)
+	fmt.Println("serialize empty, length:", ssLen)
+
+	r = bytes.NewReader(ss)
+	recovered, err = pp.readPolyAVecEta(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if recovered != nil {
+		log.Fatal("serialize empty FAIL")
+	}
+}
+
+func Test_writePolyAGamma_readPolyAGamma(t *testing.T) {
+	pp := DefaultPP
+
+	testBound := true
+	//testBound := true
+
+	var polyA *PolyA
+	manualCheck := true
+
+	var err error
+	for t := 0; t < 10000; t++ {
+		polyA, err = pp.randomPolyAinGammaA5(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if testBound {
+			polyA.coeffs[0] = int64(pp.paramGammaA)
+			polyA.coeffs[1] = -polyA.coeffs[0]
+			polyA.coeffs[2] = 1
+			polyA.coeffs[3] = -1
+			polyA.coeffs[4] = 2
+			polyA.coeffs[5] = -2
+		}
+
+		size := pp.PolyASerializeSizeGamma()
+		w := bytes.NewBuffer(make([]byte, 0, size))
+		err := pp.writePolyAGamma(w, polyA)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		serialized := w.Bytes()
+		if len(serialized) != size {
+			log.Fatal(errors.New("size is worng"))
+		}
+
+		r := bytes.NewReader(serialized)
+		rePolyA, err := pp.readPolyAGamma(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for i := 0; i < pp.paramDA; i++ {
+			if polyA.coeffs[i] != rePolyA.coeffs[i] {
+				log.Fatal("i=", i, " origin[i]=", polyA.coeffs[i], " read[i]=", rePolyA.coeffs[i])
 			}
 		}
 	}
 
 	if manualCheck {
+		fmt.Println("SerializeSize of a PolyAGamma:", pp.PolyASerializeSizeGamma())
+
 		for i := 0; i < pp.paramDA; i++ {
 			fmt.Println(polyA.coeffs[i])
 		}
 	}
+}
 
-	if leftOut > 0 {
-		log.Fatalln("ERROR: Sample in left out")
-	}
-	if rightOut > 0 {
-		log.Fatalln("ERROR: Sample in right out")
+func Test_writePolyCNTT_readPolyCNTT(t *testing.T) {
+	testBound := true
+	//testBound := true
+
+	var polyCNTT *PolyCNTT
+	manualCheck := true
+
+	pp := DefaultPP
+
+	for t := 0; t < 1000; t++ {
+		polyCNTT = &PolyCNTT{coeffs: pp.randomDcIntegersInQc(nil)}
+
+		if testBound {
+			polyCNTT.coeffs[0] = (pp.paramQC - 1) >> 1
+			polyCNTT.coeffs[1] = -polyCNTT.coeffs[0]
+			polyCNTT.coeffs[2] = 1
+			polyCNTT.coeffs[3] = -1
+			polyCNTT.coeffs[4] = 2
+			polyCNTT.coeffs[5] = -2
+			polyCNTT.coeffs[6] = 0
+		}
+
+		size := pp.PolyCNTTSerializeSize()
+		w := bytes.NewBuffer(make([]byte, 0, size))
+		err := pp.writePolyCNTT(w, polyCNTT)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		serialized := w.Bytes()
+		if len(serialized) != size {
+			log.Fatal(errors.New("size is worng"))
+		}
+		//fmt.Println("serilaizeSize of a PolyANTT:", size)
+
+		r := bytes.NewReader(serialized)
+		rePolyCNTT, err := pp.readPolyCNTT(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for i := 0; i < pp.paramDC; i++ {
+			if polyCNTT.coeffs[i] != rePolyCNTT.coeffs[i] {
+				log.Fatal("i=", i, " origin[i]=", polyCNTT.coeffs[i], " read[i]=", rePolyCNTT.coeffs[i])
+			}
+
+		}
 	}
 
-	total := 0
-	for i := 0; i < 10; i++ {
-		total += count[i]
+	if manualCheck {
+		fmt.Println("SerializeSize of a PolyCNTT:", pp.PolyCNTTSerializeSize())
+
+		for i := 0; i < pp.paramDC; i++ {
+			fmt.Println(polyCNTT.coeffs[i])
+		}
 	}
-	for i := 0; i < 10; i++ {
-		fmt.Println("slot ", i, "number:", count[i], "percent:", float64(count[i])/float64(total))
+}
+
+func Test_writePolyCNTTVec_readPolyCNTTVec(t *testing.T) {
+	pp := DefaultPP
+
+	polyCNTTs := make([]*PolyCNTT, pp.paramKC)
+	for i := 0; i < pp.paramKC; i++ {
+		polyCNTTs[i] = &PolyCNTT{pp.randomDcIntegersInQc(nil)}
+	}
+
+	polyCNTTVec := &PolyCNTTVec{polyCNTTs: polyCNTTs}
+
+	length := pp.PolyCNTTVecSerializeSize(polyCNTTVec)
+
+	w := bytes.NewBuffer(make([]byte, 0, length))
+	err := pp.writePolyCNTTVec(w, polyCNTTVec)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	serialized := w.Bytes()
+
+	if len(serialized) != length {
+		log.Fatal("size is wrong")
+	}
+
+	r := bytes.NewReader(serialized)
+	recovered, err := pp.readPolyCNTTVec(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i := 0; i < pp.paramKC; i++ {
+		for j := 0; j < pp.paramDC; j++ {
+			if polyCNTTVec.polyCNTTs[i].coeffs[j] != recovered.polyCNTTs[i].coeffs[j] {
+				log.Fatal("i=", i, "j=", j, " origin[i]=", polyCNTTVec.polyCNTTs[i].coeffs[j], " read[i]=", recovered.polyCNTTs[i].coeffs[j])
+			}
+		}
+
+	}
+
+	//	test nil
+	w = bytes.NewBuffer(make([]byte, 0, pp.PolyCNTTVecSerializeSize(nil)))
+	err = pp.writePolyCNTTVec(w, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ss := w.Bytes()
+	ssLen := len(ss)
+	fmt.Println("serialize empty, length:", ssLen)
+
+	r = bytes.NewReader(ss)
+	recovered, err = pp.readPolyCNTTVec(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if recovered != nil {
+		log.Fatal("serialize empty FAIL")
+	}
+
+}
+
+func Test_writePolyCEta_readPolyCEta(t *testing.T) {
+	testBound := true
+	//testBound := true
+
+	var polyCEta *PolyC
+	manualCheck := true
+
+	pp := DefaultPP
+
+	var err error
+	for t := 0; t < 1000; t++ {
+		polyCEta, err = pp.randomPolyCinEtaC()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if testBound {
+			polyCEta.coeffs[0] = pp.paramEtaC
+			polyCEta.coeffs[1] = -polyCEta.coeffs[0]
+			polyCEta.coeffs[2] = 1
+			polyCEta.coeffs[3] = -1
+			polyCEta.coeffs[4] = 2
+			polyCEta.coeffs[5] = -2
+			polyCEta.coeffs[6] = 0
+		}
+
+		size := pp.PolyCSerializeSizeEta()
+		w := bytes.NewBuffer(make([]byte, 0, size))
+		err = pp.writePolyCEta(w, polyCEta)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		serialized := w.Bytes()
+		if len(serialized) != size {
+			log.Fatal(errors.New("size is worng"))
+		}
+		//fmt.Println("serilaizeSize of a PolyANTT:", size)
+
+		r := bytes.NewReader(serialized)
+		rePolyCEta, err := pp.readPolyCEta(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for i := 0; i < pp.paramDC; i++ {
+			if polyCEta.coeffs[i] != rePolyCEta.coeffs[i] {
+				log.Fatal("i=", i, " origin[i]=", polyCEta.coeffs[i], " read[i]=", rePolyCEta.coeffs[i])
+			}
+
+		}
+	}
+
+	if manualCheck {
+		fmt.Println("SerializeSize of a PolyCEta:", pp.PolyCSerializeSizeEta())
+
+		for i := 0; i < pp.paramDC; i++ {
+			fmt.Println(polyCEta.coeffs[i])
+		}
+	}
+}
+
+func Test_writePolyCVecEta_readPolyCVecEta(t *testing.T) {
+	pp := DefaultPP
+
+	var err error
+	polyCs := make([]*PolyC, pp.paramKC)
+	for i := 0; i < pp.paramKC; i++ {
+		polyCs[i], err = pp.randomPolyCinEtaC()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	polyCVecEta := &PolyCVec{polyCs: polyCs}
+
+	length := pp.PolyCVecSerializeSizeEta(polyCVecEta)
+
+	w := bytes.NewBuffer(make([]byte, 0, length))
+	err = pp.writePolyCVecEta(w, polyCVecEta)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	serialized := w.Bytes()
+
+	if len(serialized) != length {
+		log.Fatal("size is wrong")
+	}
+
+	r := bytes.NewReader(serialized)
+	recovered, err := pp.readPolyCVecEta(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i := 0; i < pp.paramKC; i++ {
+		for j := 0; j < pp.paramDC; j++ {
+			if polyCVecEta.polyCs[i].coeffs[j] != recovered.polyCs[i].coeffs[j] {
+				log.Fatal("i=", i, "j=", j, " origin[i]=", polyCVecEta.polyCs[i].coeffs[j], " read[i]=", recovered.polyCs[i].coeffs[j])
+			}
+		}
+
+	}
+
+	//	test nil
+	w = bytes.NewBuffer(make([]byte, 0, pp.PolyCVecSerializeSizeEta(nil)))
+	err = pp.writePolyCVecEta(w, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ss := w.Bytes()
+	ssLen := len(ss)
+	fmt.Println("serialize empty, length:", ssLen)
+
+	r = bytes.NewReader(ss)
+	recovered, err = pp.readPolyCVecEta(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if recovered != nil {
+		log.Fatal("serialize empty FAIL")
+	}
+}
+
+func TestAddressPubicKeySerialize(t *testing.T) {
+	pp := DefaultPP
+
+	testAbnormal := false
+
+	// normal
+	apkt := pp.NewPolyANTTVec(pp.paramKA)
+	for i := 0; i < pp.paramKA; i++ {
+		apkt.polyANTTs[i] = &PolyANTT{coeffs: pp.randomDaIntegersInQa(nil)}
+	}
+	apke := &PolyANTT{pp.randomDaIntegersInQa(nil)}
+
+	apk := &AddressPublicKey{t: apkt, e: apke}
+
+	size := pp.AddressPublicKeySerializeSize()
+
+	serialized, err := pp.SerializeAddressPublicKey(apk)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(serialized) != size {
+		log.Fatal("the size does not match")
+	}
+
+	recoverd, err := pp.DeserializeAddressPublicKey(serialized)
+
+	length := len(recoverd.t.polyANTTs)
+	if length != pp.paramKA {
+		log.Fatal("the length of t is does not match the design")
+	}
+	for i := 0; i < len(recoverd.t.polyANTTs); i++ {
+		for j := 0; j < pp.paramDA; j++ {
+			if apk.t.polyANTTs[i].coeffs[j] != recoverd.t.polyANTTs[i].coeffs[j] {
+				log.Fatal("i=", i, "j=", j, " origin[i,j]=", apk.t.polyANTTs[i].coeffs[j], " read[i]=", recoverd.t.polyANTTs[i].coeffs[j])
+			}
+		}
+	}
+
+	// abnormal
+	if testAbnormal {
+		apkt = pp.NewPolyANTTVec(pp.paramKA + 1)
+		for i := 0; i < pp.paramKA+1; i++ {
+			apkt.polyANTTs[i] = &PolyANTT{coeffs: pp.randomDaIntegersInQa(nil)}
+		}
+		apke = &PolyANTT{pp.randomDaIntegersInQa(nil)}
+
+		apk = &AddressPublicKey{t: apkt, e: apke}
+
+		size = pp.AddressPublicKeySerializeSize()
+
+		_, err = pp.SerializeAddressPublicKey(apk)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+}
+
+func TestSerializeAddressSecretKeySp(t *testing.T) {
+	pp := DefaultPP
+
+	testAbnormal := true
+
+	var err error
+	s := pp.NewPolyAVec(pp.paramLA)
+	for i := 0; i < pp.paramLA; i++ {
+		s.polyAs[i], err = pp.randomPolyAinGammaA5(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	asksp := &AddressSecretKeySp{
+		s: s,
+	}
+
+	serializedAskSp, err := pp.SerializeAddressSecretKeySp(asksp)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(serializedAskSp) != pp.AddressSecretKeySpSerializeSize() {
+		log.Fatal("the size does not match design")
+	}
+
+	recovered, err := pp.DeserializeAddressSecretKeySp(serializedAskSp)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(recovered.s.polyAs) != pp.paramLA {
+		log.Fatal("the length does not match design")
+	}
+
+	for i := 0; i < len(recovered.s.polyAs); i++ {
+		for j := 0; j < pp.paramDA; j++ {
+			if asksp.s.polyAs[i].coeffs[j] != recovered.s.polyAs[i].coeffs[j] {
+				log.Fatal("i=", i, "j=", j, " origin[i,j]=", asksp.s.polyAs[i].coeffs[j], " read[i]=", recovered.s.polyAs[i].coeffs[j])
+			}
+		}
+	}
+
+	// abnormal
+	if testAbnormal {
+		ask := &AddressSecretKeySp{}
+
+		_, err = pp.SerializeAddressSecretKeySp(ask)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
