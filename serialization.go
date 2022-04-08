@@ -22,6 +22,9 @@ func (pp *PublicParameter) PolyANTTSerializeSize() int {
 	return pp.paramDA * 5
 }
 func (pp *PublicParameter) writePolyANTT(w io.Writer, a *PolyANTT) error {
+	if a == nil {
+		return errors.New("writePolyANTT: attempting to serialize a nil PolyANTT")
+	}
 	var coeff int64
 	tmp := make([]byte, 5)
 	for i := 0; i < pp.paramDA; i++ {
@@ -65,9 +68,21 @@ func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
 }
 
 func (pp *PublicParameter) PolyANTTVecSerializeSize(a *PolyANTTVec) int {
+	if a == nil {
+		return VarIntSerializeSize2(0)
+	}
 	return VarIntSerializeSize2(uint64(len(a.polyANTTs))) + len(a.polyANTTs)*pp.PolyANTTSerializeSize()
 }
 func (pp *PublicParameter) writePolyANTTVec(w io.Writer, a *PolyANTTVec) error {
+	if a == nil {
+		//	write the length of the vector
+		err := WriteVarInt(w, 0)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	var err error
 	// length
 	count := len(a.polyANTTs)
@@ -90,6 +105,10 @@ func (pp *PublicParameter) readPolyANTTVec(r io.Reader) (*PolyANTTVec, error) {
 	if err != nil {
 		return nil, err
 	}
+	if count == 0 {
+		return nil, nil
+	}
+
 	res := make([]*PolyANTT, count)
 	for i := uint64(0); i < count; i++ {
 		res[i], err = pp.readPolyANTT(r)
@@ -110,6 +129,10 @@ func (pp *PublicParameter) PolyASerializeSizeEta() int {
 	return pp.paramDA / 2 * 5
 }
 func (pp *PublicParameter) writePolyAEta(w io.Writer, a *PolyA) error {
+	if a == nil {
+		return errors.New("writePolyAEta: attempting to serialize a nil PolyA")
+	}
+
 	var err error
 	var lowCoeff, highCoeff int64
 	var tmpLow, tmpHigh byte
@@ -180,9 +203,20 @@ func (pp *PublicParameter) readPolyAEta(r io.Reader) (*PolyA, error) {
 }
 
 func (pp *PublicParameter) PolyAVecSerializeSizeEta(a *PolyAVec) int {
+	if a == nil {
+		return VarIntSerializeSize2(0)
+	}
 	return VarIntSerializeSize2(uint64(len(a.polyAs))) + len(a.polyAs)*pp.PolyASerializeSizeEta()
 }
 func (pp *PublicParameter) writePolyAVecEta(w io.Writer, a *PolyAVec) error {
+	if a == nil {
+		//	write the length of PolyAVec
+		err := WriteVarInt(w, 0)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 	var err error
 	// length
 	count := len(a.polyAs)
@@ -205,6 +239,10 @@ func (pp *PublicParameter) readPolyAVecEta(r io.Reader) (*PolyAVec, error) {
 	if err != nil {
 		return nil, err
 	}
+	if count == 0 {
+		return nil, nil
+	}
+
 	res := make([]*PolyA, count)
 	for i := uint64(0); i < count; i++ {
 		res[i], err = pp.readPolyAEta(r)
@@ -225,6 +263,10 @@ func (pp *PublicParameter) PolyASerializeSizeGamma() int {
 	return pp.paramDA / 2
 }
 func (pp *PublicParameter) writePolyAGamma(w io.Writer, polyA *PolyA) error {
+	if polyA == nil {
+		return errors.New("writePolyAGamma: attempting to serialize a nil PolyA")
+	}
+
 	var tmpLow, tmpHigh byte
 	tmp := make([]byte, pp.paramDA/2)
 	j := 0
@@ -325,6 +367,10 @@ func (pp *PublicParameter) PolyCNTTSerializeSize() int {
 }
 
 func (pp *PublicParameter) writePolyCNTT(w io.Writer, polyCNTT *PolyCNTT) error {
+	if polyCNTT == nil {
+		return errors.New("writePolyCNTT: attempting to serialize a nil PolyCNTT")
+	}
+
 	var coeff int64
 	tmp := make([]byte, 7)
 
@@ -372,14 +418,19 @@ func (pp *PublicParameter) readPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 }
 
 func (pp *PublicParameter) PolyCNTTVecSerializeSize(c *PolyCNTTVec) int {
-	if c == nil || c.polyCNTTs == nil {
-		return 0
+	if c == nil {
+		return VarIntSerializeSize2(0)
 	}
 	return VarIntSerializeSize2(uint64(len(c.polyCNTTs))) + len(c.polyCNTTs)*pp.PolyCNTTSerializeSize()
 }
 func (pp *PublicParameter) writePolyCNTTVec(w io.Writer, c *PolyCNTTVec) error {
-	if c == nil || c.polyCNTTs == nil {
-		return errors.New("serialize nil PolyCNTTVec")
+	if c == nil {
+		//	write the length of vector PolyCNTTVec
+		err := WriteVarInt(w, 0)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 	var err error
 	// length
@@ -388,6 +439,7 @@ func (pp *PublicParameter) writePolyCNTTVec(w io.Writer, c *PolyCNTTVec) error {
 	if err != nil {
 		return err
 	}
+
 	for i := 0; i < count; i++ {
 		err = pp.writePolyCNTT(w, c.polyCNTTs[i])
 		if err != nil {
@@ -402,6 +454,9 @@ func (pp *PublicParameter) readPolyCNTTVec(r io.Reader) (*PolyCNTTVec, error) {
 	count, err = ReadVarInt(r)
 	if err != nil {
 		return nil, err
+	}
+	if count == 0 {
+		return nil, nil
 	}
 	res := make([]*PolyCNTT, count)
 	for i := uint64(0); i < count; i++ {
@@ -423,6 +478,10 @@ func (pp *PublicParameter) PolyCSerializeSizeEta() int {
 	return pp.paramDC*3 + pp.paramDC/8 //	pp.paramDC = 128 at this moment, and basically,it should be a 2^n for some n
 }
 func (pp *PublicParameter) writePolyCEta(w io.Writer, polyC *PolyC) error {
+	if polyC == nil {
+		return errors.New("writePolyCEta: attempting to serialize a nil PolyC")
+	}
+
 	var err error
 	var coeff int64
 	var tmpSignal byte
@@ -461,7 +520,7 @@ func (pp *PublicParameter) writePolyCEta(w io.Writer, polyC *PolyC) error {
 func (pp *PublicParameter) readPolyCEta(r io.Reader) (*PolyC, error) {
 	var err error
 
-	res := pp.NewPolyC()
+	rst := pp.NewPolyC()
 
 	tmp := make([]byte, 3)
 	var coeff int64
@@ -476,7 +535,7 @@ func (pp *PublicParameter) readPolyCEta(r io.Reader) (*PolyC, error) {
 		coeff |= int64(tmp[1]) << 8
 		coeff |= int64(tmp[2]) << 16
 
-		res.coeffs[i] = coeff
+		rst.coeffs[i] = coeff
 	}
 
 	signals := make([]byte, pp.paramDC/8)
@@ -491,17 +550,29 @@ func (pp *PublicParameter) readPolyCEta(r io.Reader) (*PolyC, error) {
 
 		if signals[i/8]&signalByte == signalByte {
 			//	- signal
-			coeff = res.coeffs[i]
-			res.coeffs[i] = int64(uint64(coeff) | 0xFFFFFFFFFF000000)
+			coeff = rst.coeffs[i]
+			rst.coeffs[i] = int64(uint64(coeff) | 0xFFFFFFFFFF000000)
 		}
 	}
-	return res, nil
+	return rst, nil
 }
 
 func (pp *PublicParameter) PolyCVecSerializeSizeEta(a *PolyCVec) int {
+	if a == nil {
+		return VarIntSerializeSize2(0)
+	}
 	return VarIntSerializeSize2(uint64(len(a.polyCs))) + len(a.polyCs)*pp.PolyCSerializeSizeEta()
 }
 func (pp *PublicParameter) writePolyCVecEta(w io.Writer, a *PolyCVec) error {
+	if a == nil {
+		//	write the length of the vector
+		err := WriteVarInt(w, 0)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	var err error
 	// length
 	count := len(a.polyCs)
@@ -524,6 +595,10 @@ func (pp *PublicParameter) readPolyCVecEta(r io.Reader) (*PolyCVec, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if count == 0 {
+		return nil, nil
+	}
 	res := make([]*PolyC, count)
 	for i := uint64(0); i < count; i++ {
 		res[i], err = pp.readPolyCEta(r)
@@ -541,10 +616,10 @@ func (pp *PublicParameter) AddressPublicKeySerializeSize() int {
 func (pp *PublicParameter) SerializeAddressPublicKey(apk *AddressPublicKey) ([]byte, error) {
 	var err error
 	if apk == nil || apk.t == nil || apk.e == nil {
-		return nil, errors.New(ErrNilPointer)
+		return nil, errors.New("SerializeAddressPublicKey: there is nil pointer in AddressPublicKey")
 	}
 	if len(apk.t.polyANTTs) != pp.paramKA {
-		return nil, errors.New("the format of AddressPublicKey does not match the design")
+		return nil, errors.New("SerializeAddressPublicKey: the format of AddressPublicKey does not match the design")
 	}
 
 	length := pp.AddressPublicKeySerializeSize()
@@ -590,14 +665,14 @@ func (pp *PublicParameter) AddressSecretKeySpSerializeSize() int {
 func (pp *PublicParameter) SerializeAddressSecretKeySp(asksp *AddressSecretKeySp) ([]byte, error) {
 	var err error
 	if asksp == nil || asksp.s == nil {
-		return nil, errors.New(ErrNilPointer)
+		return nil, errors.New("SerializeAddressSecretKeySp: there is nil pointer in AddressSecretKeySp")
 	}
 
 	if len(asksp.s.polyAs) != pp.paramLA {
 		return nil, errors.New("the format of AddressSecretKeySp does not match the design")
 	}
 
-	// As s is NTT form, its poly form has infinite normal in [-Gamma_a, Gamma_a] where Gamma_a is 5 at this moment,
+	// s is in its poly form and it has infinite normal in [-Gamma_a, Gamma_a] where Gamma_a is 5 at this moment,
 	// we serialize its poly from.
 	askSpLen := pp.AddressSecretKeySpSerializeSize()
 	w := bytes.NewBuffer(make([]byte, 0, askSpLen))
@@ -629,10 +704,10 @@ func (pp *PublicParameter) AddressSecretKeySnSerializeSize() int {
 func (pp *PublicParameter) SerializeAddressSecretKeySn(asksn *AddressSecretKeySn) ([]byte, error) {
 	var err error
 	if asksn.ma == nil {
-		return nil, errors.New(ErrNilPointer)
+		return nil, errors.New("SerializeAddressSecretKeySn: there is nil pointer in AddressSecretKeySn")
 	}
-	spLength := pp.AddressSecretKeySnSerializeSize()
-	w := bytes.NewBuffer(make([]byte, 0, spLength))
+	snLength := pp.AddressSecretKeySnSerializeSize()
+	w := bytes.NewBuffer(make([]byte, 0, snLength))
 	err = pp.writePolyANTT(w, asksn.ma)
 	if err != nil {
 		return nil, err
@@ -640,10 +715,8 @@ func (pp *PublicParameter) SerializeAddressSecretKeySn(asksn *AddressSecretKeySn
 	return w.Bytes(), nil
 }
 func (pp *PublicParameter) DeserializeAddressSecretKeySn(serialziedASkSn []byte) (*AddressSecretKeySn, error) {
-	var err error
 	r := bytes.NewReader(serialziedASkSn)
-	var ma *PolyANTT
-	ma, err = pp.readPolyANTT(r)
+	ma, err := pp.readPolyANTT(r)
 	if err != nil {
 		return nil, err
 	}

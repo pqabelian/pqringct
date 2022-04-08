@@ -231,6 +231,8 @@ type PublicParameter struct {
 	// As paramEtaF may be (q_c-1)/16, we define it with 'int64' type
 	paramEtaF int64
 
+	// todo: 20220408 make its function clear
+	// todo: only used to tell the api the KeyGenSeedBytesLen
 	paramSeedBytesLen int
 
 	// Some Helpful parameter
