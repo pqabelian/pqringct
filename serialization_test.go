@@ -661,6 +661,39 @@ func TestSerializeAddressSecretKeySp(t *testing.T) {
 	}
 }
 
+func TestSerializeAddressSecretKeySn(t *testing.T) {
+	pp := DefaultPP
+
+	m_a := &PolyANTT{
+		coeffs: pp.randomDaIntegersInQa(nil),
+	}
+
+	asksn := &AddressSecretKeySn{m_a}
+
+	serilaized, err := pp.SerializeAddressSecretKeySn(asksn)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(serilaized) != pp.AddressSecretKeySnSerializeSize() {
+		log.Fatal("the size does not match design")
+	}
+	recovered, err := pp.DeserializeAddressSecretKeySn(serilaized)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(recovered.ma.coeffs) != pp.paramDA {
+		log.Fatal("the length does not match design")
+	}
+
+	for i := 0; i < len(recovered.ma.coeffs); i++ {
+		if asksn.ma.coeffs[i] != recovered.ma.coeffs[i] {
+			log.Fatal("i=", i, " origin[i]=", asksn.ma.coeffs[i], " read[i]=", recovered.ma.coeffs[i])
+		}
+	}
+}
+
 // new test case end
 
 func TestSerializeTxoValue(t *testing.T) {
