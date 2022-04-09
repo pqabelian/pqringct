@@ -2,22 +2,60 @@ package pqringct
 
 import (
 	"crypto/rand"
+	"errors"
 	"golang.org/x/crypto/sha3"
-	"log"
 )
+
+var ErrLength = errors.New("invalid length")
 
 const RandSeedBytesLen = 64 // 512-bits
 
-//	todo: review
+// extendable output function is instanced as sha3.Shake128()
+// to get expected length number but the input of sha3.Shake128()
+// is output of sha3.Sha512() function.
+
+func fillWithBound(buf []byte, length int, bitNum int, bound int64) []int64 {
+	res := make([]int64, 0, length)
+	// 首先计算bitNum和8的最小公倍数，每次可以拿出needPer个byte生成
+	g := gcd(bitNum, 8)
+	needPer, gotPer := bitNum/g, 8/g
+	pos := 0
+	// 每次取needPer个byte
+	for pos+needPer-1 < len(buf) {
+		for i := 0; i < gotPer; i++ {
+			t := int64(0)
+			// [0,needPer*8] 中取出 [i*bitNum,(i+1)*bitNum]
+			for j := i * bitNum; j < (i+1)*bitNum; j++ {
+				t |= int64((buf[j/8]&(1<<(j%8)))>>(j%8)) << (j - i*bitNum)
+			}
+			if t <= bound {
+				res = append(res, t)
+				if len(res) == length {
+					return res
+				}
+			}
+		}
+		pos += needPer
+	}
+	return res
+}
+func gcd(a int, b int) int {
+	if b == 0 {
+		return a
+	}
+	return gcd(b, a%b)
+}
+
 // RandomBytes returns a byte array with given length from crypto/rand.Reader
 func RandomBytes(length int) []byte {
 	res := make([]byte, 0, length)
+	var tmp []byte
 	for length > 0 {
-		tmp := make([]byte, length)
+		tmp = make([]byte, length)
+		// n == len(b) if and only if err == nil.
 		n, err := rand.Read(tmp)
 		if err != nil {
-			log.Fatalln(err) // todo: throw err?
-			return nil
+			continue
 		}
 		res = append(res, tmp[:n]...)
 		length -= n
@@ -30,146 +68,75 @@ func RandomBytes(length int) []byte {
 // randomPolyAForResponseZetaA() returns a PolyA, where each coefficient lies in [-(eta_a - beta_a), (eta_a - beta_a)],
 // where eta_a = 2^{19}-1 and beta=300
 func (pp *PublicParameter) randomPolyAForResponseZetaA() (*PolyA, error) {
-	bound := int64(523987)
-
-	// todo: use fix length = pp.paramDA, is thers any optimization
-	coeffs := make([]int64, pp.paramDA)
-
-	length := pp.paramDA
-	buf := make([]byte, (length+7)/8)
+	bound := int64(523987) // 1 << 19 - 1 - 300
+	length := pp.paramDA   // 128
+	coeffs := make([]int64, length)
 
 	seed := RandomBytes(RandSeedBytesLen)
-
-	xof := sha3.NewShake128()
+	xof := sha3.NewShake256()
 	xof.Reset()
-	_, err := xof.Write(append(seed, byte(0)))
+	_, err := xof.Write(seed)
 	if err != nil {
 		return nil, err
 	}
+	var buf []byte
+	// random the number in range [0,2*bound], and then reduce to [-bound, bound]
+	// 2*bound=0b1111_1111_1101_1010_0110, means that an element needs 20 bits
+	// expected (20 * length * (1<<19) / bound + 7 ) / 8 bytes
+	buf = make([]byte, (20*int64(length)*(1<<19)/bound+7)/8)
 	_, err = xof.Read(buf)
 	if err != nil {
 		return nil, err
 	}
-	pos := 0
-	for i := 0; i < length; i += 8 {
-		for j := 0; j < 8; j++ {
-			if (buf[pos]>>j)&1 == 0 {
-				coeffs[i+j] = -1
-			} else {
-				coeffs[i+j] = 1
-			}
-		}
-		pos++
-	}
-	cnt := 1
 	cur := 0
+	//rejectUniformSampleZetasA := func(source []byte) {
+	//	pos := 0
+	//	var t int64
+	//	for pos+4 < len(source) {
+	//		t = int64(source[pos+0])
+	//		t |= int64(source[pos+1]) << 8
+	//		t |= int64(source[pos+2]&0x0F) << 16
+	//		t &= 0x000FFFFF
+	//		if t <= 2*bound {
+	//			coeffs[cur] = t - bound
+	//			cur++
+	//			if cur >= length {
+	//				break
+	//			}
+	//		}
+	//		t = int64(source[pos+2]&0xF0) >> 4
+	//		t |= int64(source[pos+3]) << 4
+	//		t |= int64(source[pos+4]) << 12
+	//		t &= 0x000FFFFF
+	//		if t <= 2*bound {
+	//			coeffs[cur] = t - bound
+	//			cur++
+	//			if cur >= length {
+	//				break
+	//			}
+	//		}
+	//		pos += 5
+	//	}
+	//}
+	// uniform reject sample from the buf
+	//rejectUniformSampleZetasA(buf)
+	res := fillWithBound(buf, length, 20, 2*bound)
+	for i := 0; i < len(res); i++ {
+		coeffs[cur+i] = res[i] - bound
+	}
+	cur += len(res)
 	for cur < length {
-		buf = make([]byte, (length+7)/8*19)
-		xof.Reset()
-		//	todo: seed is updated?
-		_, err := xof.Write(append(seed, byte(cnt)))
-		if err != nil {
-			return nil, err
-		}
+		// uniform reject sample from the buf
+		buf = make([]byte, 5)
 		_, err = xof.Read(buf)
 		if err != nil {
 			return nil, err
 		}
-		pos = 0
-		var t int64
-		for pos+19 < len(buf) {
-			t = int64(buf[pos+0])
-			t |= int64(buf[pos+1]) << 8
-			t |= int64(buf[pos+2]&0x07) << 16
-			t &= 0x0007FFFF
-			if t < bound {
-				coeffs[cur] *= t
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+2]&0xF8) >> 3
-			t |= int64(buf[pos+3]) << 5
-			t |= int64(buf[pos+4]&0x3F) << 13
-			t &= 0x0007FFFF
-			if t < bound {
-				coeffs[cur] *= t
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+4]&0xC0) >> 6
-			t |= int64(buf[pos+5]) << 2
-			t |= int64(buf[pos+6]) << 10
-			t |= int64(buf[pos+7]&0x01) << 18
-			t &= 0x0007FFFF
-			if t < bound {
-				coeffs[cur] *= t
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+7]&0xFE) >> 1
-			t |= int64(buf[pos+8]) << 7
-			t |= int64(buf[pos+9]&0x0F) << 15
-			t &= 0x0007FFFF
-			if t < bound {
-				coeffs[cur] *= t
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+9]&0xF0) >> 4
-			t |= int64(buf[pos+10]) << 4
-			t |= int64(buf[pos+11]&0x7F) << 12
-			t &= 0x0007FFFF
-			if t < bound {
-				coeffs[cur] *= t
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+11]&0x80) >> 7
-			t |= int64(buf[pos+12]) << 1
-			t |= int64(buf[pos+13]) << 9
-			t |= int64(buf[pos+14]&0x03) << 17
-			t &= 0x0007FFFF
-			if t < bound {
-				coeffs[cur] *= t
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+14]&0xFC) >> 2
-			t |= int64(buf[pos+15]) << 6
-			t |= int64(buf[pos+16]&0x1F) << 14
-			t &= 0x0007FFFF
-			if t < bound {
-				coeffs[cur] *= t
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			t = int64(buf[pos+16]&0xE0) >> 5
-			t |= int64(buf[pos+17]) << 3
-			t |= int64(buf[pos+18]) << 11
-			t &= 0x0007FFFF
-			if t < bound {
-				coeffs[cur] *= t
-				cur++
-				if cur >= length {
-					break
-				}
-			}
-			pos += 19
+		res = fillWithBound(buf, length-cur, 20, 2*bound)
+		for i := 0; i < len(res); i++ {
+			coeffs[cur+i] = res[i] - bound
 		}
+		cur += len(res)
 	}
 	return &PolyA{coeffs}, nil
 }
@@ -180,66 +147,65 @@ func (pp *PublicParameter) randomPolyAForResponseZetaA() (*PolyA, error) {
 // where eta_c = 2^{24}-1 and beta_c=128
 func (pp *PublicParameter) randomPolyCForResponseZetaC() (*PolyC, error) {
 	bound := int64(16777087)
-
 	length := pp.paramDC // todo: fix the length to be pp.paramDC, will there is optimization?
-
 	coeffs := make([]int64, length)
 
-	buf := make([]byte, (length+7)/8)
-
 	seed := RandomBytes(RandSeedBytesLen)
-
-	xof := sha3.NewShake128()
+	xof := sha3.NewShake256()
 	xof.Reset()
-	_, err := xof.Write(append(seed, byte(0)))
+	_, err := xof.Write(seed)
 	if err != nil {
 		return nil, err
 	}
+	var buf []byte
+	// random the number in range [0,2*bound], and then reduce to [-bound, bound]
+	// 2*bound=0b00001_1111_1111_1111_1110_1111_1110, means that an element needs 25 bits
+	// expected (25 * length * (1<<24) / bound + 7 ) / 8 bytes
+	buf = make([]byte, (25*int64(length)*(1<<24)/bound+7)/8)
 	_, err = xof.Read(buf)
 	if err != nil {
 		return nil, err
 	}
-	pos := 0
-	for i := 0; i < length; i += 8 {
-		for j := 0; j < 8; j++ {
-			if (buf[pos]>>j)&1 == 0 {
-				coeffs[i+j] = -1
-			} else {
-				coeffs[i+j] = 1
-			}
-		}
-		pos++
-	}
-	cnt := 1
 	cur := 0
-	for cur < length {
-		buf = make([]byte, length*3)
-		xof.Reset()
-		// todo: seed is updated?
-		_, err := xof.Write(append(seed, byte(cnt)))
-		if err != nil {
-			return nil, err
-		}
-		_, err = xof.Read(buf)
-		if err != nil {
-			return nil, err
-		}
-		pos = 0
+	rejectUniformSampleZetasC := func(source []byte) {
+		pos := 0
 		var t int64
-		for pos+3 < len(buf) {
-			t = int64(buf[pos+0])
-			t |= int64(buf[pos+1]) << 8
-			t |= int64(buf[pos+2]) << 16
-			t &= 0x0FFFFFF
-			if t < bound {
-				coeffs[cur] *= t
+		for pos+4 < len(source) {
+			t = int64(source[pos+0])
+			t |= int64(source[pos+1]) << 8
+			t |= int64(source[pos+2]&0x0F) << 16
+			t &= 0x000FFFFF
+			if t <= 2*bound {
+				coeffs[cur] = t - bound
 				cur++
 				if cur >= length {
 					break
 				}
 			}
-			pos += 3
+			t = int64(source[pos+2]&0xF0) >> 4
+			t |= int64(source[pos+3]) << 4
+			t |= int64(source[pos+4]) << 12
+			t &= 0x000FFFFF
+			if t <= 2*bound {
+				coeffs[cur] = t - bound
+				cur++
+				if cur >= length {
+					break
+				}
+			}
+			pos += 5
 		}
+	}
+	// uniform reject sample from the buf
+	rejectUniformSampleZetasC(buf)
+	for cur < length {
+		// uniform reject sample from the buf
+		buf = make([]byte, 5)
+		_, err = xof.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		rejectUniformSampleZetasC(buf)
 	}
 
 	return &PolyC{coeffs}, nil

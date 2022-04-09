@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+// for test something logic
+func TestSomething(t *testing.T) {
+	buf := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	got := fillWithBound(buf, 8, 11, 100000)
+	fmt.Println(got)
+}
+
 //	new test cases begin
 func TestNaive_randomBytes(t *testing.T) {
 
@@ -60,7 +67,7 @@ func TestNaive_randomnessPolyAForResponseZetaA(t *testing.T) {
 
 	var polyA *PolyA
 	var err error
-	for t := 0; t < 10000; t++ {
+	for t := 0; t < 100000; t++ {
 		polyA, err = pp.randomPolyAForResponseZetaA()
 		if err != nil {
 			log.Fatal(err)

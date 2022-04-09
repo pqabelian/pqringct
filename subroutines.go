@@ -229,48 +229,6 @@ func (pp *PublicParameter) sampleValueCmtRandomness() (*PolyCVec, error) {
 }
 
 // todo: review
-//	todo (to remove): not used any more
-func (pp *PublicParameter) generatePolyVecWithProbabilityDistributions(seed []byte, vecLen int) (*PolyCVec, error) {
-	var err error
-	// check the length of seed
-	ret := pp.NewPolyCVec(vecLen)
-	buf := make([]byte, pp.paramDC*4)
-	XOF := sha3.NewShake128()
-	for i := 0; i < vecLen; i++ {
-		XOF.Reset()
-		_, err = XOF.Write(seed)
-		if err != nil {
-			return nil, err
-		}
-		_, err = XOF.Write([]byte{byte(i)})
-		if err != nil {
-			return nil, err
-		}
-		_, err = XOF.Read(buf)
-		if err != nil {
-			return nil, err
-		}
-		_, got, err := randomnessFromProbabilityDistributions(buf, pp.paramDC)
-		if len(got) < pp.paramLC {
-			newBuf := make([]byte, pp.paramDC)
-			_, err = XOF.Read(newBuf)
-			if err != nil {
-				return nil, err
-			}
-			_, newGot, err := randomnessFromProbabilityDistributions(newBuf, pp.paramDC-len(got))
-			if err != nil {
-				return nil, err
-			}
-			got = append(got, newGot...)
-		}
-		for k := 0; k < pp.paramDC; k++ {
-			ret.polyCs[i].coeffs[k] = got[k]
-		}
-	}
-	return ret, nil
-}
-
-// todo: review
 //	Each coefficient of PolyCinDistributionChi is sampled from {-1, 0, 1}, where both 1 and -1 has probability 5/16, and 0 has probability 6/16.
 func (pp *PublicParameter) randomPolyCinDistributionChi(seed []byte) (*PolyC, error) {
 	if len(seed) == 0 {
@@ -869,9 +827,6 @@ func (pp *PublicParameter) randomDaIntegersInQa(seed []byte) []int64 {
 // Secondly, shuffle the array using the Knuth-Durstenfeld Shuffle
 func (pp *PublicParameter) expandChallengeA(seed []byte) (*PolyA, error) {
 	tmpSeed := make([]byte, len(seed))
-	//for i := 0; i < len(seed); i++ {
-	//	seed[i] = seeds[i]
-	//}
 	copy(tmpSeed, seed)
 	tmpSeed = append([]byte{'C', 'H', 'A'}, tmpSeed...)
 

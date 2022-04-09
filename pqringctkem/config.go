@@ -8,6 +8,9 @@ import (
 	"log"
 )
 
+// KyberKem is the public parameter for kem
+var KyberKem = NewParamKem(KEM_OQS_KYBER, nil, "Kyber768")
+
 type VersionKEM uint32
 
 const (
@@ -148,21 +151,11 @@ func GetKemCiphertextBytesLen(ppkem *ParamKem) int {
 	case KEM_KYBER:
 		return 4 + ppkem.Kyber.CryptoCiphertextBytes()
 	case KEM_OQS_KYBER:
-		return 4 + 1088 // k*320 + 88 (k==4)
+		return 4 + 1088 // k*320 + 128 (k==3) = 3 * 320 + 128 = 960 + 128 = 1088
 	default:
 		log.Fatalln("Unsupported KEM version.")
 	}
 	return 0
-}
-
-func (vpk *ValuePublicKey) WellformCheck() bool {
-	// todo
-	return true
-}
-
-func (vsk *ValueSecretKey) WellformCheck() bool {
-	// todo
-	return true
 }
 
 func NewParamKem(version VersionKEM, kyber *kyber.ParameterSet, oqsKEM string) *ParamKem {
@@ -175,10 +168,4 @@ func NewParamKem(version VersionKEM, kyber *kyber.ParameterSet, oqsKEM string) *
 	default:
 		return nil
 	}
-}
-
-var KyberKem *ParamKem
-
-func init() {
-	KyberKem = NewParamKem(KEM_OQS_KYBER, nil, "Kyber768")
 }
