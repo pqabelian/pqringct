@@ -165,7 +165,7 @@ func DeserializeCbTxWitnessJ2(pp *PublicParameter, serializedWitness []byte) (*C
 //	sizes begin
 
 func GetParamSeedBytesLen(pp *PublicParameter) int {
-	return pp.paramSeedBytesLen
+	return pp.paramKeyGenSeedBytesLen
 }
 
 func GetAddressPublicKeySerializeSize(pp *PublicParameter) int {

@@ -11,34 +11,34 @@ func NewPublicParameter(
 	paramDA int, paramQA int64, paramThetaA int, paramKA int, paramLambdaA int, paramGammaA int, paramEtaA int64, paramBetaA int16,
 	paramI int, paramJ int, paramN int,
 	paramDC int, paramQC int64, paramK int, paramKC int, paramLambdaC int, paramEtaC int64, paramBetaC int16,
-	paramEtaF int64, paramSysBytes int,
+	paramEtaF int64, paramKeyGenSeedBytesLen int,
 	paramDCInv int64, paramKInv int64,
 	paramZetaA int64, paramZetaAOrder int,
 	paramZetaC int64, paramZetaCOrder int, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *pqringctkem.ParamKem) (*PublicParameter, error) {
 
 	res := &PublicParameter{
-		paramDA:           paramDA,
-		paramQA:           paramQA,
-		paramThetaA:       paramThetaA,
-		paramKA:           paramKA,
-		paramLambdaA:      paramLambdaA,
-		paramLA:           paramKA + paramLambdaA + 1,
-		paramGammaA:       paramGammaA,
-		paramEtaA:         paramEtaA,
-		paramBetaA:        paramBetaA,
-		paramI:            paramI,
-		paramJ:            paramJ,
-		paramN:            paramN,
-		paramDC:           paramDC,
-		paramQC:           paramQC,
-		paramK:            paramK,
-		paramKC:           paramKC,
-		paramLambdaC:      paramLambdaC,
-		paramLC:           paramKC + paramI + paramJ + 7 + paramLambdaC,
-		paramEtaC:         paramEtaC,
-		paramBetaC:        paramBetaC,
-		paramEtaF:         paramEtaF,
-		paramSeedBytesLen: paramSysBytes,
+		paramDA:                 paramDA,
+		paramQA:                 paramQA,
+		paramThetaA:             paramThetaA,
+		paramKA:                 paramKA,
+		paramLambdaA:            paramLambdaA,
+		paramLA:                 paramKA + paramLambdaA + 1,
+		paramGammaA:             paramGammaA,
+		paramEtaA:               paramEtaA,
+		paramBetaA:              paramBetaA,
+		paramI:                  paramI,
+		paramJ:                  paramJ,
+		paramN:                  paramN,
+		paramDC:                 paramDC,
+		paramQC:                 paramQC,
+		paramK:                  paramK,
+		paramKC:                 paramKC,
+		paramLambdaC:            paramLambdaC,
+		paramLC:                 paramKC + paramI + paramJ + 7 + paramLambdaC,
+		paramEtaC:               paramEtaC,
+		paramBetaC:              paramBetaC,
+		paramEtaF:               paramEtaF,
+		paramKeyGenSeedBytesLen: paramKeyGenSeedBytesLen,
 		//		paramQCm:      	paramQC >> 1,
 		paramDCInv:             paramDCInv,
 		paramKInv:              paramKInv,
@@ -231,9 +231,8 @@ type PublicParameter struct {
 	// As paramEtaF may be (q_c-1)/16, we define it with 'int64' type
 	paramEtaF int64
 
-	// todo: 20220408 make its function clear
-	// todo: only used to tell the api the KeyGenSeedBytesLen
-	paramSeedBytesLen int
+	// paramKeyGenSeedBytesLen specifies the seed length for KeyGen
+	paramKeyGenSeedBytesLen int
 
 	// Some Helpful parameter
 	/*	// paramQCm = (q_c -1)/2, as this value will be often used in computation, we define it as a parameter, rather than compute it each time.
@@ -285,7 +284,7 @@ type PublicParameter struct {
 }
 
 func (pp *PublicParameter) ParamSeedBytesLen() int {
-	return pp.paramSeedBytesLen
+	return pp.paramKeyGenSeedBytesLen
 }
 
 func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
@@ -425,7 +424,7 @@ func init() {
 		16777215,
 		128,
 		1<<23-1, //	eta_f should be smaller than q_c/16, 2^49-1 is fine, but for size optimization, we use 2^{23}-1
-		32,      // 32 bytes = 256 bits
+		64,      // 64 bytes = 512 bits
 		-70368744177704,
 		-2251799813686528,
 		-12372710086,

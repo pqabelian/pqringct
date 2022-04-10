@@ -163,16 +163,16 @@ type elrsSignature struct {
 // todo: review
 func (pp *PublicParameter) AddressKeyGen(seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
 	// check the validity of the length of seed
-	if seed != nil && len(seed) != pp.paramSeedBytesLen {
+	if seed != nil && len(seed) != pp.paramKeyGenSeedBytesLen {
 		return nil, nil, errors.New("the length of seed is invalid")
 	}
 	if seed == nil {
-		seed = RandomBytes(pp.paramSeedBytesLen)
+		seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
 	}
 
 	// this temporary byte slice is for protect seed unmodified
-	tmp := make([]byte, pp.paramSeedBytesLen)
-	//for i := 0; i < pp.paramSeedBytesLen; i++ {
+	tmp := make([]byte, pp.paramKeyGenSeedBytesLen)
+	//for i := 0; i < pp.paramKeyGenSeedBytesLen; i++ {
 	//	tmp[i] = seed[i]
 	//}
 
@@ -207,7 +207,7 @@ func (pp *PublicParameter) AddressKeyGen(seed []byte) (apk *AddressPublicKey, as
 }
 
 func (pp *PublicParameter) ValueKeyGen(seed []byte) ([]byte, []byte, error) {
-	return pqringctkem.KeyGen(pp.paramKem, seed, pp.paramSeedBytesLen)
+	return pqringctkem.KeyGen(pp.paramKem, seed, pp.paramKeyGenSeedBytesLen)
 }
 
 // txoGen() returns a transaction output and the randomness used to generate the commitment.

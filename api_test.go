@@ -37,7 +37,7 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 
 	ehash := make([]byte, HashOutputBytesLen)
 
-	seed1 := RandomBytes(pp.paramSeedBytesLen)
+	seed1 := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	apk1, ask1, _ := pp.AddressKeyGen(seed1)
 	serializedVPk1, serializedVSk1, _ := pp.ValueKeyGen(seed1)
 	serializedVSk1C0 := make([]byte, len(serializedVSk1))
@@ -49,7 +49,7 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
 	serializedASksp1, _ := pp.SerializeAddressSecretKeySp(ask1.AddressSecretKeySp)
 	serializedASksn1, _ := pp.SerializeAddressSecretKeySn(ask1.AddressSecretKeySn)
-	seed2 := RandomBytes(pp.paramSeedBytesLen)
+	seed2 := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	apk2, _, _ := pp.AddressKeyGen(seed2)
 	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
 	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)

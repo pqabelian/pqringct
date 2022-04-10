@@ -15,11 +15,11 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 	//	33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 	//}
 	pp := DefaultPP
-	seed1 := RandomBytes(pp.paramSeedBytesLen)
+	seed1 := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	apk1, _, _ := pp.AddressKeyGen(seed1)
 	serializedVPk1, _, _ := pp.ValueKeyGen(seed1)
 	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
-	seed2 := RandomBytes(pp.paramSeedBytesLen)
+	seed2 := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	apk2, _, _ := pp.AddressKeyGen(seed2)
 	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
 	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)
@@ -106,7 +106,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	//	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	//	33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
 	//}
-	seed1 := RandomBytes(pp.paramSeedBytesLen)
+	seed1 := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	apk1, ask1, _ := pp.AddressKeyGen(seed1)
 	serializedVPk1, serializedVSk1, _ := pp.ValueKeyGen(seed1)
 	serializedVSk1C0 := make([]byte, len(serializedVSk1))
@@ -118,7 +118,7 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
 	serializedASksp1, _ := pp.SerializeAddressSecretKeySp(ask1.AddressSecretKeySp)
 	serializedASksn1, _ := pp.SerializeAddressSecretKeySn(ask1.AddressSecretKeySn)
-	seed2 := RandomBytes(pp.paramSeedBytesLen)
+	seed2 := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	apk2, _, _ := pp.AddressKeyGen(seed2)
 	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
 	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)

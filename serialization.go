@@ -703,7 +703,7 @@ func (pp *PublicParameter) AddressSecretKeySnSerializeSize() int {
 }
 func (pp *PublicParameter) SerializeAddressSecretKeySn(asksn *AddressSecretKeySn) ([]byte, error) {
 	var err error
-	if asksn.ma == nil {
+	if asksn == nil || asksn.ma == nil {
 		return nil, errors.New("SerializeAddressSecretKeySn: there is nil pointer in AddressSecretKeySn")
 	}
 	snLength := pp.AddressSecretKeySnSerializeSize()
@@ -766,11 +766,11 @@ func (pp *PublicParameter) DeserializeAddressSecretKeySn(serialziedASkSn []byte)
 //	}, nil
 //}
 
-// todo: review, to be continue
-func (pp *PublicParameter) ValueCommitmentRandSerializeSize() int {
-	//	return pp.PolyCNTTVecSerializeSize(v.b) + pp.PolyCNTTSerializeSize()
-	return pp.paramLC * pp.PolyCNTTSerializeSize()
-}
+//func (pp *PublicParameter) ValueCommitmentRandSerializeSize() int {
+//	//	return pp.PolyCNTTVecSerializeSize(v.b) + pp.PolyCNTTSerializeSize()
+//	return pp.paramLC * pp.PolyCNTTSerializeSize()
+//}
+
 func (pp *PublicParameter) ValueCommitmentSerializeSize() int {
 	//	return pp.PolyCNTTVecSerializeSize(v.b) + pp.PolyCNTTSerializeSize()
 	return (pp.paramKC + 1) * pp.PolyCNTTSerializeSize()
@@ -778,10 +778,10 @@ func (pp *PublicParameter) ValueCommitmentSerializeSize() int {
 func (pp *PublicParameter) SerializeValueCommitment(vcmt *ValueCommitment) ([]byte, error) {
 	var err error
 	if vcmt == nil || vcmt.b == nil || vcmt.c == nil {
-		return nil, errors.New(ErrNilPointer)
+		return nil, errors.New("SerializeValueCommitment: there is nil pointer in ValueCommitment")
 	}
 	if len(vcmt.b.polyCNTTs) != pp.paramKC {
-		return nil, errors.New("the format of ValueCommitment does not match the design")
+		return nil, errors.New("SerializeValueCommitment: the format of ValueCommitment does not match the design")
 	}
 
 	length := pp.ValueCommitmentSerializeSize()
@@ -819,6 +819,7 @@ func (pp *PublicParameter) DeserializeValueCommitment(serialziedValueCommitment 
 	return &ValueCommitment{b, c}, nil
 }
 
+// TxoValueBytesLen() returns 7 (butes) to encode the value in [0, 2^{51}-1].
 func (pp *PublicParameter) TxoValueBytesLen() int {
 	//	N = 51, v \in [0, 2^{51}-1]
 	return 7
@@ -829,17 +830,17 @@ func (pp *PublicParameter) encodeTxoValueToBytes(value uint64) ([]byte, error) {
 		return nil, errors.New("value is not in the scope [0, 2^N-1] for N= 51")
 	}
 
-	res := make([]byte, 7)
+	rst := make([]byte, 7)
 	for i := 0; i < 7; i++ {
-		res[0] = byte(value >> 0)
-		res[1] = byte(value >> 8)
-		res[2] = byte(value >> 16)
-		res[3] = byte(value >> 24)
-		res[4] = byte(value >> 32)
-		res[5] = byte(value >> 40)
-		res[6] = byte(value >> 48)
+		rst[0] = byte(value >> 0)
+		rst[1] = byte(value >> 8)
+		rst[2] = byte(value >> 16)
+		rst[3] = byte(value >> 24)
+		rst[4] = byte(value >> 32)
+		rst[5] = byte(value >> 40)
+		rst[6] = byte(value >> 48)
 	}
-	return res, nil
+	return rst, nil
 }
 
 func (pp *PublicParameter) decodeTxoValueFromBytes(serializedValue []byte) (uint64, error) {
@@ -864,17 +865,17 @@ func (pp *PublicParameter) TxoSerializeSize() int {
 		pp.ValueCommitmentSerializeSize() +
 		pp.TxoValueBytesLen() +
 		VarIntSerializeSize2(uint64(pqringctkem.GetKemCiphertextBytesLen(pp.paramKem))) + pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
-	// 8 for vc: 53-bits, for simplicity, just as uint64
 }
 func (pp *PublicParameter) SerializeTxo(txo *Txo) ([]byte, error) {
 	if txo == nil || txo.AddressPublicKey == nil || txo.ValueCommitment == nil {
-		return nil, errors.New(ErrNilPointer)
+		return nil, errors.New("SerializeTxo: there is nil pointer in Txo")
 	}
 
 	var err error
 	length := pp.TxoSerializeSize()
 	w := bytes.NewBuffer(make([]byte, 0, length))
 
+	//	serializedAddressPublicKey is fixed-length
 	serializedAddressPublicKey, err := pp.SerializeAddressPublicKey(txo.AddressPublicKey)
 	if err != nil {
 		return nil, err
@@ -884,6 +885,7 @@ func (pp *PublicParameter) SerializeTxo(txo *Txo) ([]byte, error) {
 		return nil, err
 	}
 
+	//	serializedValueCmt is fixed-length
 	serializedValueCmt, err := pp.SerializeValueCommitment(txo.ValueCommitment)
 	if err != nil {
 		return nil, err
@@ -893,80 +895,58 @@ func (pp *PublicParameter) SerializeTxo(txo *Txo) ([]byte, error) {
 		return nil, err
 	}
 
-	//tmp := make([]byte, (pp.paramN+7)/8)
-	//for i := 0; i < pp.paramN; i += 8 {
-	//	for j := 0; j < 8; j++ {
-	//		if i+j < pp.paramN {
-	//			tmp[i/8] |= (txo.Vct[i+j] & 1) << j
-	//		}
-	//	}
-	//}
-	//err = writeVarBytes(w, txo.Vct)
+	//	txo.Vct is fixed-length
 	_, err = w.Write(txo.Vct)
 	if err != nil {
 		return nil, err
 	}
 
+	//	txo.CtKemSerialized depends on the KEM, the length is not in the scope of pqringct.
 	err = writeVarBytes(w, txo.CtKemSerialized)
 	if err != nil {
 		return nil, err
 	}
+
 	return w.Bytes(), nil
 }
 func (pp *PublicParameter) DeserializeTxo(serializedTxo []byte) (*Txo, error) {
 	var err error
 	r := bytes.NewReader(serializedTxo)
 
+	var apk *AddressPublicKey
 	tmp := make([]byte, pp.AddressPublicKeySerializeSize())
 	_, err = r.Read(tmp)
-	//	err = readElement(r, tmp)
 	if err != nil {
 		return nil, err
 	}
-	var apk *AddressPublicKey
 	apk, err = pp.DeserializeAddressPublicKey(tmp)
 	if err != nil {
 		return nil, err
 	}
 
+	var cmt *ValueCommitment
 	tmp = make([]byte, pp.ValueCommitmentSerializeSize())
 	_, err = r.Read(tmp)
-	//err = readElement(r, tmp)
 	if err != nil {
 		return nil, err
 	}
-	var cmt *ValueCommitment
 	cmt, err = pp.DeserializeValueCommitment(tmp)
 	if err != nil {
 		return nil, err
 	}
 
-	//tmp, err = readVarBytes(r, MAXALLOWED, "txo.Vct")
-	//if err != nil {
-	//	return nil, err
-	//}
-	//vct := make([]byte, pp.paramN)
-	//for i := 0; i < len(tmp); i++ {
-	//	for j := 0; j < 8; j++ {
-	//		if 8*i+j < pp.paramN {
-	//			vct[8*i+j] = (tmp[i] & (1 << j)) >> j
-	//		}
-	//	}
-	//}
-
 	vct := make([]byte, pp.TxoValueBytesLen())
 	_, err = r.Read(vct)
-	//	vct, err := readVarBytes(r, MAXALLOWED, "txo.Vct")
 	if err != nil {
 		return nil, err
 	}
 
-	ckem, err := readVarBytes(r, MAXALLOWED, "txo.CtKemSerialized")
+	ctKem, err := readVarBytes(r, MaxAllowedKemCiphertextSize, "txo.CtKemSerialized")
 	if err != nil {
 		return nil, err
 	}
 
-	return &Txo{apk, cmt, vct, ckem}, nil
+	return &Txo{apk, cmt, vct, ctKem}, nil
 }
 
 func (pp *PublicParameter) LgrTxoIdSerializeSize() int {
@@ -2657,9 +2637,10 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 }
 
 const (
-	MAXALLOWED                 uint32 = 4294967295 // 2^32-1
-	MaxAllowedTxMemoSize              = 1024       // bytes
-	MaxAllowedSerialNumberSize        = 64         // 512 bits = 64 bytes
+	MAXALLOWED                  uint32 = 4294967295 // 2^32-1
+	MaxAllowedKemCiphertextSize uint32 = 1048576    // 2^20
+	MaxAllowedTxMemoSize               = 1024       // bytes
+	MaxAllowedSerialNumberSize         = 64         // 512 bits = 64 bytes
 	//	todo: 202203 different fields use different MaxAllowed? e.g. MaxAllowed
 )
 

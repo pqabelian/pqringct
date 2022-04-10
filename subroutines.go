@@ -352,7 +352,7 @@ func (pp *PublicParameter) sampleUniformWithinEtaFv2() ([]int64, error) {
 	//  qc =					0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
 	// <(qc-1)/16 = 562949953421632 = 	0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000<qc/12
 	// 1<<49-1
-	seed := RandomBytes(pp.paramSeedBytesLen)
+	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	length := pp.paramDC
 	res := make([]int64, 0, length)
 	buf := make([]byte, (length+7)/8)

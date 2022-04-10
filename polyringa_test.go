@@ -25,9 +25,9 @@ func (pp *PublicParameter) Mul(a []int64, b []int64) []int64 {
 func TestPublicParameter_MulKaratsuba(t *testing.T) {
 	pp := DefaultPP
 	length := 32
-	seed := RandomBytes(pp.paramSeedBytesLen)
+	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	ap := pp.randomDaIntegersInQa(seed)
-	seedp := RandomBytes(pp.paramSeedBytesLen)
+	seedp := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	bp := pp.randomDaIntegersInQa(seedp)
 	a := make([]int64, length)
 	b := make([]int64, length)
@@ -64,11 +64,11 @@ func (pp *PublicParameter) PolyAMul(a *PolyA, b *PolyA) *PolyA {
 }
 func TestPublicParameter_PolyANTTMul(t *testing.T) {
 	pp := DefaultPP
-	seed := RandomBytes(pp.paramSeedBytesLen)
+	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	tmpA := pp.randomDaIntegersInQa(seed)
 	a := &PolyA{coeffs: tmpA}
 
-	seedp := RandomBytes(pp.paramSeedBytesLen)
+	seedp := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	tmpB := pp.randomDaIntegersInQa(seedp)
 	b := &PolyA{coeffs: tmpB}
 
@@ -98,7 +98,7 @@ func TestPublicParameter_NTTPolyA(t *testing.T) {
 	//	fmt.Println(a.Int64())
 	//}
 
-	seed := RandomBytes(pp.paramSeedBytesLen)
+	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	tmpA := pp.randomDaIntegersInQa(seed)
 	//tmpA := make([]int64, pp.paramDA)
 	//for i := 0; i < pp.paramDA; i++ {
