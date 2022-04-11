@@ -78,7 +78,6 @@ func KeyGen(ppkem *ParamKem, seed []byte, seedLen int) ([]byte, []byte, error) {
 func Encaps(ppkem *ParamKem, pk []byte) ([]byte, []byte, error) {
 	var serializedC, kappa []byte
 	var err error
-	// todo: shall be encapsed into pqringctkem
 	version := uint32(pk[0]) << 0
 	version |= uint32(pk[1]) << 8
 	version |= uint32(pk[2]) << 16

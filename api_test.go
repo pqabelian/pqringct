@@ -28,6 +28,68 @@ func ledgerTxoIdGen(ringHash []byte, index uint8) []byte {
 
 func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 	pp := DefaultPP
+
+	peerNum := 2
+	seeds := make([][]byte, peerNum)
+	apks := make([]*AddressPublicKey, peerNum)
+	asks := make([]*AddressSecretKey, peerNum)
+	serializedVPks := make([][]byte, peerNum)
+	serializedVSks := make([][]byte, peerNum)
+	serializedVSksCopy := make([][][]byte, peerNum)
+	serializedAPks := make([][]byte, peerNum)
+	serializedASksps := make([][]byte, peerNum)
+	serializedASksns := make([][]byte, peerNum)
+	for i := 0; i < peerNum; i++ {
+		seeds[i] = RandomBytes(pp.paramKeyGenSeedBytesLen)
+		apks[i], asks[i], _ = pp.AddressKeyGen(seeds[i])
+		serializedVPks[i], serializedVSks[i], _ = pp.ValueKeyGen(seeds[i])
+		copyNum := 3
+		serializedVSksCopy[i] = make([][]byte, copyNum)
+		for j := 0; j < copyNum; j++ {
+			serializedVSksCopy[i][j] = make([]byte, len(serializedVSks[i]))
+			copy(serializedVSksCopy[i][j], serializedVSks[i])
+		}
+		serializedAPks[i], _ = pp.SerializeAddressPublicKey(apks[i])
+		serializedASksps[i], _ = pp.SerializeAddressSecretKeySp(asks[i].AddressSecretKeySp)
+		serializedASksns[i], _ = pp.SerializeAddressSecretKeySn(asks[i].AddressSecretKeySn)
+	}
+	cbTxNum, outputNum := 3, 2
+	cbTxs := make([]*CoinbaseTx, cbTxNum)
+	txOutputDescs := make([]*TxOutputDesc, outputNum)
+	for i := 0; i < outputNum; i++ {
+		txOutputDescs[i] = &TxOutputDesc{
+			serializedAPk: serializedAPks[i],
+			serializedVPk: serializedVPks[i],
+			value:         256,
+		}
+	}
+	var err error
+	// generate coinbase transaction with txOutputDescs
+	for i := 0; i < cbTxNum; i++ {
+		cbTxs[i], err = pp.CoinbaseTxGen(512, txOutputDescs, nil)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+		var cbTx1Serialized []byte
+		cbTx1Serialized, err = pp.SerializeCoinbaseTx(cbTxs[i], true)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+		var cbTx1Deser *CoinbaseTx
+		cbTx1Deser, err = pp.DeserializeCoinbaseTx(cbTx1Serialized, true)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+		var valid bool
+		valid, err = pp.CoinbaseTxVerify(cbTx1Deser)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+		if valid {
+			fmt.Println("CbTx1 (J=2) serialze and deserialize Pass")
+		}
+	}
+
 	type args struct {
 		inputDescs  []*TxInputDesc
 		outputDescs []*TxOutputDesc
@@ -36,136 +98,49 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 	}
 
 	ehash := make([]byte, HashOutputBytesLen)
-
-	seed1 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk1, ask1, _ := pp.AddressKeyGen(seed1)
-	serializedVPk1, serializedVSk1, _ := pp.ValueKeyGen(seed1)
-	serializedVSk1C0 := make([]byte, len(serializedVSk1))
-	copy(serializedVSk1C0, serializedVSk1)
-	serializedVSk1C1 := make([]byte, len(serializedVSk1))
-	copy(serializedVSk1C1, serializedVSk1)
-	serializedVSk1C2 := make([]byte, len(serializedVSk1))
-	copy(serializedVSk1C2, serializedVSk1)
-	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
-	serializedASksp1, _ := pp.SerializeAddressSecretKeySp(ask1.AddressSecretKeySp)
-	serializedASksn1, _ := pp.SerializeAddressSecretKeySn(ask1.AddressSecretKeySn)
-	seed2 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk2, _, _ := pp.AddressKeyGen(seed2)
-	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
-	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)
-
-	cbTx1, err := pp.CoinbaseTxGen(512, []*TxOutputDesc{
-		{
-			serializedAPk: serializedAPk1,
-			serializedVPk: serializedVPk1,
-			value:         500,
-		},
-		{
-			serializedAPk: serializedAPk2,
-			serializedVPk: serializedVPk2,
-			value:         12,
-		},
-	}, nil)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-
-	cbTx1Serialized, err := pp.SerializeCoinbaseTx(cbTx1, true)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	cbTx1Deser, err := pp.DeserializeCoinbaseTx(cbTx1Serialized, true)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	validCbTx1, err := pp.CoinbaseTxVerify(cbTx1Deser)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	if validCbTx1 {
-		fmt.Println("CbTx1 (J=2) serialze and deserialize Pass")
-	}
-
-	cbTx2, err := pp.CoinbaseTxGen(512, []*TxOutputDesc{
-		{
-			serializedAPk: serializedAPk1,
-			serializedVPk: serializedVPk1,
-			value:         500,
-		},
-		{
-			serializedAPk: serializedAPk2,
-			serializedVPk: serializedVPk2,
-			value:         12,
-		},
-	}, nil)
-
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-
-	cbTx2Serialized, err := pp.SerializeCoinbaseTx(cbTx2, true)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	cbTx2Deser, err := pp.DeserializeCoinbaseTx(cbTx2Serialized, true)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	validCbTx2, err := pp.CoinbaseTxVerify(cbTx2Deser)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	if validCbTx2 {
-		fmt.Println("CbTx2 (J=2) serialze and deserialize Pass")
-	}
-
-	//fmt.Println("CbTxWitnessJ2SizeApprox(J=2):", pp.CbTxWitnessJ2SerializeSizeApprox(2))
-	//fmt.Println("CbTxWitnessJ2SizeExact(J=2):", pp.CbTxWitnessJ2SerializeSize(cbTx1.TxWitnessJ2))
-
 	tests := []struct {
 		name    string
 		args    args
 		wantErr bool
 		want    bool
 	}{
-		// TODO: Add test cases.
 		{
-			name: "test 1",
+			name: "1->2",
 			args: args{
 				inputDescs: []*TxInputDesc{
 					{
 						lgrTxoList: []*LgrTxo{
 							{
-								txo: cbTx1.OutputTxos[0],
+								txo: cbTxs[0].OutputTxos[0],
 								id:  ledgerTxoIdGen(ehash, 0),
 							},
 							{
-								txo: cbTx1.OutputTxos[1],
+								txo: cbTxs[0].OutputTxos[1],
 								id:  ledgerTxoIdGen(ehash, 1),
 							},
 							{
-								txo: cbTx2.OutputTxos[0],
+								txo: cbTxs[2].OutputTxos[0],
 								id:  ledgerTxoIdGen(ehash, 2),
 							},
 						},
 						sidx:            0,
-						serializedASksp: serializedASksp1,
-						serializedASksn: serializedASksn1,
-						serializedVPk:   serializedVPk1,
-						serializedVSk:   serializedVSk1C0,
-						value:           500,
+						serializedASksp: serializedASksps[0],
+						serializedASksn: serializedASksns[0],
+						serializedVPk:   serializedVPks[0],
+						serializedVSk:   serializedVSksCopy[0][0],
+						value:           256,
 					},
 				},
 				outputDescs: []*TxOutputDesc{
 					{
-						serializedAPk: serializedAPk1,
-						serializedVPk: serializedVPk1,
-						value:         400,
+						serializedAPk: serializedAPks[0],
+						serializedVPk: serializedVPks[0],
+						value:         200,
 					},
 					{
-						serializedAPk: serializedAPk2,
-						serializedVPk: serializedVPk2,
-						value:         90,
+						serializedAPk: serializedAPks[1],
+						serializedVPk: serializedVPks[1],
+						value:         46,
 					},
 				},
 				fee:    10,
@@ -175,56 +150,56 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 			want:    true,
 		},
 		{
-			name: "test 2",
+			name: "2->2",
 			args: args{
 				inputDescs: []*TxInputDesc{
 					{
 						lgrTxoList: []*LgrTxo{
 							{
-								txo: cbTx1.OutputTxos[0],
+								txo: cbTxs[0].OutputTxos[0],
 								id:  make([]byte, HashOutputBytesLen),
 							},
 							{
-								txo: cbTx1.OutputTxos[1],
+								txo: cbTxs[0].OutputTxos[1],
 								id:  make([]byte, HashOutputBytesLen),
 							},
 						},
 						sidx:            0,
-						serializedASksp: serializedASksp1,
-						serializedASksn: serializedASksn1,
-						serializedVPk:   serializedVPk1,
-						serializedVSk:   serializedVSk1C1,
-						value:           500,
+						serializedASksp: serializedASksps[0],
+						serializedASksn: serializedASksns[0],
+						serializedVPk:   serializedVPks[0],
+						serializedVSk:   serializedVSksCopy[0][1],
+						value:           256,
 					},
 					{
 						lgrTxoList: []*LgrTxo{
 							{
-								txo: cbTx2.OutputTxos[0],
+								txo: cbTxs[1].OutputTxos[0],
 								id:  make([]byte, HashOutputBytesLen),
 							},
 							{
-								txo: cbTx2.OutputTxos[1],
+								txo: cbTxs[1].OutputTxos[1],
 								id:  make([]byte, HashOutputBytesLen),
 							},
 						},
 						sidx:            0,
-						serializedASksp: serializedASksp1,
-						serializedASksn: serializedASksn1,
-						serializedVPk:   serializedVPk1,
-						serializedVSk:   serializedVSk1C2,
-						value:           500,
+						serializedASksp: serializedASksps[0],
+						serializedASksn: serializedASksns[0],
+						serializedVPk:   serializedVPks[0],
+						serializedVSk:   serializedVSksCopy[0][2],
+						value:           256,
 					},
 				},
 				outputDescs: []*TxOutputDesc{
 					{
-						serializedAPk: serializedAPk1,
-						serializedVPk: serializedVPk1,
-						value:         800,
+						serializedAPk: serializedAPks[0],
+						serializedVPk: serializedVPks[0],
+						value:         500,
 					},
 					{
-						serializedAPk: serializedAPk2,
-						serializedVPk: serializedVPk2,
-						value:         190,
+						serializedAPk: serializedAPks[1],
+						serializedVPk: serializedVPks[1],
+						value:         2,
 					},
 				},
 				fee:    10,

@@ -114,7 +114,7 @@ func (pp *PublicParameter) randomPolyAForResponseZetaA() (*PolyA, error) {
 // where eta_c = 2^{24}-1 and beta_c=128
 func (pp *PublicParameter) randomPolyCForResponseZetaC() (*PolyC, error) {
 	bound := int64(16777087)
-	length := pp.paramDC // todo: fix the length to be pp.paramDC, will there is optimization?
+	length := pp.paramDC
 	coeffs := make([]int64, length)
 
 	seed := RandomBytes(RandSeedBytesLen)
@@ -162,7 +162,7 @@ func (pp *PublicParameter) randomPolyCForResponseZetaC() (*PolyC, error) {
 //	eta_c = 2^{24}-1, so that each coefficient needs 3 bytes (for absolute) and 1 bit (for signal)
 func (pp *PublicParameter) randomPolyCinEtaC() (*PolyC, error) {
 	bound := int64(1<<24 - 1)
-	length := pp.paramDC // todo: fix the length to be pp.paramDC, will there is optimization?
+	length := pp.paramDC
 	coeffs := make([]int64, length)
 
 	seed := RandomBytes(RandSeedBytesLen)

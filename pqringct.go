@@ -27,18 +27,18 @@ type AddressSecretKeySn struct {
 	ma *PolyANTT
 }
 
-func (apk *AddressPublicKey) WellformCheck(pp *PublicParameter) bool {
-	// todo
-	return true
-}
-
-func (ask *AddressSecretKey) WellformCheck(pp *PublicParameter) bool {
-	// todo
-	return true
-}
-
 func (ask *AddressSecretKey) CheckMatchPublciKey(apk *AddressPublicKey, pp *PublicParameter) bool {
-	// todo As=t, <a,s> + m_a = e
+	// t = A*s
+	s_ntt := pp.NTTPolyAVec(ask.s)
+	t := pp.PolyANTTMatrixMulVector(pp.paramMatrixA, s_ntt, pp.paramKA, pp.paramLA)
+	if !pp.PolyANTTVecEqualCheck(t, apk.t) {
+		return false
+	}
+	// e = <a,s>+ma
+	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVecA, s_ntt, pp.paramLA), ask.ma)
+	if !pp.PolyANTTEqualCheck(e, apk.e) {
+		return false
+	}
 	return true
 }
 

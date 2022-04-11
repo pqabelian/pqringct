@@ -202,60 +202,6 @@ func (pp *PublicParameter) NTTInvPolyA(polyANTT *PolyANTT) (polyA *PolyA) {
 	return &PolyA{nttCoeffs}
 }
 
-//func PolyAEqualCheck(a *PolyA, b *PolyA) (eq bool) {
-//	if a == nil || b == nil {
-//		return false
-//	}
-//	if len(a.coeffs) != len(b.coeffs) {
-//		return false
-//	}
-//	for i := 0; i < len(a.coeffs); i++ {
-//		if a.coeffs[i] != b.coeffs[i] {
-//			return false
-//		}
-//	}
-//
-//	return true
-//}
-
-//func PolyANTTEqualCheck(a *PolyANTT, b *PolyANTT) (eq bool) {
-//	if a == nil || b == nil {
-//		return false
-//	}
-//	if len(a.coeffs) != len(b.coeffs) {
-//		return false
-//	}
-//	for i := 0; i < len(a.coeffs); i++ {
-//		if a.coeffs[i] != b.coeffs[i] {
-//			return false
-//		}
-//	}
-//
-//	return true
-//}
-
-//func PolyANTTVecEqualCheck(a *PolyANTTVec, b *PolyANTTVec) (eq bool) {
-//	if a == nil || b == nil {
-//		return false
-//	}
-//
-//	if a.polyANTTs == nil || b.polyANTTs == nil {
-//		return false
-//	}
-//
-//	if len(a.polyANTTs) != len(b.polyANTTs) {
-//		return false
-//	}
-//
-//	for i := 0; i < len(a.polyANTTs); i++ {
-//		if !PolyANTTEqualCheck(a.polyANTTs[i], b.polyANTTs[i]) {
-//			return false
-//		}
-//	}
-//
-//	return true
-//}
-
 func (pp *PublicParameter) NewPolyAVec(vecLen int) *PolyAVec {
 	polys := make([]*PolyA, vecLen)
 	for i := 0; i < vecLen; i++ {
@@ -342,24 +288,24 @@ func (pp *PublicParameter) PolyANTTSub(a *PolyANTT, b *PolyANTT) (r *PolyANTT) {
 	return rst
 }
 
-// todo: need to review
 func (pp *PublicParameter) PolyANTTMul(a *PolyANTT, b *PolyANTT) *PolyANTT {
 	bigQA := big.NewInt(pp.paramQA)
 	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
 		log.Panic("the length of the input polyANTT is not paramDA")
 	}
 	rst := pp.NewPolyANTT()
-	// the size of every group is pp.paramDA/(pp.paramZetaAOrder/2)
 	factor := make([]int, pp.paramZetaAOrder/2)
 	for i := 0; i < pp.paramZetaAOrder/4; i++ {
 		factor[2*i] = pp.paramNTTAFactors[i] + pp.paramZetaAOrder/2
 		factor[2*i+1] = pp.paramNTTAFactors[i]
 	}
-	//fmt.Println(factor)
+	// the size of every group is pp.paramDA/(pp.paramZetaAOrder/2)
 	groupSize := 2 * pp.paramDA / pp.paramZetaAOrder
+	// the group num is pp.paramDA / groupSize
 	groupNum := pp.paramDA / groupSize
 	left := make([]int64, groupSize)
 	right := make([]int64, groupSize)
+	// perform multiply in every group
 	for i := 0; i < groupNum; i++ {
 		for j := 0; j < groupSize; j++ {
 			left[j] = a.coeffs[i*groupSize+j]
@@ -432,65 +378,13 @@ func (pp *PublicParameter) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyANTT
 	return rst
 }
 
-//func (pp *PublicParameter) PolyAAdd(a *PolyA, b *PolyA) (r *PolyA) {
-//	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
-//		log.Panic("PolyAAdd: the length of the input PolyA is not paramDA")
-//	}
-//
-//	rst := pp.NewPolyA()
-//	//	var tmp1, tmp2, tmpx big.Int
-//	for i := 0; i < pp.paramDA; i++ {
-//		/*		tmp1.SetInt64(a.coeffs[i])
-//				tmp2.SetInt64(b.coeffs[i])
-//				tmpx.Add(&tmp1, &tmp2)
-//				rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQA)*/
-//		rst.coeffs[i] = reduceInt64(a.coeffs[i]+b.coeffs[i], pp.paramQA)
-//	}
-//
-//	return rst
-//}
-
-//func (pp *PublicParameter) PolyASub(a *PolyA, b *PolyA) (r *PolyA) {
-//	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
-//		log.Panic("PolyASub: the length of the input PolyA is not paramDA")
-//	}
-//
-//	rst := pp.NewPolyA()
-//	//	var tmp1, tmp2, tmpx big.Int
-//	for i := 0; i < pp.paramDA; i++ {
-//		/*		tmp1.SetInt64(a.coeffs[i])
-//				tmp2.SetInt64(b.coeffs[i])
-//				tmpx.Sub(&tmp1, &tmp2)
-//				rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQA)*/
-//		rst.coeffs[i] = reduceInt64(a.coeffs[i]-b.coeffs[i], pp.paramQA)
-//	}
-//
-//	return rst
-//}
-
-//func (pp *PublicParameter) PolyAVecAdd(a *PolyAVec, b *PolyAVec, vecLen int) (r *PolyAVec) {
-//	if len(a.polyAs) != len(b.polyAs) {
-//		log.Panic("PolyAVecAdd: the two input polyAVecs have different length")
-//	}
-//	rst := pp.NewPolyAVec(vecLen)
-//	for i := 0; i < vecLen; i++ {
-//		rst.polyAs[i] = pp.PolyAAdd(a.polyAs[i], b.polyAs[i])
-//	}
-//	return rst
-//}
-
-//func (pp *PublicParameter) PolyAVecSub(a *PolyAVec, b *PolyAVec, vecLen int) (r *PolyAVec) {
-//	if len(a.polyAs) != len(b.polyAs) {
-//		log.Panic("PolyAVecSub: the two input polyAVecs have different length")
-//	}
-//	rst := pp.NewPolyAVec(vecLen)
-//	for i := 0; i < vecLen; i++ {
-//		rst.polyAs[i] = pp.PolyASub(a.polyAs[i], b.polyAs[i])
-//	}
-//	return rst
-//}
-
-// todo: need to review
+// MulKaratsuba performs vector multiplication with split
+// F -> F[0] + F[1]x^n
+// G-> G[0] + G[1]x^n
+// F*G = F[0]G[0]+(F[0]G[1]+F[1]G[0])x^n+F[1]G[1]x^(2n)
+//     = F[0]G[0]+{(F[0]+F[1])(G[0]+G[1])-F[0]G[0]-F[1]G[1]}x^n+F[1]G[1]x^(2n)
+// F[0]+F[1],G[0]+G[1],F[0]G[0],F[1]G[1] as intermediate variables
+// It uses several addition/subtraction to substitute  multiplication
 func (pp *PublicParameter) MulKaratsuba(a, b []int64, n int) []int64 {
 	bigQA := big.NewInt(pp.paramQA)
 	if len(a) != 2*n || len(b) != 2*n {
@@ -562,4 +456,43 @@ func (pp *PublicParameter) MulKaratsuba(a, b []int64, n int) []int64 {
 		res[i+n] = reduceInt64(res[i+n]+f1g1[i], pp.paramQA)
 	}
 	return res
+}
+func (pp *PublicParameter) PolyANTTVecEqualCheck(a *PolyANTTVec, b *PolyANTTVec) (eq bool) {
+	if a == nil || b == nil {
+		return false
+	}
+
+	if a.polyANTTs == nil || b.polyANTTs == nil {
+		return false
+	}
+
+	if len(a.polyANTTs) != len(b.polyANTTs) {
+		return false
+	}
+
+	for i := 0; i < len(a.polyANTTs); i++ {
+		if pp.PolyANTTEqualCheck(a.polyANTTs[i], b.polyANTTs[i]) != true {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (pp *PublicParameter) PolyANTTEqualCheck(a *PolyANTT, b *PolyANTT) (eq bool) {
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a.coeffs) != pp.paramDA || len(b.coeffs) != pp.paramDA {
+		return false
+	}
+
+	for i := 0; i < pp.paramDA; i++ {
+		if a.coeffs[i] != b.coeffs[i] {
+			return false
+		}
+	}
+
+	return true
 }

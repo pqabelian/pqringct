@@ -142,15 +142,6 @@ func (pp *PublicParameter) NTTPolyC(polyC *PolyC) *PolyCNTT {
 		return rst*/
 }
 
-//	todo_DONE: this should be set as a system parameter, together with zetaCs[], decided by d_c, q_c
-//var nttCFactors = []int{
-//	127, 63, 95, 31, 111, 47, 79, 15, 119, 55, 87, 23,
-//	103, 39, 71, 7, 123, 59, 91, 27, 107, 43, 75, 11, 115,
-//	51, 83, 19, 99, 35, 67, 3, 125, 61, 93, 29, 109, 45, 77, 13,
-//	117, 53, 85, 21, 101, 37, 69, 5, 121, 57, 89, 25, 105, 41, 73,
-//	9, 113, 49, 81, 17, 97, 33, 65, 1,
-//}
-
 func (pp *PublicParameter) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 	//	NTT Inverse
 	zetaCOrder := pp.paramZetaCOrder
@@ -225,61 +216,6 @@ func (pp *PublicParameter) NTTInvPolyC(polyCNTT *PolyCNTT) (polyC *PolyC) {
 
 	return &PolyC{nttCoeffs}
 }
-
-//func PolyCEqualCheck(a *PolyC, b *PolyC) (eq bool) {
-//	if a == nil || b == nil {
-//		return false
-//	}
-//	if len(a.coeffs) != len(b.coeffs) {
-//		return false
-//	}
-//	for i := 0; i < len(a.coeffs); i++ {
-//		if a.coeffs[i] != b.coeffs[i] {
-//			return false
-//		}
-//	}
-//
-//	return true
-//}
-
-//func PolyCNTTEqualCheck(a *PolyCNTT, b *PolyCNTT) (eq bool) {
-//	if a == nil || b == nil {
-//		return false
-//	}
-//
-//	if len(a.coeffs) != len(b.coeffs) {
-//		return false
-//	}
-//	for i := 0; i < len(a.coeffs); i++ {
-//		if a.coeffs[i] != b.coeffs[i] {
-//			return false
-//		}
-//	}
-//
-//	return true
-//}
-
-//func PolyCNTTVecEqualCheck(a *PolyCNTTVec, b *PolyCNTTVec) (eq bool) {
-//	if a == nil || b == nil {
-//		return false
-//	}
-//
-//	if a.polyCNTTs == nil || b.polyCNTTs == nil {
-//		return false
-//	}
-//
-//	if len(a.polyCNTTs) != len(b.polyCNTTs) {
-//		return false
-//	}
-//
-//	for i := 0; i < len(a.polyCNTTs); i++ {
-//		if !PolyCNTTEqualCheck(a.polyCNTTs[i], b.polyCNTTs[i]) {
-//			return false
-//		}
-//	}
-//
-//	return true
-//}
 
 func (pp *PublicParameter) NewPolyCVec(vecLen int) *PolyCVec {
 	polys := make([]*PolyC, vecLen)
@@ -432,82 +368,6 @@ func (pp *PublicParameter) sigmaPowerPolyCNTT(polyCNTT *PolyCNTT, t int) (r *Pol
 	}
 	return rst
 }
-
-//
-//func (pp *PublicParameter) PolyCAdd(a *PolyC, b *PolyC) (r *PolyC) {
-//	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
-//		log.Panic("PolyCAdd: the length of the input polyC is not paramDC")
-//	}
-//
-//	rst := pp.NewPolyC()
-//	//	var tmp1, tmp2, tmpx big.Int
-//	for i := 0; i < pp.paramDC; i++ {
-//		/*		tmp1.SetInt64(a.coeffs[i])
-//				tmp2.SetInt64(b.coeffs[i])
-//				tmpx.Add(&tmp1, &tmp2)
-//				rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQC)*/
-//		rst.coeffs[i] = reduceInt64(a.coeffs[i]+b.coeffs[i], pp.paramQC)
-//	}
-//
-//	return rst
-//}
-
-//func (pp *PublicParameter) PolyCSub(a *PolyC, b *PolyC) (r *PolyC) {
-//	if len(a.coeffs) != pp.paramDC || len(b.coeffs) != pp.paramDC {
-//		log.Panic("PolyCSub: the length of the input polyC is not paramDC")
-//	}
-//
-//	rst := pp.NewPolyC()
-//	//	var tmp1, tmp2, tmpx big.Int
-//	for i := 0; i < pp.paramDC; i++ {
-//		/*		tmp1.SetInt64(a.coeffs[i])
-//				tmp2.SetInt64(b.coeffs[i])
-//				tmpx.Sub(&tmp1, &tmp2)
-//				rst.coeffs[i] = reduceBigInt(&tmpx, pp.paramQC)*/
-//		rst.coeffs[i] = reduceInt64(a.coeffs[i]-b.coeffs[i], pp.paramQC)
-//	}
-//
-//	return rst
-//}
-
-//func (pp *PublicParameter) PolyCVecAdd(a *PolyCVec, b *PolyCVec, vecLen int) (r *PolyCVec) {
-//	if len(a.polyCs) != len(b.polyCs) {
-//		log.Panic("PolyCVecAdd: the two input polyCVecs have different length")
-//	}
-//	rst := pp.NewPolyCVec(vecLen)
-//	for i := 0; i < vecLen; i++ {
-//		rst.polyCs[i] = pp.PolyCAdd(a.polyCs[i], b.polyCs[i])
-//	}
-//	return rst
-//}
-
-//func (pp *PublicParameter) PolyCVecSub(a *PolyCVec, b *PolyCVec, vecLen int) (r *PolyCVec) {
-//	if len(a.polyCs) != len(b.polyCs) {
-//		log.Panic("PolyCVecSub: the two input polyCVecs have different length")
-//	}
-//	rst := pp.NewPolyCVec(vecLen)
-//	for i := 0; i < vecLen; i++ {
-//		rst.polyCs[i] = pp.PolyCSub(a.polyCs[i], b.polyCs[i])
-//	}
-//	return rst
-//}
-
-// q is assumed to be an odd number
-//func reduce(a *big.Int, q int64) int64 {
-//	var b, rst big.Int
-//
-//	b.SetInt64(q)
-//
-//	rst.Mod(a, &b)
-//
-//	r := rst.Int64()
-//
-//	//	make sure the result in the scope [-(q-1)/2, (q-1)/2]
-//	if r > ((q - 1) >> 1) {
-//		r = r - q
-//	}
-//	return r
-//}
 
 func (pp *PublicParameter) PolyCNTTVecEqualCheck(a *PolyCNTTVec, b *PolyCNTTVec) (eq bool) {
 	if a == nil || b == nil {

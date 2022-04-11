@@ -27,136 +27,6 @@ type binaryFreeList chan []byte
 
 var binarySerializer binaryFreeList = make(chan []byte, binaryFreeListMaxItems)
 
-// writeElement writes the little endian representation of element to w.
-func writeElement(w io.Writer, element interface{}) error {
-	switch e := element.(type) {
-	case int32:
-		err := binarySerializer.PutUint32(w, littleEndian, uint32(e))
-		if err != nil {
-			return err
-		}
-		return nil
-
-	case uint32:
-		err := binarySerializer.PutUint32(w, littleEndian, e)
-		if err != nil {
-			return err
-		}
-		return nil
-
-	case int64:
-		err := binarySerializer.PutUint64(w, littleEndian, uint64(e))
-		if err != nil {
-			return err
-		}
-		return nil
-
-	case uint64:
-		err := binarySerializer.PutUint64(w, littleEndian, e)
-		if err != nil {
-			return err
-		}
-		return nil
-
-	case bool:
-		var err error
-		if e {
-			err = binarySerializer.PutUint8(w, 0x01)
-		} else {
-			err = binarySerializer.PutUint8(w, 0x00)
-		}
-		if err != nil {
-			return err
-		}
-		return nil
-
-	case [4]byte:
-		_, err := w.Write(e[:])
-		if err != nil {
-			return err
-		}
-		return nil
-
-	// IP address.
-	case [16]byte:
-		_, err := w.Write(e[:])
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	return binary.Write(w, littleEndian, element)
-}
-
-// readElement reads the next sequence of bytes from r using little endian
-// depending on the concrete type of element pointed to.
-func readElement(r io.Reader, element interface{}) error {
-	// Attempt to read the element based on the concrete type via fast
-	// type assertions first.
-	switch e := element.(type) {
-	case *int32:
-		rv, err := binarySerializer.Uint32(r, littleEndian)
-		if err != nil {
-			return err
-		}
-		*e = int32(rv)
-		return nil
-
-	case *uint32:
-		rv, err := binarySerializer.Uint32(r, littleEndian)
-		if err != nil {
-			return err
-		}
-		*e = rv
-		return nil
-
-	case *int64:
-		rv, err := binarySerializer.Uint64(r, littleEndian)
-		if err != nil {
-			return err
-		}
-		*e = int64(rv)
-		return nil
-
-	case *uint64:
-		rv, err := binarySerializer.Uint64(r, littleEndian)
-		if err != nil {
-			return err
-		}
-		*e = rv
-		return nil
-
-	case *bool:
-		rv, err := binarySerializer.Uint8(r)
-		if err != nil {
-			return err
-		}
-		if rv == 0x00 {
-			*e = false
-		} else {
-			*e = true
-		}
-		return nil
-	}
-
-	// Fall back to the slower binary.Read if a fast path was not available
-	// above.
-	return binary.Read(r, littleEndian, element)
-}
-
-// readElements reads multiple items from r.  It is equivalent to multiple
-// calls to readElement.
-func readElements(r io.Reader, elements ...interface{}) error {
-	for _, element := range elements {
-		err := readElement(r, element)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // WriteVarInt serializes val to w using a variable number of bytes depending
 // on its value.
 func WriteVarInt(w io.Writer, val uint64) error {
@@ -367,31 +237,8 @@ func (l binaryFreeList) PutUint64(w io.Writer, byteOrder binary.ByteOrder, val u
 
 // VarIntSerializeSize returns the number of bytes it would take to serialize
 // val as a variable length integer.
-func VarIntSerializeSize(val uint64) uint32 {
-	// The value is small enough to be represented by itself, so it's
-	// just 1 byte.
-	if val < 0xfd {
-		return 1
-	}
-
-	// Discriminant 1 byte plus 2 bytes for the uint16.
-	if val <= math.MaxUint16 {
-		return 3
-	}
-
-	// Discriminant 1 byte plus 4 bytes for the uint32.
-	if val <= math.MaxUint32 {
-		return 5
-	}
-
-	// Discriminant 1 byte plus 8 bytes for the uint64.
-	return 9
-}
-
-// VarIntSerializeSize2 returns the number of bytes it would take to serialize
-// val as a variable length integer.
 // The only difference with VarIntSerializeSize() is return type
-func VarIntSerializeSize2(val uint64) int {
+func VarIntSerializeSize(val uint64) int {
 	// The value is small enough to be represented by itself, so it's
 	// just 1 byte.
 	if val < 0xfd {
@@ -410,16 +257,4 @@ func VarIntSerializeSize2(val uint64) int {
 
 	// Discriminant 1 byte plus 8 bytes for the uint64.
 	return 9
-}
-
-// WriteNULL write an identifier 0x00 to w,
-// which means current variable is null
-func WriteNULL(w io.Writer) error {
-	return WriteVarInt(w, uint64(0))
-}
-
-// WriteNotNULL write an identifier 0x01 to w,
-// which means current variable is not null
-func WriteNotNULL(w io.Writer) error {
-	return WriteVarInt(w, uint64(1))
 }

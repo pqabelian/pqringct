@@ -69,9 +69,9 @@ func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
 
 func (pp *PublicParameter) PolyANTTVecSerializeSize(a *PolyANTTVec) int {
 	if a == nil {
-		return VarIntSerializeSize2(0)
+		return VarIntSerializeSize(0)
 	}
-	return VarIntSerializeSize2(uint64(len(a.polyANTTs))) + len(a.polyANTTs)*pp.PolyANTTSerializeSize()
+	return VarIntSerializeSize(uint64(len(a.polyANTTs))) + len(a.polyANTTs)*pp.PolyANTTSerializeSize()
 }
 func (pp *PublicParameter) writePolyANTTVec(w io.Writer, a *PolyANTTVec) error {
 	if a == nil {
@@ -204,9 +204,9 @@ func (pp *PublicParameter) readPolyAEta(r io.Reader) (*PolyA, error) {
 
 func (pp *PublicParameter) PolyAVecSerializeSizeEta(a *PolyAVec) int {
 	if a == nil {
-		return VarIntSerializeSize2(0)
+		return VarIntSerializeSize(0)
 	}
-	return VarIntSerializeSize2(uint64(len(a.polyAs))) + len(a.polyAs)*pp.PolyASerializeSizeEta()
+	return VarIntSerializeSize(uint64(len(a.polyAs))) + len(a.polyAs)*pp.PolyASerializeSizeEta()
 }
 func (pp *PublicParameter) writePolyAVecEta(w io.Writer, a *PolyAVec) error {
 	if a == nil {
@@ -323,7 +323,7 @@ func (pp *PublicParameter) readPolyAGamma(r io.Reader) (*PolyA, error) {
 }
 
 //func (pp *PublicParameter) PolyAVecSerializeSizeGamma(a *PolyAVec) int {
-//	return VarIntSerializeSize2(uint64(len(a.polyAs))) + len(a.polyAs)*pp.PolyASerializeSizeGamma()
+//	return VarIntSerializeSize(uint64(len(a.polyAs))) + len(a.polyAs)*pp.PolyASerializeSizeGamma()
 //}
 //func (pp *PublicParameter) writePolyAVecGamma(w io.Writer, a *PolyAVec) error {
 //	var err error
@@ -419,9 +419,9 @@ func (pp *PublicParameter) readPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 
 func (pp *PublicParameter) PolyCNTTVecSerializeSize(c *PolyCNTTVec) int {
 	if c == nil {
-		return VarIntSerializeSize2(0)
+		return VarIntSerializeSize(0)
 	}
-	return VarIntSerializeSize2(uint64(len(c.polyCNTTs))) + len(c.polyCNTTs)*pp.PolyCNTTSerializeSize()
+	return VarIntSerializeSize(uint64(len(c.polyCNTTs))) + len(c.polyCNTTs)*pp.PolyCNTTSerializeSize()
 }
 func (pp *PublicParameter) writePolyCNTTVec(w io.Writer, c *PolyCNTTVec) error {
 	if c == nil {
@@ -559,9 +559,9 @@ func (pp *PublicParameter) readPolyCEta(r io.Reader) (*PolyC, error) {
 
 func (pp *PublicParameter) PolyCVecSerializeSizeEta(a *PolyCVec) int {
 	if a == nil {
-		return VarIntSerializeSize2(0)
+		return VarIntSerializeSize(0)
 	}
-	return VarIntSerializeSize2(uint64(len(a.polyCs))) + len(a.polyCs)*pp.PolyCSerializeSizeEta()
+	return VarIntSerializeSize(uint64(len(a.polyCs))) + len(a.polyCs)*pp.PolyCSerializeSizeEta()
 }
 func (pp *PublicParameter) writePolyCVecEta(w io.Writer, a *PolyCVec) error {
 	if a == nil {
@@ -864,7 +864,7 @@ func (pp *PublicParameter) TxoSerializeSize() int {
 	return pp.AddressPublicKeySerializeSize() +
 		pp.ValueCommitmentSerializeSize() +
 		pp.TxoValueBytesLen() +
-		VarIntSerializeSize2(uint64(pqringctkem.GetKemCiphertextBytesLen(pp.paramKem))) + pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
+		VarIntSerializeSize(uint64(pqringctkem.GetKemCiphertextBytesLen(pp.paramKem))) + pqringctkem.GetKemCiphertextBytesLen(pp.paramKem)
 }
 func (pp *PublicParameter) SerializeTxo(txo *Txo) ([]byte, error) {
 	if txo == nil || txo.AddressPublicKey == nil || txo.ValueCommitment == nil {
@@ -1008,19 +1008,19 @@ func (pp *PublicParameter) DeserializeLgrTxo(serializedLgrTxo []byte) (*LgrTxo, 
 func (pp *PublicParameter) RpulpProofSerializeSize(prf *rpulpProof) int {
 	var length int
 	lengthOfPolyCNTT := pp.PolyCNTTSerializeSize()
-	length = VarIntSerializeSize2(uint64(len(prf.c_waves))) + len(prf.c_waves)*lengthOfPolyCNTT + // c_waves []*PolyCNTT
+	length = VarIntSerializeSize(uint64(len(prf.c_waves))) + len(prf.c_waves)*lengthOfPolyCNTT + // c_waves []*PolyCNTT
 		+3*lengthOfPolyCNTT + //c_hat_g,psi,phi  *PolyCNTT
-		VarIntSerializeSize2(uint64(len(prf.chseed))) + len(prf.chseed) //chseed  []byte
+		VarIntSerializeSize(uint64(len(prf.chseed))) + len(prf.chseed) //chseed  []byte
 	//cmt_zs  [][]*PolyCVec eta
-	length += VarIntSerializeSize2(uint64(len(prf.cmt_zs)))
+	length += VarIntSerializeSize(uint64(len(prf.cmt_zs)))
 	for i := 0; i < len(prf.cmt_zs); i++ {
-		length += VarIntSerializeSize2(uint64(len(prf.cmt_zs[i])))
+		length += VarIntSerializeSize(uint64(len(prf.cmt_zs[i])))
 		for j := 0; j < len(prf.cmt_zs[i]); j++ {
 			length += pp.PolyCVecSerializeSizeEta(prf.cmt_zs[i][j])
 		}
 	}
 	//zs      []*PolyCVec
-	length += VarIntSerializeSize2(uint64(len(prf.zs)))
+	length += VarIntSerializeSize(uint64(len(prf.zs)))
 	for i := 0; i < len(prf.zs); i++ {
 		length += pp.PolyCVecSerializeSizeEta(prf.zs[i])
 	}
@@ -1204,14 +1204,14 @@ func (pp *PublicParameter) DeserializeRpulpProof(serializedRpulpProof []byte) (*
 }
 
 func (pp *PublicParameter) challengeSeedCSerializeSizeApprox() int {
-	return VarIntSerializeSize2(uint64(HashOutputBytesLen)) + HashOutputBytesLen
+	return VarIntSerializeSize(uint64(HashOutputBytesLen)) + HashOutputBytesLen
 }
 func (pp *PublicParameter) responseCSerializeSizeApprox() int {
 	//	r \in (Ring_{q_c})^{L_c}
 	//	z \in (Ring_{q_c})^{L_c}
 	//	k
-	return VarIntSerializeSize2(uint64(pp.paramK)) +
-		pp.paramK*(VarIntSerializeSize2(uint64(pp.paramLC))+pp.PolyCSerializeSizeEta()*pp.paramLC)
+	return VarIntSerializeSize(uint64(pp.paramK)) +
+		pp.paramK*(VarIntSerializeSize(uint64(pp.paramLC))+pp.PolyCSerializeSizeEta()*pp.paramLC)
 }
 
 func (pp *PublicParameter) CbTxWitnessJ1SerializeSizeApprox() int {
@@ -1234,9 +1234,9 @@ func (pp *PublicParameter) CbTxWitnessJ1SerializeSize(witness *CbTxWitnessJ1) in
 		return 0
 	}
 	var length int
-	length = VarIntSerializeSize2(uint64(len(witness.chseed))) + len(witness.chseed)
+	length = VarIntSerializeSize(uint64(len(witness.chseed))) + len(witness.chseed)
 
-	length += VarIntSerializeSize2(uint64(len(witness.zs)))
+	length += VarIntSerializeSize(uint64(len(witness.zs)))
 	for i := 0; i < len(witness.zs); i++ {
 		length += pp.PolyCVecSerializeSizeEta(witness.zs[i])
 	}
@@ -1308,7 +1308,7 @@ func (pp *PublicParameter) DeserializeCbTxWitnessJ1(serializedWitness []byte) (*
 func (pp *PublicParameter) boundingVecCSerializeSizeApprox() int {
 	//	PolyCNTTVec[k_c]
 	lenTmp := pp.paramKC * pp.PolyCNTTSerializeSize()
-	return VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	return VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 }
 
 // todo: review
@@ -1374,7 +1374,7 @@ func (pp *PublicParameter) CbTxWitnessJ2SerializeSizeApprox(outTxoNum int) int {
 
 	//	c_hats
 	lenTmp := (outTxoNum + 2) * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 
 	// u_p
 	lenApprox += pp.CarryVectorRProofSerializeSize()
@@ -1382,15 +1382,15 @@ func (pp *PublicParameter) CbTxWitnessJ2SerializeSizeApprox(outTxoNum int) int {
 	// rpulpproof
 	// c_waves []*PolyCNTT
 	lenTmp = outTxoNum * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 	// c_hat_g,psi,phi  *PolyCNTT
 	lenTmp = 3 * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 	// chseed  []byte
 	lenApprox += pp.challengeSeedCSerializeSizeApprox()
 	//cmt_zs  [][]*PolyCVec eta
 	lenTmp = (outTxoNum) * pp.responseCSerializeSizeApprox()
-	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 	//zs      []*PolyCVec eta
 	lenApprox += pp.responseCSerializeSizeApprox()
 
@@ -1403,11 +1403,11 @@ func (pp *PublicParameter) CbTxWitnessJ2SerializeSize(witness *CbTxWitnessJ2) in
 	}
 	var length int
 	length = pp.PolyCNTTVecSerializeSize(witness.b_hat) +
-		VarIntSerializeSize2(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize()
+		VarIntSerializeSize(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize()
 
 	length += pp.CarryVectorRProofSerializeSize()
 	rplPrfLen := pp.RpulpProofSerializeSize(witness.rpulpproof)
-	length += VarIntSerializeSize2(uint64(rplPrfLen)) + rplPrfLen
+	length += VarIntSerializeSize(uint64(rplPrfLen)) + rplPrfLen
 
 	return length
 }
@@ -1581,19 +1581,19 @@ func (pp *PublicParameter) CoinbaseTxSerializeSize(tx *CoinbaseTx, withWitness b
 	length = 8
 
 	//OutputTxos []*txo
-	length += VarIntSerializeSize2(uint64(len(tx.OutputTxos))) + len(tx.OutputTxos)*pp.TxoSerializeSize()
+	length += VarIntSerializeSize(uint64(len(tx.OutputTxos))) + len(tx.OutputTxos)*pp.TxoSerializeSize()
 
 	//TxMemo []byte
-	length += VarIntSerializeSize2(uint64(len(tx.TxMemo))) + len(tx.TxMemo)
+	length += VarIntSerializeSize(uint64(len(tx.TxMemo))) + len(tx.TxMemo)
 
 	// TxWitness
 	if withWitness {
 		if len(tx.OutputTxos) == 1 {
 			witnessLen := pp.CbTxWitnessJ1SerializeSize(tx.TxWitnessJ1)
-			length += VarIntSerializeSize2(uint64(witnessLen)) + witnessLen
+			length += VarIntSerializeSize(uint64(witnessLen)) + witnessLen
 		} else { // >= 2
 			witnessLen := pp.CbTxWitnessJ2SerializeSize(tx.TxWitnessJ2)
-			length += VarIntSerializeSize2(uint64(witnessLen)) + witnessLen
+			length += VarIntSerializeSize(uint64(witnessLen)) + witnessLen
 		}
 	}
 	return length
@@ -1730,27 +1730,27 @@ func (pp *PublicParameter) DeserializeCoinbaseTx(serializedCbTx []byte, withWitn
 }
 
 func (pp *PublicParameter) challengeSeedASerializeSizeApprox() int {
-	return VarIntSerializeSize2(uint64(HashOutputBytesLen)) + HashOutputBytesLen
+	return VarIntSerializeSize(uint64(HashOutputBytesLen)) + HashOutputBytesLen
 }
 func (pp *PublicParameter) responseASerializeSizeApprox() int {
 	//	r \in (Ring_{q_a})^{L_a}
 	//	z \in (Ring_{q_a})^{L_a} eta
-	return VarIntSerializeSize2(uint64(pp.paramLA)) + pp.paramLA*pp.PolyASerializeSizeEta()
+	return VarIntSerializeSize(uint64(pp.paramLA)) + pp.paramLA*pp.PolyASerializeSizeEta()
 }
 
 func (pp *PublicParameter) ElrsSignatureSerializeSizeApprox(ringSize int) int {
 	var lenApprxo int
 	// seeds [][]byte, each ring member has a seed []byte
-	lenApprxo = VarIntSerializeSize2(uint64(ringSize)) + ringSize*pp.challengeSeedASerializeSizeApprox()
+	lenApprxo = VarIntSerializeSize(uint64(ringSize)) + ringSize*pp.challengeSeedASerializeSizeApprox()
 
 	//z_as  []*PolyAVec eta, each ring member has a z_a, each z_a is a response A
-	lenApprxo += VarIntSerializeSize2(uint64(ringSize)) + ringSize*pp.responseASerializeSizeApprox()
+	lenApprxo += VarIntSerializeSize(uint64(ringSize)) + ringSize*pp.responseASerializeSizeApprox()
 
 	//z_cs  [][]*PolyCNTTVec
-	lenApprxo += VarIntSerializeSize2(uint64(ringSize)) + ringSize*pp.responseCSerializeSizeApprox()
+	lenApprxo += VarIntSerializeSize(uint64(ringSize)) + ringSize*pp.responseCSerializeSizeApprox()
 
 	//z_cps [][]*PolyCNTTVec
-	lenApprxo += VarIntSerializeSize2(uint64(ringSize)) + ringSize*pp.responseCSerializeSizeApprox()
+	lenApprxo += VarIntSerializeSize(uint64(ringSize)) + ringSize*pp.responseCSerializeSizeApprox()
 
 	return lenApprxo
 }
@@ -1758,27 +1758,27 @@ func (pp *PublicParameter) ElrsSignatureSerializeSizeApprox(ringSize int) int {
 func (pp *PublicParameter) ElrsSignatureSerializeSize(sig *elrsSignature) int {
 	var length int
 	// seeds [][]byte
-	length = VarIntSerializeSize2(uint64(len(sig.seeds)))
+	length = VarIntSerializeSize(uint64(len(sig.seeds)))
 	for i := 0; i < len(sig.seeds); i++ {
-		length += VarIntSerializeSize2(uint64(len(sig.seeds[i]))) + len(sig.seeds[i])
+		length += VarIntSerializeSize(uint64(len(sig.seeds[i]))) + len(sig.seeds[i])
 	}
 	//z_as  []*PolyAVec eta
-	length += VarIntSerializeSize2(uint64(len(sig.z_as)))
+	length += VarIntSerializeSize(uint64(len(sig.z_as)))
 	for i := 0; i < len(sig.z_as); i++ {
 		length += pp.PolyAVecSerializeSizeEta(sig.z_as[i])
 	}
 	//z_cs  [][]*PolyCVec eta
-	length += VarIntSerializeSize2(uint64(len(sig.z_cs)))
+	length += VarIntSerializeSize(uint64(len(sig.z_cs)))
 	for i := 0; i < len(sig.z_cs); i++ {
-		length += VarIntSerializeSize2(uint64(len(sig.z_cs[i])))
+		length += VarIntSerializeSize(uint64(len(sig.z_cs[i])))
 		for j := 0; j < len(sig.z_cs[i]); j++ {
 			length += pp.PolyCVecSerializeSizeEta(sig.z_cs[i][j])
 		}
 	}
 	//z_cps [][]*PolyCVec eta
-	length += VarIntSerializeSize2(uint64(len(sig.z_cps)))
+	length += VarIntSerializeSize(uint64(len(sig.z_cps)))
 	for i := 0; i < len(sig.z_cps); i++ {
-		length += VarIntSerializeSize2(uint64(len(sig.z_cps[i])))
+		length += VarIntSerializeSize(uint64(len(sig.z_cps[i])))
 		for j := 0; j < len(sig.z_cps[i]); j++ {
 			length += pp.PolyCVecSerializeSizeEta(sig.z_cps[i][j])
 		}
@@ -1950,14 +1950,14 @@ func (pp *PublicParameter) DeserializeElrsSignature(serializeElrsSignature []byt
 
 //	TrTxWitnessSerializeSizeApprox() returns the approximate size of TrTxWitnessSerializeSize, based on the inputRingSizes and outputTxoNum.
 func (pp *PublicParameter) TrTxWitnessSerializeSizeApprox(inputRingSizes []int, outputTxoNum int) int {
-	lenApprox := VarIntSerializeSize2(uint64(len(inputRingSizes))) + len(inputRingSizes)*pp.PolyANTTSerializeSize() + // ma_ps      []*PolyANTT, each ring has a ma_ps
-		VarIntSerializeSize2(uint64(len(inputRingSizes))) + len(inputRingSizes)*pp.ValueCommitmentSerializeSize() // cmt_ps     []*ValueCommitment, each ring has a cnt_ps
+	lenApprox := VarIntSerializeSize(uint64(len(inputRingSizes))) + len(inputRingSizes)*pp.PolyANTTSerializeSize() + // ma_ps      []*PolyANTT, each ring has a ma_ps
+		VarIntSerializeSize(uint64(len(inputRingSizes))) + len(inputRingSizes)*pp.ValueCommitmentSerializeSize() // cmt_ps     []*ValueCommitment, each ring has a cnt_ps
 
 	// elrsSigs   []*elrsSignature, each ring has a elrsSig
-	lenApprox += VarIntSerializeSize2(uint64(len(inputRingSizes)))
+	lenApprox += VarIntSerializeSize(uint64(len(inputRingSizes)))
 	for i := 0; i < len(inputRingSizes); i++ {
 		sigLenApprox := pp.ElrsSignatureSerializeSizeApprox(inputRingSizes[i])
-		lenApprox += VarIntSerializeSize2(uint64(sigLenApprox)) + sigLenApprox
+		lenApprox += VarIntSerializeSize(uint64(sigLenApprox)) + sigLenApprox
 	}
 
 	// b_hats
@@ -1966,10 +1966,10 @@ func (pp *PublicParameter) TrTxWitnessSerializeSizeApprox(inputRingSizes []int, 
 	// c_hats
 	if len(inputRingSizes) == 1 { // n_2 = I+J+2
 		lenTmp := (len(inputRingSizes) + outputTxoNum + 2) * pp.PolyCNTTSerializeSize()
-		lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+		lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 	} else { // I > 1, n_2 = I+J+4
 		lenTmp := (len(inputRingSizes) + outputTxoNum + 4) * pp.PolyCNTTSerializeSize()
-		lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+		lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 	}
 
 	// u_p
@@ -1978,15 +1978,15 @@ func (pp *PublicParameter) TrTxWitnessSerializeSizeApprox(inputRingSizes []int, 
 	// rpulpproof
 	// c_waves []*PolyCNTT
 	lenTmp := (len(inputRingSizes) + outputTxoNum) * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 	// c_hat_g,psi,phi  *PolyCNTT
 	lenTmp = 3 * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 	// chseed  []byte
 	lenApprox += pp.challengeSeedCSerializeSizeApprox()
 	//cmt_zs  [][]*PolyCVec eta
 	lenTmp = (len(inputRingSizes) + outputTxoNum) * pp.responseCSerializeSizeApprox()
-	lenApprox += VarIntSerializeSize2(uint64(lenTmp)) + lenTmp
+	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 	//zs      []*PolyCVec eta
 	lenApprox += pp.responseCSerializeSizeApprox()
 
@@ -1998,23 +1998,23 @@ func (pp *PublicParameter) TrTxWitnessSerializeSize(witness *TrTxWitness) int {
 		return 0
 	}
 
-	length := VarIntSerializeSize2(uint64(len(witness.ma_ps))) + len(witness.ma_ps)*pp.PolyANTTSerializeSize() + // ma_ps      []*PolyANTT
-		VarIntSerializeSize2(uint64(len(witness.cmt_ps))) + len(witness.cmt_ps)*pp.ValueCommitmentSerializeSize() // cmt_ps     []*ValueCommitment
+	length := VarIntSerializeSize(uint64(len(witness.ma_ps))) + len(witness.ma_ps)*pp.PolyANTTSerializeSize() + // ma_ps      []*PolyANTT
+		VarIntSerializeSize(uint64(len(witness.cmt_ps))) + len(witness.cmt_ps)*pp.ValueCommitmentSerializeSize() // cmt_ps     []*ValueCommitment
 
 	// elrsSigs   []*elrsSignature
-	length += VarIntSerializeSize2(uint64(len(witness.elrsSigs)))
+	length += VarIntSerializeSize(uint64(len(witness.elrsSigs)))
 	for i := 0; i < len(witness.elrsSigs); i++ {
 		sigLen := pp.ElrsSignatureSerializeSize(witness.elrsSigs[i])
-		length += VarIntSerializeSize2(uint64(sigLen)) + sigLen
+		length += VarIntSerializeSize(uint64(sigLen)) + sigLen
 	}
 
 	length += pp.PolyCNTTVecSerializeSize(witness.b_hat) + //b_hat      *PolyCNTTVec
-		VarIntSerializeSize2(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize() + //c_hats     []*PolyCNTT
+		VarIntSerializeSize(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize() + //c_hats     []*PolyCNTT
 		pp.CarryVectorRProofSerializeSize() //u_p        []int64
 
 	//rpulpproof *rpulpProof
 	rpfLen := pp.RpulpProofSerializeSize(witness.rpulpproof)
-	length += VarIntSerializeSize2(uint64(rpfLen)) + rpfLen
+	length += VarIntSerializeSize(uint64(rpfLen)) + rpfLen
 
 	return length
 }
@@ -2308,10 +2308,10 @@ func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) 
 func (pp *PublicParameter) TrTxInputSerializeSize(trTxIn *TrTxInput) int {
 	var length int
 	//	TxoList      []*LgrTxo
-	length = VarIntSerializeSize2(uint64(len(trTxIn.TxoList))) + len(trTxIn.TxoList)*pp.LgrTxoSerializeSize()
+	length = VarIntSerializeSize(uint64(len(trTxIn.TxoList))) + len(trTxIn.TxoList)*pp.LgrTxoSerializeSize()
 
 	//	SerialNumber []byte
-	length += VarIntSerializeSize2(uint64(len(trTxIn.SerialNumber))) + len(trTxIn.SerialNumber)
+	length += VarIntSerializeSize(uint64(len(trTxIn.SerialNumber))) + len(trTxIn.SerialNumber)
 
 	return length
 }
@@ -2395,26 +2395,26 @@ func (pp *PublicParameter) TransferTxSerializeSize(tx *TransferTx, withWitness b
 	var length int
 
 	//Inputs     []*TrTxInput
-	length = VarIntSerializeSize2(uint64(len(tx.Inputs)))
+	length = VarIntSerializeSize(uint64(len(tx.Inputs)))
 	for i := 0; i < len(tx.Inputs); i++ {
 		txInLen := pp.TrTxInputSerializeSize(tx.Inputs[i])
-		length += VarIntSerializeSize2(uint64(txInLen)) + txInLen
+		length += VarIntSerializeSize(uint64(txInLen)) + txInLen
 	}
 
 	//OutputTxos []*txo
-	length += VarIntSerializeSize2(uint64(len(tx.OutputTxos))) + len(tx.OutputTxos)*pp.TxoSerializeSize()
+	length += VarIntSerializeSize(uint64(len(tx.OutputTxos))) + len(tx.OutputTxos)*pp.TxoSerializeSize()
 
 	//Fee        uint64
 	length += 8
 
 	//TxMemo []byte
-	length += VarIntSerializeSize2(uint64(len(tx.TxMemo))) + len(tx.TxMemo)
+	length += VarIntSerializeSize(uint64(len(tx.TxMemo))) + len(tx.TxMemo)
 
 	// TxWitness
 	if withWitness {
 		//TxWitness *TrTxWitness
 		witnessLen := pp.TrTxWitnessSerializeSize(tx.TxWitness)
-		length += VarIntSerializeSize2(uint64(witnessLen)) + witnessLen
+		length += VarIntSerializeSize(uint64(witnessLen)) + witnessLen
 	}
 	return length
 }
