@@ -46,6 +46,7 @@ func KeyGen(ppkem *ParamKem, seed []byte, seedLen int) ([]byte, []byte, error) {
 	case KEM_OQS_KYBER:
 		var recovery bool
 		if seed == nil || seedLen < 32 {
+			// allocate the space of seed is to match the cgo in  pqringctOQSKem.KeyPair()
 			seed = make([]byte, 32)
 			recovery = false
 		} else {

@@ -27,7 +27,7 @@ func ledgerTxoIdGen(ringHash []byte, index uint8) []byte {
 }
 
 func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	peerNum := 2
 	seeds := make([][]byte, peerNum)

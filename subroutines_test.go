@@ -5,7 +5,7 @@ import (
 )
 
 func Test_randomDcIntegersInQc(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 	type args struct {
 		seed   []byte
 		length int
@@ -19,7 +19,7 @@ func Test_randomDcIntegersInQc(t *testing.T) {
 			"Test1",
 			args{
 				seed:   []byte("This is the seed for testing"),
-				length: DefaultPP.paramDC,
+				length: pp.paramDC,
 			},
 			nil,
 		},
@@ -31,7 +31,7 @@ func Test_randomDcIntegersInQc(t *testing.T) {
 			//	t.Errorf("randomDcIntegersInQc() = %v, want %v", got, tt.want)
 			//}
 			for i := 0; i < len(got); i++ {
-				if got[i] < -(DefaultPP.paramQC-1)>>1 || got[i] > (DefaultPP.paramQC-1)>>1 {
+				if got[i] < -(pp.paramQC-1)>>1 || got[i] > (pp.paramQC-1)>>1 {
 					t.Errorf("randomDcIntegersInQc() sample a value %v", got[i])
 				}
 			}
@@ -40,7 +40,7 @@ func Test_randomDcIntegersInQc(t *testing.T) {
 }
 
 func Test_randomDaIntegersInQa(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 	type args struct {
 		seed   []byte
 		length int
@@ -54,7 +54,7 @@ func Test_randomDaIntegersInQa(t *testing.T) {
 			"Test1",
 			args{
 				seed:   []byte("This is the seed for testing"),
-				length: DefaultPP.paramDA,
+				length: pp.paramDA,
 			},
 			nil,
 		},
@@ -66,7 +66,7 @@ func Test_randomDaIntegersInQa(t *testing.T) {
 			//	t.Errorf("randomDcIntegersInQc() = %v, want %v", got, tt.want)
 			//}
 			for i := 0; i < len(got); i++ {
-				tmp := (DefaultPP.paramQA - 1) >> 1
+				tmp := (pp.paramQA - 1) >> 1
 				if got[i] < -tmp || got[i] > tmp {
 					t.Errorf("randomDaIntegersInQa() sample a value %v", got[i])
 				}

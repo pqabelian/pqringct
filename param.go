@@ -14,7 +14,7 @@ func NewPublicParameter(
 	paramEtaF int64, paramKeyGenSeedBytesLen int,
 	paramDCInv int64, paramKInv int64,
 	paramZetaA int64, paramZetaAOrder int,
-	paramZetaC int64, paramZetaCOrder int, paramSigmaPermutations [][]int, paramCStr []byte, paramKem *pqringctkem.ParamKem) (*PublicParameter, error) {
+	paramZetaC int64, paramZetaCOrder int, paramSigmaPermutations [][]int, paramParameterSeedString []byte, paramKem *pqringctkem.ParamKem) (*PublicParameter, error) {
 
 	res := &PublicParameter{
 		paramDA:                 paramDA,
@@ -40,17 +40,19 @@ func NewPublicParameter(
 		paramEtaF:               paramEtaF,
 		paramKeyGenSeedBytesLen: paramKeyGenSeedBytesLen,
 		//		paramQCm:      	paramQC >> 1,
-		paramDCInv:             paramDCInv,
-		paramKInv:              paramKInv,
-		paramZetaA:             paramZetaA,
-		paramZetaAOrder:        paramZetaAOrder,
-		paramZetaC:             paramZetaC,
-		paramZetaCOrder:        paramZetaCOrder,
-		paramSigmaPermutations: paramSigmaPermutations,
-		paramCStr:              paramCStr,
-		paramKem:               paramKem,
+		paramDCInv:               paramDCInv,
+		paramKInv:                paramKInv,
+		paramZetaA:               paramZetaA,
+		paramZetaAOrder:          paramZetaAOrder,
+		paramZetaC:               paramZetaC,
+		paramZetaCOrder:          paramZetaCOrder,
+		paramSigmaPermutations:   paramSigmaPermutations,
+		paramParameterSeedString: paramParameterSeedString,
+		paramKem:                 paramKem,
 	}
-
+	if res.paramParameterSeedString == nil || len(res.paramParameterSeedString) == 0 {
+		res.paramParameterSeedString = []byte("Welcome to Post Quantum World!")
+	}
 	// initialize the NTTCFactors
 	slotNumC := res.paramZetaCOrder / 2 // factored to irreducible factors, fully splitting
 	segNumC := 1
@@ -122,7 +124,7 @@ func NewPublicParameter(
 		res.paramZetasA[i] = reduceInt64(curr.Int64(), res.paramQA)
 	}
 
-	seed, err := Hash(res.paramCStr)
+	seed, err := Hash(res.paramParameterSeedString)
 	if err != nil {
 		return nil, err
 	}
@@ -260,19 +262,19 @@ type PublicParameter struct {
 	// paramSigmaPermutations [t] with t=0~(k-1) works for sigma^t
 	paramSigmaPermutations [][]int
 
-	// As paramCStr is used to generate the public matrix, such as paramMatrixA, paramVecA, paramMatrixB, paramMatrixH
-	paramCStr []byte
+	// As paramParameterSeedString is used to generate the public matrix, such as paramMatrixA, paramVecA, paramMatrixB, paramMatrixH
+	paramParameterSeedString []byte
 
-	// paramMatrixA is expand from paramCStr, with size k_a rows, each row with size l_a
+	// paramMatrixA is expand from paramParameterSeedString, with size k_a rows, each row with size l_a
 	paramMatrixA []*PolyANTTVec
 
-	// paramVecA is expand from paramCStr, with size l_a
+	// paramVecA is expand from paramParameterSeedString, with size l_a
 	paramVecA *PolyANTTVec
 
-	//paramMatrixB is expand from paramCStr, with size k_c rows, each row with size l_c
+	//paramMatrixB is expand from paramParameterSeedString, with size k_c rows, each row with size l_c
 	paramMatrixB []*PolyCNTTVec
 
-	// paramMatrixH is expand from paramCStr, with size (paramI + paramJ + 7) rows, each row with size l_c
+	// paramMatrixH is expand from paramParameterSeedString, with size (paramI + paramJ + 7) rows, each row with size l_c
 	paramMatrixH []*PolyCNTTVec
 
 	// paramMu defines the const mu, which is determined by the value of N and d
@@ -399,12 +401,11 @@ func (pp *PublicParameter) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec
 	return res, nil
 }
 
-var DefaultPP *PublicParameter
-
-func init() {
+// Initialize is the init function, it must be called explicitly when using this package
+func Initialize(paramterSeedString []byte) *PublicParameter {
 	var err error
-
-	DefaultPP, err = NewPublicParameter(
+	var defaultPP *PublicParameter
+	defaultPP, err = NewPublicParameter(
 		256,
 		137438953937,
 		60,
@@ -431,8 +432,7 @@ func init() {
 		16,
 		-3961374278055081,
 		256,
-		// todo: 2022.04.04 double check
-		//paramSigmaPermutations
+		//paramSigmaPermutations is sigma=65 when Dc=128, Qc = 1 mod 256
 		[][]int{
 			{
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -475,8 +475,8 @@ func init() {
 				80, 17, 82, 19, 84, 21, 86, 23, 88, 25, 90, 27, 92, 29, 94, 31,
 			},
 		},
-
-		[]byte("Welcome to Post Quantum World!"), // todo: a more interesting sentence
+		paramterSeedString,
+		//[]byte("Welcome to Post Quantum World!")
 		&pqringctkem.ParamKem{
 			Version: pqringctkem.KEM_OQS_KYBER,
 			//Kyber:   kyber.Kyber768,
@@ -487,4 +487,5 @@ func init() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	return defaultPP
 }

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/cryptosuite/pqringct/pqringctkem"
+	"golang.org/x/crypto/sha3"
 	"math/big"
 )
 
@@ -847,8 +848,23 @@ func (pp *PublicParameter) ExpandKIDR(lgrtxo *LgrTxo) (*PolyANTT, error) {
 		return nil, err
 	}
 
-	coeffs := pp.randomDaIntegersInQa(seed)
-
+	bitNum := 38
+	bound := pp.paramQA
+	xof := sha3.NewShake128()
+	xof.Reset()
+	length := pp.paramDA
+	coeffs := make([]int64, 0, length)
+	xof.Write(seed)
+	for len(coeffs) < length {
+		expectedNum := length - len(coeffs)
+		buf := make([]byte, (int64(bitNum*expectedNum)*(1<<bitNum)/bound+7)/8)
+		xof.Read(buf)
+		tmp := fillWithBound(buf, expectedNum, bitNum, bound)
+		coeffs = append(coeffs, tmp...)
+	}
+	for i := 0; i < length; i++ {
+		coeffs[i] = reduceInt64(coeffs[i], pp.paramQA)
+	}
 	return &PolyANTT{coeffs: coeffs}, nil
 }
 
@@ -899,7 +915,7 @@ func (pp *PublicParameter) ELRSSign(
 		dc := pp.NTTPolyC(tmpC)
 
 		// sample randomness for z_a_j
-		z_as[j], err = pp.sampleResponseZetaA()
+		z_as[j], err = pp.sampleResponseA()
 		if err != nil {
 			return nil, err
 		}
@@ -940,11 +956,11 @@ func (pp *PublicParameter) ELRSSign(
 
 		delta_cs[j] = make([]*PolyCNTT, pp.paramK)
 		for tao := 0; tao < pp.paramK; tao++ {
-			z_cs[j][tao], err = pp.sampleResponseZetaC()
+			z_cs[j][tao], err = pp.sampleResponseC()
 			if err != nil {
 				return nil, err
 			}
-			z_cps[j][tao], err = pp.sampleResponseZetaC()
+			z_cps[j][tao], err = pp.sampleResponseC()
 			if err != nil {
 				return nil, err
 			}

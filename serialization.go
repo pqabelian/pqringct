@@ -819,7 +819,7 @@ func (pp *PublicParameter) DeserializeValueCommitment(serialziedValueCommitment 
 	return &ValueCommitment{b, c}, nil
 }
 
-// TxoValueBytesLen() returns 7 (butes) to encode the value in [0, 2^{51}-1].
+// TxoValueBytesLen returns 7 (bytes) to encode the value in [0, 2^{51}-1].
 func (pp *PublicParameter) TxoValueBytesLen() int {
 	//	N = 51, v \in [0, 2^{51}-1]
 	return 7

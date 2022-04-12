@@ -17,7 +17,7 @@ func Test_writePolyANTT_readPolyANTT(t *testing.T) {
 	var polyANTT *PolyANTT
 	manualCheck := true
 
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	for t := 0; t < 1000; t++ {
 		polyANTT = &PolyANTT{coeffs: pp.randomDaIntegersInQa(nil)}
@@ -68,7 +68,7 @@ func Test_writePolyANTT_readPolyANTT(t *testing.T) {
 }
 
 func Test_writePolyANTTVec_readPolyANTTVec(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	polyANTTs := make([]*PolyANTT, pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
@@ -127,7 +127,7 @@ func Test_writePolyANTTVec_readPolyANTTVec(t *testing.T) {
 }
 
 func Test_writePolyAEta_readPolyAEta(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	testBound := true
 	//testBound := true
@@ -186,7 +186,7 @@ func Test_writePolyAEta_readPolyAEta(t *testing.T) {
 }
 
 func Test_writePolyANTTVecEta_readPolyANTTVecEta(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	var err error
 
@@ -247,7 +247,7 @@ func Test_writePolyANTTVecEta_readPolyANTTVecEta(t *testing.T) {
 }
 
 func Test_writePolyAGamma_readPolyAGamma(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	testBound := true
 	//testBound := true
@@ -312,7 +312,7 @@ func Test_writePolyCNTT_readPolyCNTT(t *testing.T) {
 	var polyCNTT *PolyCNTT
 	manualCheck := true
 
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	for t := 0; t < 1000; t++ {
 		polyCNTT = &PolyCNTT{coeffs: pp.randomDcIntegersInQc(nil)}
@@ -364,7 +364,7 @@ func Test_writePolyCNTT_readPolyCNTT(t *testing.T) {
 }
 
 func Test_writePolyCNTTVec_readPolyCNTTVec(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	polyCNTTs := make([]*PolyCNTT, pp.paramKC)
 	for i := 0; i < pp.paramKC; i++ {
@@ -430,7 +430,7 @@ func Test_writePolyCEta_readPolyCEta(t *testing.T) {
 	var polyCEta *PolyC
 	manualCheck := true
 
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	var err error
 	for t := 0; t < 1000; t++ {
@@ -486,7 +486,7 @@ func Test_writePolyCEta_readPolyCEta(t *testing.T) {
 }
 
 func Test_writePolyCVecEta_readPolyCVecEta(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	var err error
 	polyCs := make([]*PolyC, pp.paramKC)
@@ -549,7 +549,7 @@ func Test_writePolyCVecEta_readPolyCVecEta(t *testing.T) {
 }
 
 func TestAddressPubicKeySerialize(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	testAbnormal := false
 
@@ -608,7 +608,7 @@ func TestAddressPubicKeySerialize(t *testing.T) {
 }
 
 func TestSerializeAddressSecretKeySp(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	testAbnormal := true
 
@@ -662,7 +662,7 @@ func TestSerializeAddressSecretKeySp(t *testing.T) {
 }
 
 func TestSerializeAddressSecretKeySn(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	m_a := &PolyANTT{
 		coeffs: pp.randomDaIntegersInQa(nil),
@@ -695,7 +695,7 @@ func TestSerializeAddressSecretKeySn(t *testing.T) {
 }
 
 func TestSerializeValueCommitment(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	b := pp.NewPolyCNTTVec(pp.paramKC)
 	for i := 0; i < len(b.polyCNTTs); i++ {
@@ -732,7 +732,7 @@ func TestSerializeValueCommitment(t *testing.T) {
 }
 
 func TestEncodeTxoValueToBytes(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	testAbnormal := false
 
@@ -817,7 +817,8 @@ func TestEncodeTxoValueToBytes(t *testing.T) {
 }
 
 func TestSerializeTxo(t *testing.T) {
-	pp := DefaultPP
+
+	pp := Initialize(nil)
 
 	apk, _, err := pp.AddressKeyGen(nil)
 	if err != nil {
@@ -893,7 +894,7 @@ func TestSerializeTxo(t *testing.T) {
 }
 
 func TestSerializeLgrTxo(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	apk, _, err := pp.AddressKeyGen(nil)
 	if err != nil {
@@ -906,8 +907,8 @@ func TestSerializeLgrTxo(t *testing.T) {
 	}
 
 	value := uint64(1<<51 - 1)
-
 	txo, _, err := pp.txoGen(apk, vpk, value)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -955,7 +956,7 @@ func TestSerializeLgrTxo(t *testing.T) {
 }
 
 func TestSerializeRpulpProof(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 	n := 10
 	var seed []byte
 	// c_waves []*PolyCNTT
@@ -997,7 +998,7 @@ func TestSerializeRpulpProof(t *testing.T) {
 			cmt_zs[i][j] = pp.NewPolyCVec(paramLc)
 			for k := 0; k < paramLc; k++ {
 				seed = RandomBytes(HashOutputBytesLen)
-				tmp, err := pp.randomPolyCForResponseZetaC()
+				tmp, err := pp.randomPolyCForResponseC()
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -1012,7 +1013,7 @@ func TestSerializeRpulpProof(t *testing.T) {
 		zs[i] = pp.NewPolyCVec(paramLc)
 		for j := 0; j < paramLc; j++ {
 			seed = RandomBytes(RandSeedBytesLen)
-			tmp, err := pp.randomPolyCForResponseZetaC()
+			tmp, err := pp.randomPolyCForResponseC()
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -1049,7 +1050,7 @@ func TestSerializeRpulpProof(t *testing.T) {
 }
 
 func TestSerializeCbTxWitnessJ1(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	var cbTxJ1 = &CbTxWitnessJ1{}
 	cbTxJ1.chseed = make([]byte, HashOutputBytesLen)
@@ -1062,7 +1063,7 @@ func TestSerializeCbTxWitnessJ1(t *testing.T) {
 	for i := 0; i < pp.paramK; i++ {
 		cbTxJ1.zs[i] = pp.NewPolyCVec(pp.paramLC)
 		for j := 0; j < pp.paramLC; j++ {
-			cbTxJ1.zs[i].polyCs[j], err = pp.randomPolyCForResponseZetaC()
+			cbTxJ1.zs[i].polyCs[j], err = pp.randomPolyCForResponseC()
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -1090,7 +1091,7 @@ func TestSerializeCbTxWitnessJ1(t *testing.T) {
 }
 
 func TestWriteCarryVectorRProof(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	u_p, err := pp.randomDcIntegersInQcEtaF()
 	if err != nil {
@@ -1125,7 +1126,7 @@ func TestWriteCarryVectorRProof(t *testing.T) {
 }
 
 func TestSerializeCoinbaseTx(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 	seed1 := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	apk1, _, _ := pp.AddressKeyGen(seed1)
 	serializedVPk1, _, _ := pp.ValueKeyGen(seed1)
@@ -1300,7 +1301,7 @@ func TestSerializeCoinbaseTx(t *testing.T) {
 }
 
 func TestSerializeTransferTx(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 
 	seed1 := RandomBytes(pp.paramKeyGenSeedBytesLen)
 	apk1, ask1, _ := pp.AddressKeyGen(seed1)
@@ -2197,7 +2198,7 @@ func TestSerializeTransferTx(t *testing.T) {
 //}
 
 //func TestPublicParameter_writePolyAVecGamma_readPolyAVecGamma(t *testing.T) {
-//	pp := DefaultPP
+//	pp :=  Initialize(nil)
 //	as := pp.NewPolyAVec(pp.paramLA)
 //	for i := 0; i < pp.paramLA; i++ {
 //		seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
@@ -2228,42 +2229,42 @@ func TestSerializeTransferTx(t *testing.T) {
 //		}
 //	}
 //}
-//
-//func TestPublicParameter_writePolyCVecEta_readPolyCVecEta(t *testing.T) {
-//	pp := DefaultPP
-//	var err error
-//	as := pp.NewPolyCVec(pp.paramLC)
-//	for i := 0; i < pp.paramLC; i++ {
-//		//seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-//		as.polyCs[i], err = pp.randomPolyCinEtaC()
-//		if err != nil {
-//			log.Fatalln(err)
-//		}
-//	}
-//
-//	w := bytes.NewBuffer(make([]byte, 0, pp.PolyCVecSerializeSizeEta(as)))
-//	err = pp.writePolyCVecEta(w, as)
-//	if err != nil {
-//		log.Fatalln(err)
-//	}
-//
-//	serializedC := w.Bytes()
-//	r := bytes.NewReader(serializedC)
-//	got, err := pp.readPolyCVecEta(r)
-//	if err != nil {
-//		log.Fatalln(err)
-//	}
-//	for i := 0; i < pp.paramLC; i++ {
-//		for j := 0; j < pp.paramDC; j++ {
-//			if got.polyCs[i].coeffs[j] != as.polyCs[i].coeffs[j] {
-//				t.Fatal("i=", i, "j=", j, " got[i][j]=", got.polyCs[i].coeffs[j], " origin[i][j]=", as.polyCs[i].coeffs[j])
-//			}
-//		}
-//	}
-//}
+
+func TestPublicParameter_writePolyCVecEta_readPolyCVecEta(t *testing.T) {
+	pp := Initialize(nil)
+	var err error
+	as := pp.NewPolyCVec(pp.paramLC)
+	for i := 0; i < pp.paramLC; i++ {
+		//seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
+		as.polyCs[i], err = pp.randomPolyCinEtaC()
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
+
+	w := bytes.NewBuffer(make([]byte, 0, pp.PolyCVecSerializeSizeEta(as)))
+	err = pp.writePolyCVecEta(w, as)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	serializedC := w.Bytes()
+	r := bytes.NewReader(serializedC)
+	got, err := pp.readPolyCVecEta(r)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for i := 0; i < pp.paramLC; i++ {
+		for j := 0; j < pp.paramDC; j++ {
+			if got.polyCs[i].coeffs[j] != as.polyCs[i].coeffs[j] {
+				t.Fatal("i=", i, "j=", j, " got[i][j]=", got.polyCs[i].coeffs[j], " origin[i][j]=", as.polyCs[i].coeffs[j])
+			}
+		}
+	}
+}
 
 func TestPublicParameter_SerializeAddressSecretSpAndSnKey_DeserializeAddressSecretSpAndSnKey(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 	ts := pp.NewPolyAVec(pp.paramLA)
 	for i := 0; i < pp.paramLA; i++ {
 		seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
@@ -2313,7 +2314,7 @@ func TestPublicParameter_SerializeAddressSecretSpAndSnKey_DeserializeAddressSecr
 }
 
 func TestPublicParameter_SerializeValueCommitment_DeserializeValueCommitment(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 	b := pp.NewPolyCNTTVec(pp.paramKC)
 	for i := 0; i < pp.paramKC; i++ {
 		seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
@@ -2354,7 +2355,7 @@ func TestPublicParameter_SerializeValueCommitment_DeserializeValueCommitment(t *
 }
 
 func TestPublicParameter_SerializeAddressPublicKey(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 	ts := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
 		seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
@@ -2395,7 +2396,7 @@ func TestPublicParameter_SerializeAddressPublicKey(t *testing.T) {
 
 func TestPublicParameter_SerializeTxo_DeserializeTxo(t *testing.T) {
 	var seed []byte
-	pp := DefaultPP
+	pp := Initialize(nil)
 	ts := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
 		seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
@@ -2460,7 +2461,7 @@ func TestPublicParameter_SerializeTxo_DeserializeTxo(t *testing.T) {
 
 func TestPublicParameter_SerializeLgrTxo_DeserializeLgrTxo(t *testing.T) {
 	var seed []byte
-	pp := DefaultPP
+	pp := Initialize(nil)
 	ts := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
 		seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
@@ -2525,7 +2526,7 @@ func TestPublicParameter_SerializeLgrTxo_DeserializeLgrTxo(t *testing.T) {
 }
 
 func TestPublicParameter_SerializeRpulpProof_DeserializeRpulpProof(t *testing.T) {
-	pp := DefaultPP
+	pp := Initialize(nil)
 	J := 2
 	var seed []byte
 	// c_waves []*PolyCNTT
@@ -2565,7 +2566,7 @@ func TestPublicParameter_SerializeRpulpProof_DeserializeRpulpProof(t *testing.T)
 			cmt_zs[i][j] = pp.NewPolyCVec(pp.paramLC)
 			for k := 0; k < pp.paramLC; k++ {
 				seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-				tmp, err := pp.randomPolyCForResponseZetaC()
+				tmp, err := pp.randomPolyCForResponseC()
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -2580,7 +2581,7 @@ func TestPublicParameter_SerializeRpulpProof_DeserializeRpulpProof(t *testing.T)
 		zs[i] = pp.NewPolyCVec(pp.paramLC)
 		for j := 0; j < J; j++ {
 			seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-			tmp, err := pp.randomPolyCForResponseZetaC()
+			tmp, err := pp.randomPolyCForResponseC()
 			if err != nil {
 				log.Fatal(err)
 			}
