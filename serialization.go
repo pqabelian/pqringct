@@ -949,6 +949,8 @@ func (pp *PublicParameter) DeserializeTxo(serializedTxo []byte) (*Txo, error) {
 	return &Txo{apk, cmt, vct, ctKem}, nil
 }
 
+// LgrTxoIdSerializeSize() returns HashOutputBytesLen, since we use Hash to compute LgrTxoId,
+// to guarantee no one can tontrol the txo-id-in-ledger.
 func (pp *PublicParameter) LgrTxoIdSerializeSize() int {
 	return HashOutputBytesLen
 }
@@ -958,13 +960,14 @@ func (pp *PublicParameter) LgrTxoSerializeSize() int {
 }
 func (pp *PublicParameter) SerializeLgrTxo(lgrTxo *LgrTxo) ([]byte, error) {
 	if lgrTxo.txo == nil {
-		return nil, errors.New(ErrNilPointer)
+		return nil, errors.New("SerializeLgrTxo: there is nil pointer in LgrTxo")
 	}
 
 	var err error
 	length := pp.LgrTxoSerializeSize()
 	w := bytes.NewBuffer(make([]byte, 0, length))
 
+	//	txo: fixed length
 	serializedTxo, err := pp.SerializeTxo(lgrTxo.txo)
 	if err != nil {
 		return nil, err
@@ -974,6 +977,7 @@ func (pp *PublicParameter) SerializeLgrTxo(lgrTxo *LgrTxo) ([]byte, error) {
 		return nil, err
 	}
 
+	//	id: fixed-length
 	_, err = w.Write(lgrTxo.id)
 	if err != nil {
 		return nil, err
@@ -990,7 +994,6 @@ func (pp *PublicParameter) DeserializeLgrTxo(serializedLgrTxo []byte) (*LgrTxo, 
 	if err != nil {
 		return nil, err
 	}
-
 	txo, err := pp.DeserializeTxo(serializedTxo)
 	if err != nil {
 		return nil, err
@@ -1028,9 +1031,11 @@ func (pp *PublicParameter) RpulpProofSerializeSize(prf *rpulpProof) int {
 }
 
 func (pp *PublicParameter) SerializeRpulpProof(prf *rpulpProof) ([]byte, error) {
-	if prf == nil || prf.c_waves == nil || prf.c_hat_g == nil || prf.psi == nil ||
-		prf.phi == nil || prf.cmt_zs == nil || prf.zs == nil {
-		return nil, errors.New(ErrNilPointer)
+	if prf == nil || prf.c_waves == nil ||
+		prf.c_hat_g == nil || prf.psi == nil || prf.phi == nil ||
+		len(prf.chseed) == 0 ||
+		prf.cmt_zs == nil || prf.zs == nil {
+		return nil, errors.New("SerializeRpulpProof: there is nil pointer in rpulpProof")
 	}
 
 	var err error
@@ -1146,7 +1151,7 @@ func (pp *PublicParameter) DeserializeRpulpProof(serializedRpulpProof []byte) (*
 	}
 
 	//chseed  []byte
-	chseed, err := readVarBytes(r, MAXALLOWED, "rpulpProof.chseed")
+	chseed, err := readVarBytes(r, MaxAllowedChallengeSeedSize, "rpulpProof.chseed")
 	if err != nil {
 		return nil, err
 	}
@@ -1210,8 +1215,8 @@ func (pp *PublicParameter) responseCSerializeSizeApprox() int {
 	//	r \in (Ring_{q_c})^{L_c}
 	//	z \in (Ring_{q_c})^{L_c}
 	//	k
-	return VarIntSerializeSize(uint64(pp.paramK)) +
-		pp.paramK*(VarIntSerializeSize(uint64(pp.paramLC))+pp.PolyCSerializeSizeEta()*pp.paramLC)
+	return VarIntSerializeSize(uint64(pp.paramK)) + //	CResponse has a factor K
+		pp.paramK*(VarIntSerializeSize(uint64(pp.paramLC))+pp.paramLC*pp.PolyCSerializeSizeEta())
 }
 
 func (pp *PublicParameter) CbTxWitnessJ1SerializeSizeApprox() int {
@@ -1245,8 +1250,8 @@ func (pp *PublicParameter) CbTxWitnessJ1SerializeSize(witness *CbTxWitnessJ1) in
 }
 
 func (pp *PublicParameter) SerializeCbTxWitnessJ1(witness *CbTxWitnessJ1) ([]byte, error) {
-	if witness.zs == nil {
-		return nil, errors.New(ErrNilPointer)
+	if witness.zs == nil || len(witness.chseed) == 0 {
+		return nil, errors.New("SerializeCbTxWitnessJ1: there is nil pointer in CbTxWitnessJ1")
 	}
 
 	var err error
@@ -1279,7 +1284,7 @@ func (pp *PublicParameter) DeserializeCbTxWitnessJ1(serializedWitness []byte) (*
 	r := bytes.NewReader(serializedWitness)
 
 	//chseed  []byte
-	chseed, err := readVarBytes(r, MAXALLOWED, "CbTxWitnessJ1.chseed")
+	chseed, err := readVarBytes(r, MaxAllowedChallengeSeedSize, "CbTxWitnessJ1.chseed")
 	if err != nil {
 		return nil, err
 	}
@@ -1303,12 +1308,6 @@ func (pp *PublicParameter) DeserializeCbTxWitnessJ1(serializedWitness []byte) (*
 		chseed: chseed,
 		zs:     zs,
 	}, nil
-}
-
-func (pp *PublicParameter) boundingVecCSerializeSizeApprox() int {
-	//	PolyCNTTVec[k_c]
-	lenTmp := pp.paramKC * pp.PolyCNTTSerializeSize()
-	return VarIntSerializeSize(uint64(lenTmp)) + lenTmp
 }
 
 // todo: review
@@ -1365,6 +1364,11 @@ func (pp *PublicParameter) readCarryVectorRProof(r io.Reader) ([]int64, error) {
 	return u_p, nil
 }
 
+func (pp *PublicParameter) boundingVecCSerializeSizeApprox() int {
+	//	PolyCNTTVec[k_c]
+	return VarIntSerializeSize(uint64(pp.paramKC)) + pp.paramKC*pp.PolyCNTTSerializeSize()
+}
+
 func (pp *PublicParameter) CbTxWitnessJ2SerializeSizeApprox(outTxoNum int) int {
 	var lenApprox int
 
@@ -1372,27 +1376,32 @@ func (pp *PublicParameter) CbTxWitnessJ2SerializeSizeApprox(outTxoNum int) int {
 	//	PolyCNTTVec[k_c]
 	lenApprox = pp.boundingVecCSerializeSizeApprox()
 
-	//	c_hats
-	lenTmp := (outTxoNum + 2) * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+	//	c_hats     []*PolyCNTT, length J+2
+	lenApprox += VarIntSerializeSize(uint64(outTxoNum+2)) + (outTxoNum+2)*pp.PolyCNTTSerializeSize()
 
 	// u_p
 	lenApprox += pp.CarryVectorRProofSerializeSize()
 
 	// rpulpproof
-	// c_waves []*PolyCNTT
-	lenTmp = outTxoNum * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+
+	rpuprfLength := 0
+	// c_waves []*PolyCNTT // length outTxoNum
+	rpuprfLength = VarIntSerializeSize(uint64(outTxoNum)) + outTxoNum*pp.PolyCNTTSerializeSize()
+
 	// c_hat_g,psi,phi  *PolyCNTT
-	lenTmp = 3 * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+	rpuprfLength += 3 * pp.PolyCNTTSerializeSize()
+
 	// chseed  []byte
-	lenApprox += pp.challengeSeedCSerializeSizeApprox()
-	//cmt_zs  [][]*PolyCVec eta
-	lenTmp = (outTxoNum) * pp.responseCSerializeSizeApprox()
-	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+	rpuprfLength += pp.challengeSeedCSerializeSizeApprox()
+
+	//cmt_zs  [][]*PolyCVec eta; n = (outTxoNum), (k, paramLc)
+	lenTmp := (outTxoNum) * pp.responseCSerializeSizeApprox()
+	rpuprfLength += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+
 	//zs      []*PolyCVec eta
-	lenApprox += pp.responseCSerializeSizeApprox()
+	rpuprfLength += pp.responseCSerializeSizeApprox()
+
+	lenApprox += VarIntSerializeSize(uint64(rpuprfLength)) + rpuprfLength
 
 	return lenApprox
 }
@@ -1401,20 +1410,24 @@ func (pp *PublicParameter) CbTxWitnessJ2SerializeSize(witness *CbTxWitnessJ2) in
 	if witness == nil {
 		return 0
 	}
-	var length int
-	length = pp.PolyCNTTVecSerializeSize(witness.b_hat) +
-		VarIntSerializeSize(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize()
 
-	length += pp.CarryVectorRProofSerializeSize()
+	var length int
+
+	length = pp.PolyCNTTVecSerializeSize(witness.b_hat) + // b_hat      *PolyCNTTVec
+		VarIntSerializeSize(uint64(len(witness.c_hats))) + len(witness.c_hats)*pp.PolyCNTTSerializeSize() // c_hats     []*PolyCNTT, length J+2
+
+	length += pp.CarryVectorRProofSerializeSize() // u_p        []int64
 	rplPrfLen := pp.RpulpProofSerializeSize(witness.rpulpproof)
 	length += VarIntSerializeSize(uint64(rplPrfLen)) + rplPrfLen
 
 	return length
 }
 func (pp *PublicParameter) SerializeCbTxWitnessJ2(witness *CbTxWitnessJ2) ([]byte, error) {
-	if witness == nil || witness.b_hat == nil || witness.c_hats == nil || witness.rpulpproof == nil {
-		return nil, errors.New(ErrNilPointer)
+	if witness == nil || witness.b_hat == nil || len(witness.c_hats) == 0 ||
+		len(witness.u_p) == 0 || witness.rpulpproof == nil {
+		return nil, errors.New("SerializeCbTxWitnessJ2: there is nil pointer in SerializeCbTxWitnessJ2")
 	}
+
 	var err error
 	length := pp.CbTxWitnessJ2SerializeSize(witness)
 	w := bytes.NewBuffer(make([]byte, 0, length))
@@ -1441,45 +1454,18 @@ func (pp *PublicParameter) SerializeCbTxWitnessJ2(witness *CbTxWitnessJ2) ([]byt
 	if err != nil {
 		return nil, err
 	}
-	////	todo_done: use a function for EtaF
-	//err = WriteVarInt(w, uint64(len(witness.u_p)))
-	//if err != nil {
-	//	return nil, err
-	//}
-	//tmp := make([]byte, 8)
-	//for i := 0; i < len(witness.u_p); i++ {
-	//	tmp[0] = byte(witness.u_p[i] >> 0)
-	//	tmp[1] = byte(witness.u_p[i] >> 8)
-	//	tmp[2] = byte(witness.u_p[i] >> 16)
-	//	tmp[3] = byte(witness.u_p[i] >> 24)
-	//	tmp[4] = byte(witness.u_p[i] >> 32)
-	//	tmp[5] = byte(witness.u_p[i] >> 40)
-	//	tmp[6] = byte(witness.u_p[i] >> 48)
-	//	tmp[7] = byte(witness.u_p[i] >> 56)
-	//	_, err = w.Write(tmp)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
+
 	// rpulpproof *rpulpProof
 	serializedRpuProof, err := pp.SerializeRpulpProof(witness.rpulpproof)
 	if err != nil {
 		return nil, err
 	}
-	// todo: writeVarbytes
+
 	err = writeVarBytes(w, serializedRpuProof)
 	if err != nil {
 		return nil, err
 	}
 
-	//err = WriteVarInt(w, uint64(len(serializedRpuProof)))
-	//if err != nil {
-	//	return nil, err
-	//}
-	//_, err = w.Write(serializedRpuProof)
-	//if err != nil {
-	//	return nil, err
-	//}
 	return w.Bytes(), nil
 }
 
@@ -1510,37 +1496,13 @@ func (pp *PublicParameter) DeserializeCbTxWitnessJ2(serializedCbTxWitness []byte
 	}
 
 	// u_p        []int64
-	//	todo: a function for EtaF
 	u_p, err := pp.readCarryVectorRProof(r)
 	if err != nil {
 		return nil, err
 	}
-	//var u_p []int64
-	//count, err = ReadVarInt(r)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if count != 0 {
-	//	u_p = make([]int64, count)
-	//	tmp := make([]byte, 8)
-	//	for i := uint64(0); i < count; i++ {
-	//		n, err := r.Read(tmp)
-	//		if n != 8 || err != nil {
-	//			return nil, err
-	//		}
-	//		u_p[i] = int64(tmp[0]) << 0
-	//		u_p[i] |= int64(tmp[1]) << 8
-	//		u_p[i] |= int64(tmp[2]) << 16
-	//		u_p[i] |= int64(tmp[3]) << 24
-	//		u_p[i] |= int64(tmp[4]) << 32
-	//		u_p[i] |= int64(tmp[5]) << 40
-	//		u_p[i] |= int64(tmp[6]) << 48
-	//		u_p[i] |= int64(tmp[7]) << 56
-	//	}
-	//}
 
 	// rpulpproof *rpulpProof
-	serializedRpulpProof, err := readVarBytes(r, MAXALLOWED, "CbTxWitnessJ2.rpulpproof")
+	serializedRpulpProof, err := readVarBytes(r, MaxAllowedRpulpProofSize, "CbTxWitnessJ2.rpulpproof")
 	if err != nil {
 		return nil, err
 	}
@@ -1548,23 +1510,6 @@ func (pp *PublicParameter) DeserializeCbTxWitnessJ2(serializedCbTxWitness []byte
 	if err != nil {
 		return nil, err
 	}
-	//
-	//var rpulpproof *rpulpProof
-	//count, err = ReadVarInt(r)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if count != 0 {
-	//	serializedRpulpProof := make([]byte, count)
-	//	_, err = r.Read(serializedRpulpProof)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	rpulpproof, err = pp.DeserializeRpulpProof(serializedRpulpProof)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
 
 	return &CbTxWitnessJ2{
 		b_hat:      b_hat,
@@ -1600,8 +1545,8 @@ func (pp *PublicParameter) CoinbaseTxSerializeSize(tx *CoinbaseTx, withWitness b
 }
 
 func (pp *PublicParameter) SerializeCoinbaseTx(tx *CoinbaseTx, withWitness bool) ([]byte, error) {
-	if tx == nil || tx.OutputTxos == nil {
-		return nil, errors.New(ErrNilPointer)
+	if tx == nil || len(tx.OutputTxos) == 0 {
+		return nil, errors.New("SerializeCoinbaseTx: there is nil pointer in CoinbaseTx")
 	}
 	var err error
 	length := pp.CoinbaseTxSerializeSize(tx, withWitness)
@@ -1644,12 +1589,7 @@ func (pp *PublicParameter) SerializeCoinbaseTx(tx *CoinbaseTx, withWitness bool)
 			return nil, err
 		}
 
-		txWitnessSize := len(serializedTxWitness)
-		err = WriteVarInt(w, uint64(txWitnessSize))
-		if err != nil {
-			return nil, err
-		}
-		_, err = w.Write(serializedTxWitness)
+		err = writeVarBytes(w, serializedTxWitness)
 		if err != nil {
 			return nil, err
 		}
@@ -1672,8 +1612,8 @@ func (pp *PublicParameter) DeserializeCoinbaseTx(serializedCbTx []byte, withWitn
 	}
 	if outTxoNum != 0 {
 		OutputTxos = make([]*Txo, outTxoNum)
+		tmp := make([]byte, pp.TxoSerializeSize())
 		for i := uint64(0); i < outTxoNum; i++ {
-			tmp := make([]byte, pp.TxoSerializeSize())
 			_, err = r.Read(tmp)
 			if err != nil {
 				return nil, err
@@ -1687,7 +1627,7 @@ func (pp *PublicParameter) DeserializeCoinbaseTx(serializedCbTx []byte, withWitn
 
 	// TxMemo []byte
 	var TxMemo []byte
-	TxMemo, err = readVarBytes(r, MaxAllowedTxMemoSize, "trTx.TxMemo")
+	TxMemo, err = readVarBytes(r, MaxAllowedTxMemoSize, "CoinbaseTx.TxMemo")
 	if err != nil {
 		return nil, err
 	}
@@ -1695,25 +1635,26 @@ func (pp *PublicParameter) DeserializeCoinbaseTx(serializedCbTx []byte, withWitn
 	var txWitnessJ1 *CbTxWitnessJ1
 	var txWitnessJ2 *CbTxWitnessJ2
 	if withWitness {
-		txWitnessSize, err := ReadVarInt(r)
-		if err != nil {
-			return nil, err
-		}
-		serializedTrTxWitness := make([]byte, txWitnessSize)
-		_, err = r.Read(serializedTrTxWitness)
-		if err != nil {
-			return nil, err
-		}
-
 		if outTxoNum == 1 { // J=1
-			txWitnessJ1, err = pp.DeserializeCbTxWitnessJ1(serializedTrTxWitness)
+			serializedWitness, err := readVarBytes(r, MaxAllowedTxWitnessSize, "CoinbaseTx.TxWitnessJ1")
 			if err != nil {
 				return nil, err
 			}
+			txWitnessJ1, err = pp.DeserializeCbTxWitnessJ1(serializedWitness)
+			if err != nil {
+				return nil, err
+			}
+
 			txWitnessJ2 = nil
+
 		} else { // J >= 2
 			txWitnessJ1 = nil
-			txWitnessJ2, err = pp.DeserializeCbTxWitnessJ2(serializedTrTxWitness)
+
+			serializedWitness, err := readVarBytes(r, MaxAllowedTxWitnessSize, "CoinbaseTx.TxWitnessJ2")
+			if err != nil {
+				return nil, err
+			}
+			txWitnessJ2, err = pp.DeserializeCbTxWitnessJ2(serializedWitness)
 			if err != nil {
 				return nil, err
 			}
@@ -1819,11 +1760,11 @@ func (pp *PublicParameter) SerializeElrsSignature(sig *elrsSignature) ([]byte, e
 	}
 
 	// z_cs  [][]*PolyCVec eta
-	err = WriteVarInt(w, uint64(len(sig.z_as)))
+	err = WriteVarInt(w, uint64(len(sig.z_cs)))
 	if err != nil {
 		return nil, err
 	}
-	for i := 0; i < len(sig.z_as); i++ {
+	for i := 0; i < len(sig.z_cs); i++ {
 		tlength := len(sig.z_cs[i])
 		err = WriteVarInt(w, uint64(tlength))
 		if err != nil {
@@ -1838,11 +1779,11 @@ func (pp *PublicParameter) SerializeElrsSignature(sig *elrsSignature) ([]byte, e
 	}
 
 	// z_cps [][]*PolyCVec eta
-	err = WriteVarInt(w, uint64(len(sig.z_as)))
+	err = WriteVarInt(w, uint64(len(sig.z_cps)))
 	if err != nil {
 		return nil, err
 	}
-	for i := 0; i < len(sig.z_as); i++ {
+	for i := 0; i < len(sig.z_cps); i++ {
 		tlength := len(sig.z_cps[i])
 		err = WriteVarInt(w, uint64(tlength))
 		if err != nil {
@@ -1858,6 +1799,7 @@ func (pp *PublicParameter) SerializeElrsSignature(sig *elrsSignature) ([]byte, e
 
 	return w.Bytes(), nil
 }
+
 func (pp *PublicParameter) DeserializeElrsSignature(serializeElrsSignature []byte) (*elrsSignature, error) {
 	var err error
 	var count uint64
@@ -1872,12 +1814,13 @@ func (pp *PublicParameter) DeserializeElrsSignature(serializeElrsSignature []byt
 	if count != 0 {
 		seeds = make([][]byte, count)
 		for i := uint64(0); i < count; i++ {
-			seeds[i], err = readVarBytes(r, MAXALLOWED, "cbTxWitness.seeds")
+			seeds[i], err = readVarBytes(r, MaxAllowedChallengeSeedSize, "elrsSignature.seeds")
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
+
 	// z_as  []*PolyAVec eta
 	var z_as []*PolyAVec
 	count, err = ReadVarInt(r)
@@ -1964,31 +1907,37 @@ func (pp *PublicParameter) TrTxWitnessSerializeSizeApprox(inputRingSizes []int, 
 	lenApprox += pp.boundingVecCSerializeSizeApprox()
 
 	// c_hats
-	if len(inputRingSizes) == 1 { // n_2 = I+J+2
-		lenTmp := (len(inputRingSizes) + outputTxoNum + 2) * pp.PolyCNTTSerializeSize()
-		lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
-	} else { // I > 1, n_2 = I+J+4
-		lenTmp := (len(inputRingSizes) + outputTxoNum + 4) * pp.PolyCNTTSerializeSize()
-		lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+	if len(inputRingSizes) == 1 { // I =1 : n_2 = I+J+2
+		n2 := len(inputRingSizes) + outputTxoNum + 2
+		lenApprox += VarIntSerializeSize(uint64(n2)) + n2*pp.PolyCNTTSerializeSize()
+	} else { // I > 1: n_2 = I+J+4
+		n2 := len(inputRingSizes) + outputTxoNum + 4
+		lenApprox += VarIntSerializeSize(uint64(n2)) + n2*pp.PolyCNTTSerializeSize()
 	}
 
 	// u_p
 	lenApprox += pp.CarryVectorRProofSerializeSize()
 
-	// rpulpproof
-	// c_waves []*PolyCNTT
-	lenTmp := (len(inputRingSizes) + outputTxoNum) * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+	//rpulpproof *rpulpProof
+	rpuprfLength := 0
+	// c_waves []*PolyCNTT // length n = I+J
+	n := len(inputRingSizes) + outputTxoNum
+	rpuprfLength += VarIntSerializeSize(uint64(n)) + n*pp.PolyCNTTSerializeSize()
+
 	// c_hat_g,psi,phi  *PolyCNTT
-	lenTmp = 3 * pp.PolyCNTTSerializeSize()
-	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+	rpuprfLength += 3 * pp.PolyCNTTSerializeSize()
+
 	// chseed  []byte
-	lenApprox += pp.challengeSeedCSerializeSizeApprox()
-	//cmt_zs  [][]*PolyCVec eta
-	lenTmp = (len(inputRingSizes) + outputTxoNum) * pp.responseCSerializeSizeApprox()
-	lenApprox += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+	rpuprfLength += pp.challengeSeedCSerializeSizeApprox()
+
+	//cmt_zs  [][]*PolyCVec eta; n = (I+J), (k, paramLc)
+	lenTmp := n * pp.responseCSerializeSizeApprox()
+	rpuprfLength += VarIntSerializeSize(uint64(lenTmp)) + lenTmp
+
 	//zs      []*PolyCVec eta
-	lenApprox += pp.responseCSerializeSizeApprox()
+	rpuprfLength += pp.responseCSerializeSizeApprox()
+
+	lenApprox += VarIntSerializeSize(uint64(rpuprfLength)) + rpuprfLength
 
 	return lenApprox
 }
@@ -2021,8 +1970,9 @@ func (pp *PublicParameter) TrTxWitnessSerializeSize(witness *TrTxWitness) int {
 
 func (pp *PublicParameter) SerializeTrTxWitness(witness *TrTxWitness) ([]byte, error) {
 	if witness == nil || witness.ma_ps == nil || witness.cmt_ps == nil ||
-		witness.elrsSigs == nil || witness.b_hat == nil || witness.c_hats == nil || witness.rpulpproof == nil {
-		return nil, errors.New(ErrNilPointer)
+		witness.elrsSigs == nil || witness.b_hat == nil || witness.c_hats == nil ||
+		witness.u_p == nil || witness.rpulpproof == nil {
+		return nil, errors.New("SerializeTrTxWitness: there is nil pointer in TrTxWitness")
 	}
 	var err error
 	length := pp.TrTxWitnessSerializeSize(witness)
@@ -2070,22 +2020,14 @@ func (pp *PublicParameter) SerializeTrTxWitness(witness *TrTxWitness) ([]byte, e
 		if err != nil {
 			return nil, err
 		}
-
-		//sigLen := len(serializedElrSig)
-		//err = WriteVarInt(w, uint64(sigLen))
-		//if err != nil {
-		//	return nil, err
-		//}
-		//_, err = w.Write(serializedElrSig)
-		//if err != nil {
-		//	return nil, err
-		//}
 	}
+
 	// b_hat      *PolyCNTTVec
 	err = pp.writePolyCNTTVec(w, witness.b_hat)
 	if err != nil {
 		return nil, err
 	}
+
 	// c_hats     []*PolyCNTT
 	err = WriteVarInt(w, uint64(len(witness.c_hats)))
 	if err != nil {
@@ -2097,32 +2039,12 @@ func (pp *PublicParameter) SerializeTrTxWitness(witness *TrTxWitness) ([]byte, e
 			return nil, err
 		}
 	}
+
 	// u_p        []int64
 	err = pp.writeCarryVectorRProof(w, witness.u_p)
 	if err != nil {
 		return nil, err
 	}
-	//// todo_done: use a fucntion for EtaF
-	//err = WriteVarInt(w, uint64(len(witness.u_p)))
-	//if err != nil {
-	//	return nil, err
-	//}
-	//tmp := make([]byte, 8)
-	//for i := 0; i < len(witness.u_p); i++ {
-	//	tmp[0] = byte(witness.u_p[i] >> 0)
-	//	tmp[1] = byte(witness.u_p[i] >> 8)
-	//	tmp[2] = byte(witness.u_p[i] >> 16)
-	//	tmp[3] = byte(witness.u_p[i] >> 24)
-	//	tmp[4] = byte(witness.u_p[i] >> 32)
-	//	tmp[5] = byte(witness.u_p[i] >> 40)
-	//	tmp[6] = byte(witness.u_p[i] >> 48)
-	//	tmp[7] = byte(witness.u_p[i] >> 56)
-	//	//	err = writeVarBytes(w, tmp)
-	//	_, err = w.Write(tmp)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
 
 	// rpulpproof *rpulpProof
 	serializedRpuProof, err := pp.SerializeRpulpProof(witness.rpulpproof)
@@ -2134,14 +2056,6 @@ func (pp *PublicParameter) SerializeTrTxWitness(witness *TrTxWitness) ([]byte, e
 		return nil, err
 	}
 
-	//err = WriteVarInt(w, uint64(len(serializedRpuProof)))
-	//if err != nil {
-	//	return nil, err
-	//}
-	//_, err = w.Write(serializedRpuProof)
-	//if err != nil {
-	//	return nil, err
-	//}
 	return w.Bytes(), nil
 }
 func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) (*TrTxWitness, error) {
@@ -2164,6 +2078,7 @@ func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) 
 			}
 		}
 	}
+
 	// cmt_ps     []*ValueCommitment
 	var cmt_ps []*ValueCommitment
 	count, err = ReadVarInt(r)
@@ -2172,8 +2087,8 @@ func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) 
 	}
 	if count != 0 {
 		cmt_ps = make([]*ValueCommitment, count)
+		tmp := make([]byte, pp.ValueCommitmentSerializeSize())
 		for i := uint64(0); i < count; i++ {
-			tmp := make([]byte, pp.ValueCommitmentSerializeSize())
 			_, err = r.Read(tmp)
 			if err != nil {
 				return nil, err
@@ -2184,6 +2099,7 @@ func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) 
 			}
 		}
 	}
+
 	// elrsSigs   []*elrsSignature
 	var elrsSigs []*elrsSignature
 	count, err = ReadVarInt(r)
@@ -2193,7 +2109,7 @@ func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) 
 	if count != 0 {
 		elrsSigs = make([]*elrsSignature, count)
 		for i := uint64(0); i < count; i++ {
-			serializedSig, err := readVarBytes(r, MAXALLOWED, "TrTxWitness.elrsSigs")
+			serializedSig, err := readVarBytes(r, MaxAllowedElrsSignatureSize, "TrTxWitness.elrsSigs")
 			if err != nil {
 				return nil, err
 			}
@@ -2201,21 +2117,9 @@ func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) 
 			if err != nil {
 				return nil, err
 			}
-			//sigLen, err := ReadVarInt(r)
-			//if err != nil {
-			//	return nil, err
-			//}
-			//tmp := make([]byte, sigLen)
-			//_, err = r.Read(tmp)
-			//if err != nil {
-			//	return nil, err
-			//}
-			//elrsSigs[i], err = pp.DeserializeElrsSignature(tmp)
-			//if err != nil {
-			//	return nil, err
-			//}
 		}
 	}
+
 	// b_hat      *PolyCNTTVec
 	var b_hat *PolyCNTTVec
 	b_hat, err = pp.readPolyCNTTVec(r)
@@ -2238,38 +2142,16 @@ func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) 
 			}
 		}
 	}
+
 	// u_p        []int64
 	u_p, err := pp.readCarryVectorRProof(r)
 	if err != nil {
 		return nil, err
 	}
-	//var u_p []int64
-	//count, err = ReadVarInt(r)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if count != 0 {
-	//	u_p = make([]int64, count)
-	//	tmp := make([]byte, 8)
-	//	for i := uint64(0); i < count; i++ {
-	//		n, err := r.Read(tmp)
-	//		if n != 8 || err != nil {
-	//			return nil, err
-	//		}
-	//		u_p[i] = int64(tmp[0]) << 0
-	//		u_p[i] |= int64(tmp[1]) << 8
-	//		u_p[i] |= int64(tmp[2]) << 16
-	//		u_p[i] |= int64(tmp[3]) << 24
-	//		u_p[i] |= int64(tmp[4]) << 32
-	//		u_p[i] |= int64(tmp[5]) << 40
-	//		u_p[i] |= int64(tmp[6]) << 48
-	//		u_p[i] |= int64(tmp[7]) << 56
-	//	}
-	//}
 
 	// rpulpproof *rpulpProof
 	// var rpulpproof *rpulpProof
-	serializedProof, err := readVarBytes(r, MAXALLOWED, "TrTxWitness.rpulpproof")
+	serializedProof, err := readVarBytes(r, MaxAllowedRpulpProofSize, "TrTxWitness.rpulpproof")
 	if err != nil {
 		return nil, err
 	}
@@ -2277,22 +2159,6 @@ func (pp *PublicParameter) DeserializeTrTxWitness(serializedTrTxWitness []byte) 
 	if err != nil {
 		return nil, err
 	}
-
-	//rpulpproofSize, err := ReadVarInt(r)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if rpulpproofSize != 0 {
-	//	serializedRpulpProof := make([]byte, rpulpproofSize)
-	//	_, err = r.Read(serializedRpulpProof)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	rpulpproof, err = pp.DeserializeRpulpProof(serializedRpulpProof)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
 
 	return &TrTxWitness{
 		ma_ps:      ma_ps,
@@ -2315,13 +2181,15 @@ func (pp *PublicParameter) TrTxInputSerializeSize(trTxIn *TrTxInput) int {
 
 	return length
 }
-func (pp *PublicParameter) SerializeTrTxInput(trTxIn *TrTxInput) ([]byte, error) {
-	if trTxIn == nil || trTxIn.TxoList == nil {
-		return nil, errors.New(ErrNilPointer)
+
+//	serializeTrTxInput() is called only SerializeTransferTx() to prepare TrTxCon to be authenticated.
+func (pp *PublicParameter) serializeTrTxInput(trTxIn *TrTxInput) ([]byte, error) {
+	if trTxIn == nil || len(trTxIn.TxoList) == 0 {
+		return nil, errors.New("serializeTrTxInput: there is nil pointer in TrTxInput")
 	}
 
 	if len(trTxIn.SerialNumber) == 0 {
-		return nil, errors.New("nil serialNumber in TrTxInput")
+		return nil, errors.New("serializeTrTxInput: nil serialNumber in TrTxInput")
 	}
 
 	var err error
@@ -2353,7 +2221,7 @@ func (pp *PublicParameter) SerializeTrTxInput(trTxIn *TrTxInput) ([]byte, error)
 
 	return w.Bytes(), nil
 }
-func (pp *PublicParameter) DeserializeTrTxInput(serialziedTrTxInput []byte) (*TrTxInput, error) {
+func (pp *PublicParameter) deserializeTrTxInput(serialziedTrTxInput []byte) (*TrTxInput, error) {
 	var err error
 	var count uint64
 	r := bytes.NewReader(serialziedTrTxInput)
@@ -2366,8 +2234,8 @@ func (pp *PublicParameter) DeserializeTrTxInput(serialziedTrTxInput []byte) (*Tr
 	}
 	if count != 0 {
 		TxoList = make([]*LgrTxo, count)
+		tmp := make([]byte, pp.LgrTxoSerializeSize())
 		for i := uint64(0); i < count; i++ {
-			tmp := make([]byte, pp.LgrTxoSerializeSize())
 			_, err = r.Read(tmp)
 			if err != nil {
 				return nil, err
@@ -2378,9 +2246,10 @@ func (pp *PublicParameter) DeserializeTrTxInput(serialziedTrTxInput []byte) (*Tr
 			}
 		}
 	}
+
 	//SerialNumber []byte
 	var SerialNumber []byte
-	SerialNumber, err = readVarBytes(r, MaxAllowedSerialNumberSize, "trTxInput.SerialNumber")
+	SerialNumber, err = readVarBytes(r, MaxAllowedSerialNumberSize, "TrTxInput.SerialNumber")
 	if err != nil {
 		return nil, err
 	}
@@ -2416,13 +2285,15 @@ func (pp *PublicParameter) TransferTxSerializeSize(tx *TransferTx, withWitness b
 		witnessLen := pp.TrTxWitnessSerializeSize(tx.TxWitness)
 		length += VarIntSerializeSize(uint64(witnessLen)) + witnessLen
 	}
+
 	return length
 }
 
 func (pp *PublicParameter) SerializeTransferTx(tx *TransferTx, withWitness bool) ([]byte, error) {
-	if tx == nil || tx.Inputs == nil || tx.OutputTxos == nil {
-		return nil, errors.New(ErrNilPointer)
+	if tx == nil || len(tx.Inputs) == 0 || len(tx.OutputTxos) == 0 {
+		return nil, errors.New("SerializeTransferTx: there is nil pointer in TransferTx")
 	}
+
 	var err error
 	length := pp.TransferTxSerializeSize(tx, withWitness)
 	w := bytes.NewBuffer(make([]byte, 0, length))
@@ -2433,7 +2304,7 @@ func (pp *PublicParameter) SerializeTransferTx(tx *TransferTx, withWitness bool)
 		return nil, err
 	}
 	for i := 0; i < len(tx.Inputs); i++ {
-		serializedTxInput, err := pp.SerializeTrTxInput(tx.Inputs[i])
+		serializedTxInput, err := pp.serializeTrTxInput(tx.Inputs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -2441,15 +2312,6 @@ func (pp *PublicParameter) SerializeTransferTx(tx *TransferTx, withWitness bool)
 		if err != nil {
 			return nil, err
 		}
-
-		//err = WriteVarInt(w, uint64(len(serializedTxInput)))
-		//if err != nil {
-		//	return nil, err
-		//}
-		//_, err = w.Write(serializedTxInput)
-		//if err != nil {
-		//	return nil, err
-		//}
 	}
 
 	//OutputTxos []*txo
@@ -2469,16 +2331,6 @@ func (pp *PublicParameter) SerializeTransferTx(tx *TransferTx, withWitness bool)
 	}
 
 	//Fee        uint64
-	//tmp := make([]byte, 8)
-	//tmp[0] = byte(tx.Fee >> 0)
-	//tmp[1] = byte(tx.Fee >> 8)
-	//tmp[2] = byte(tx.Fee >> 16)
-	//tmp[3] = byte(tx.Fee >> 24)
-	//tmp[4] = byte(tx.Fee >> 32)
-	//tmp[5] = byte(tx.Fee >> 40)
-	//tmp[6] = byte(tx.Fee >> 48)
-	//tmp[7] = byte(tx.Fee >> 56)
-	//_, err = w.Write(tmp)
 	err = binarySerializer.PutUint64(w, binary.LittleEndian, tx.Fee)
 	if err != nil {
 		return nil, err
@@ -2502,18 +2354,11 @@ func (pp *PublicParameter) SerializeTransferTx(tx *TransferTx, withWitness bool)
 			return nil, err
 		}
 
-		//err = WriteVarInt(w, uint64(len(serializedWitness)))
-		//if err != nil {
-		//	return nil, err
-		//}
-		//_, err = w.Write(serializedWitness)
-		//if err != nil {
-		//	return nil, err
-		//}
 	}
 
 	return w.Bytes(), nil
 }
+
 func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitness bool) (*TransferTx, error) {
 	var err error
 	var count uint64
@@ -2528,30 +2373,17 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 	if count != 0 {
 		Inputs = make([]*TrTxInput, count)
 		for i := uint64(0); i < count; i++ {
-			serializedTxInput, err := readVarBytes(r, MAXALLOWED, "TransferTx.TrTxInput")
+			serializedTxInput, err := readVarBytes(r, MaxAllowedTrTxInputSize, "TransferTx.TrTxInput")
 			if err != nil {
 				return nil, err
 			}
-			Inputs[i], err = pp.DeserializeTrTxInput(serializedTxInput)
+			Inputs[i], err = pp.deserializeTrTxInput(serializedTxInput)
 			if err != nil {
 				return nil, err
 			}
-
-			//tLength, err := ReadVarInt(r)
-			//if err != nil {
-			//	return nil, err
-			//}
-			//tmp := make([]byte, tLength)
-			//_, err = r.Read(tmp)
-			//if err != nil {
-			//	return nil, err
-			//}
-			//Inputs[i], err = pp.DeserializeTrTxInput(tmp)
-			//if err != nil {
-			//	return nil, err
-			//}
 		}
 	}
+
 	// OutputTxos []*txo
 	var OutputTxos []*Txo
 	count, err = ReadVarInt(r)
@@ -2560,8 +2392,8 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 	}
 	if count != 0 {
 		OutputTxos = make([]*Txo, count)
+		tmp := make([]byte, pp.TxoSerializeSize())
 		for i := uint64(0); i < count; i++ {
-			tmp := make([]byte, pp.TxoSerializeSize())
 			_, err = r.Read(tmp)
 			if err != nil {
 				return nil, err
@@ -2572,21 +2404,8 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 			}
 		}
 	}
-	// Fee        uint64
-	//tmp := make([]byte, 8)
-	//_, err = r.Read(tmp)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//Fee := uint64(tmp[0]) << 0
-	//Fee |= uint64(tmp[1]) << 8
-	//Fee |= uint64(tmp[2]) << 16
-	//Fee |= uint64(tmp[3]) << 24
-	//Fee |= uint64(tmp[4]) << 32
-	//Fee |= uint64(tmp[5]) << 40
-	//Fee |= uint64(tmp[6]) << 48
-	//Fee |= uint64(tmp[7]) << 56
 
+	// Fee        uint64
 	Fee, err := binarySerializer.Uint64(r, binary.LittleEndian)
 	if err != nil {
 		return nil, err
@@ -2594,7 +2413,7 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 
 	// TxMemo []byte
 	var TxMemo []byte
-	TxMemo, err = readVarBytes(r, MaxAllowedTxMemoSize, "trTx.TxMemo")
+	TxMemo, err = readVarBytes(r, MaxAllowedTxMemoSize, "TransferTx.TxMemo")
 	if err != nil {
 		return nil, err
 	}
@@ -2602,7 +2421,11 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 	var TxWitness *TrTxWitness
 	if withWitness {
 		// TxWitness *TrTxWitness
-		serializedTrTxWitness, err := readVarBytes(r, MAXALLOWED, "TransferTx.TxWitness")
+		//	Note that if call this function with withWitness = true on a serializedTrTx with witness = false,
+		//	error will happen.
+		//	And we do not want to hide this error (for example, by check and return nil).
+		//	Instead, we want to explore this error during development, unless there is requirements from practice.
+		serializedTrTxWitness, err := readVarBytes(r, MaxAllowedTxWitnessSize, "TransferTx.TxWitness")
 		if err != nil {
 			return nil, err
 		}
@@ -2610,23 +2433,8 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 		if err != nil {
 			return nil, err
 		}
-
-		//serializedSize, err := ReadVarInt(r)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//if serializedSize != 0 {
-		//	serializedTrTxWitness := make([]byte, serializedSize)
-		//	_, err = r.Read(serializedTrTxWitness)
-		//	if err != nil {
-		//		return nil, err
-		//	}
-		//	TxWitness, err = pp.DeserializeTrTxWitness(serializedTrTxWitness)
-		//	if err != nil {
-		//		return nil, err
-		//	}
-		//}
 	}
+
 	return &TransferTx{
 		Inputs:     Inputs,
 		OutputTxos: OutputTxos,
@@ -2639,9 +2447,13 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 const (
 	MAXALLOWED                  uint32 = 4294967295 // 2^32-1
 	MaxAllowedKemCiphertextSize uint32 = 1048576    // 2^20
-	MaxAllowedTxMemoSize               = 1024       // bytes
-	MaxAllowedSerialNumberSize         = 64         // 512 bits = 64 bytes
-	//	todo: 202203 different fields use different MaxAllowed? e.g. MaxAllowed
+	MaxAllowedTxMemoSize        uint32 = 1024       // bytes
+	MaxAllowedSerialNumberSize  uint32 = 64         // 512 bits = 64 bytes
+	MaxAllowedChallengeSeedSize uint32 = 64         // use SHA512 to generate the challenge seed
+	MaxAllowedRpulpProofSize    uint32 = 8388608    // 2^23, 8M bytes
+	MaxAllowedTxWitnessSize     uint32 = 16777216   // 2^24, 16M bytes
+	MaxAllowedElrsSignatureSize uint32 = 8388608    // 2^23, 8M bytes
+	MaxAllowedTrTxInputSize     uint32 = 8388608    // 2^23, 8M bytes
 )
 
 // writeVarBytes write byte array to io.Writer
