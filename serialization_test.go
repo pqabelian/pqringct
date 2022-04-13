@@ -741,10 +741,13 @@ func TestEncodeTxoValueToBytes(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println("encode:", serialzed)
+
 	valueRead, err := pp.decodeTxoValueFromBytes(serialzed)
 
-	fmt.Println(value)
-	fmt.Println(valueRead)
+	fmt.Println("original:", value)
+	fmt.Println("recovered:", valueRead)
 
 	if valueRead != value {
 		log.Fatal("valeu:", value, "FAIL")
@@ -755,10 +758,12 @@ func TestEncodeTxoValueToBytes(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println("encode:", serialzed)
+
 	valueRead, err = pp.decodeTxoValueFromBytes(serialzed)
 
-	fmt.Println(value)
-	fmt.Println(valueRead)
+	fmt.Println("original:", value)
+	fmt.Println("recovered:", valueRead)
 
 	if valueRead != value {
 		log.Fatal("valeu:", value, "FAIL")
@@ -770,9 +775,9 @@ func TestEncodeTxoValueToBytes(t *testing.T) {
 		log.Fatal(err)
 	}
 	valueRead, err = pp.decodeTxoValueFromBytes(serialzed)
-
-	fmt.Println(value)
-	fmt.Println(valueRead)
+	fmt.Println("encode:", serialzed)
+	fmt.Println("original:", value)
+	fmt.Println("recovered:", valueRead)
 
 	if valueRead != value {
 		log.Fatal("valeu:", value, "FAIL")
@@ -784,13 +789,31 @@ func TestEncodeTxoValueToBytes(t *testing.T) {
 		log.Fatal(err)
 	}
 	valueRead, err = pp.decodeTxoValueFromBytes(serialzed)
-
-	fmt.Println(value)
-	fmt.Println(valueRead)
+	fmt.Println("encode:", serialzed)
+	fmt.Println("original:", value)
+	fmt.Println("recovered:", valueRead)
 
 	if valueRead != value {
 		log.Fatal("valeu:", value, "FAIL")
 	}
+
+	//valuep := int64(-1)
+	//rst := make([]byte, 7)
+	//for i := 0; i < 7; i++ {
+	//	rst[0] = byte(valuep >> 0)
+	//	rst[1] = byte(valuep >> 8)
+	//	rst[2] = byte(valuep >> 16)
+	//	rst[3] = byte(valuep >> 24)
+	//	rst[4] = byte(valuep >> 32)
+	//	rst[5] = byte(valuep >> 40)
+	//	rst[6] = byte(valuep >> 48)
+	//	//rst[6] = byte(valuep>>48) | 0xF8
+	//}
+	//
+	//fmt.Println("encode:", rst)
+	//valueRead, err = pp.decodeTxoValueFromBytes(rst)
+	//fmt.Println("testp:", valuep)
+	//fmt.Println(valueRead)
 
 	if testAbnormal {
 		value = 1<<51 + 1
@@ -806,7 +829,7 @@ func TestEncodeTxoValueToBytes(t *testing.T) {
 		}
 
 		valueRead, err = pp.decodeTxoValueFromBytes(serialzed)
-
+		fmt.Println("encode:", serialzed)
 		fmt.Println(value)
 		fmt.Println(valueRead)
 
@@ -1262,6 +1285,13 @@ func TestSerializeCoinbaseTx(t *testing.T) {
 
 				exactSizeInTx := len(serializedWithWitness) - len(serializedWithoutWitness)
 				fmt.Println("exact witness size in Tx:", exactSizeInTx)
+
+				serTxo, err := pp.SerializeTxo(cbTx.OutputTxos[0])
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println("exact txo size:", len(serTxo))
+				fmt.Println("expected txo size:", pp.TxoSerializeSize())
 
 			} else {
 				fmt.Println("expected witness size:", pp.CbTxWitnessJ2SerializeSize(cbTx.TxWitnessJ2))
