@@ -247,6 +247,11 @@ func (pp *PublicParameter) txoGen(apk *AddressPublicKey, vpk []byte, vin uint64)
 	for i := 0; i < pp.TxoValueBytesLen(); i++ {
 		vct[i] = sk[i] ^ vpt[i]
 	}
+	// This is hard coded, based on the  value of N, and the algorithm encodeTxoValueToBytes().
+	//	N = 51, encodeTxoValueToBytes() uses only the lowest 3 bits of 7-th byte.
+	vct[6] = vct[6] & 0x07
+	// This is to make the 56th~52th bit always to be 0, while keeping the 51th,50th, 49th bits to be their real value.
+	//	By this way, we can avoid the leaking the corresponding bits of pad.
 
 	rettxo := &Txo{
 		apk,

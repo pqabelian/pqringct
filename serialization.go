@@ -838,11 +838,7 @@ func (pp *PublicParameter) encodeTxoValueToBytes(value uint64) ([]byte, error) {
 		rst[3] = byte(value >> 24)
 		rst[4] = byte(value >> 32)
 		rst[5] = byte(value >> 40)
-		//rst[6] = byte(value >> 48)
-		rst[6] = byte(value>>48) | 0xF8
-		// This is to make the 56th~52th bit always to be 1, while keeping the 51th,50th, 49th bits to be their real value.
-		//	By this way, when the value-bytes are padded by xor, the 56th~52th bit will always be 1,
-		//	without leaking the corresponding bits of pad.
+		rst[6] = byte(value >> 48)
 	}
 	return rst, nil
 }
