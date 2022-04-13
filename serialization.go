@@ -2448,17 +2448,17 @@ func (pp *PublicParameter) DeserializeTransferTx(serializedTrTx []byte, withWitn
 	}, nil
 }
 
-const (
-	MAXALLOWED                  uint32 = 4294967295 // 2^32-1
-	MaxAllowedKemCiphertextSize uint32 = 1048576    // 2^20
-	MaxAllowedTxMemoSize        uint32 = 1024       // bytes
-	MaxAllowedSerialNumberSize  uint32 = 64         // 512 bits = 64 bytes
-	MaxAllowedChallengeSeedSize uint32 = 64         // use SHA512 to generate the challenge seed
-	MaxAllowedRpulpProofSize    uint32 = 8388608    // 2^23, 8M bytes
-	MaxAllowedTxWitnessSize     uint32 = 16777216   // 2^24, 16M bytes
-	MaxAllowedElrsSignatureSize uint32 = 8388608    // 2^23, 8M bytes
-	MaxAllowedTrTxInputSize     uint32 = 8388608    // 2^23, 8M bytes
-)
+//const (
+//	MAXALLOWED                  uint32 = 4294967295 // 2^32-1
+//	MaxAllowedKemCiphertextSize uint32 = 1048576    // 2^20
+//	MaxAllowedTxMemoSize        uint32 = 1024       // bytes
+//	MaxAllowedSerialNumberSize  uint32 = 64         // 512 bits = 64 bytes
+//	MaxAllowedChallengeSeedSize uint32 = 64         // use SHA512 to generate the challenge seed
+//	MaxAllowedRpulpProofSize    uint32 = 8388608    // 2^23, 8M bytes
+//	MaxAllowedTxWitnessSize     uint32 = 16777216   // 2^24, 16M bytes
+//	MaxAllowedElrsSignatureSize uint32 = 8388608    // 2^23, 8M bytes
+//	MaxAllowedTrTxInputSize     uint32 = 8388608    // 2^23, 8M bytes
+//)
 
 // writeVarBytes write byte array to io.Writer
 func writeVarBytes(w io.Writer, b []byte) error {

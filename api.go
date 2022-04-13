@@ -1,11 +1,24 @@
 package pqringct
 
+//const (
+//	//	PQRingCT, 2022.03.31
+//	TxoSerializeSizeMaxAllowed          = 1048576 //1024*1024*1, 1M bytes
+//	SerialNumberSerializeSizeMaxAllowed = 128     // 128 bytes
+//	TxMemoSerializeSizeMaxAllowed       = 1024    // 1024 bytes
+//	TxWitnessSerializeSizeMaxAllowed    = 8388608 //1024*1024*8, 8M bytes
+//)
+
+//	Put these serialization-related constants here, since the caller may need to know these constants.
 const (
-	//	PQRingCT, 2022.03.31
-	TxoSerializeSizeMaxAllowed          = 1048576 //1024*1024*1, 1M bytes
-	SerialNumberSerializeSizeMaxAllowed = 128     // 128 bytes
-	TxMemoSerializeSizeMaxAllowed       = 1024    // 1024 bytes
-	TxWitnessSerializeSizeMaxAllowed    = 8388608 //1024*1024*8, 8M bytes
+	MAXALLOWED                  uint32 = 4294967295 // 2^32-1
+	MaxAllowedKemCiphertextSize uint32 = 1048576    // 2^20
+	MaxAllowedTxMemoSize        uint32 = 1024       // bytes
+	MaxAllowedSerialNumberSize  uint32 = 64         // 512 bits = 64 bytes
+	MaxAllowedChallengeSeedSize uint32 = 64         // use SHA512 to generate the challenge seed
+	MaxAllowedRpulpProofSize    uint32 = 8388608    // 2^23, 8M bytes
+	MaxAllowedTxWitnessSize     uint32 = 16777216   // 2^24, 16M bytes
+	MaxAllowedElrsSignatureSize uint32 = 8388608    // 2^23, 8M bytes
+	MaxAllowedTrTxInputSize     uint32 = 8388608    // 2^23, 8M bytes
 )
 
 func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, error) {
