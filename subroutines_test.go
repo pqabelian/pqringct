@@ -1,6 +1,7 @@
 package pqringct
 
 import (
+	"log"
 	"testing"
 )
 
@@ -26,7 +27,10 @@ func Test_randomDcIntegersInQc(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := pp.randomDcIntegersInQc(tt.args.seed)
+			got, err := pp.randomDcIntegersInQc(tt.args.seed)
+			if err != nil {
+				log.Fatal(err)
+			}
 			//if !reflect.DeepEqual(got, tt.want) {
 			//	t.Errorf("randomDcIntegersInQc() = %v, want %v", got, tt.want)
 			//}
@@ -61,7 +65,10 @@ func Test_randomDaIntegersInQa(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := pp.randomDaIntegersInQa(tt.args.seed)
+			got, err := pp.randomDaIntegersInQa(tt.args.seed)
+			if err != nil {
+				log.Fatal(err)
+			}
 			//if !reflect.DeepEqual(got, tt.want) {
 			//	t.Errorf("randomDcIntegersInQc() = %v, want %v", got, tt.want)
 			//}

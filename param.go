@@ -1,6 +1,7 @@
 package pqringct
 
 import (
+	"errors"
 	"github.com/cryptosuite/pqringct/pqringctkem"
 	"golang.org/x/crypto/sha3"
 	"log"
@@ -130,7 +131,8 @@ func NewPublicParameter(
 	}
 
 	// generate the public matrix paramMatrixA from seed
-	seedMatrixA := make([]byte, 32)
+	// todo: 20220414 review, check why use sha3.ShakeSum256, also use Hash()?
+	seedMatrixA := make([]byte, 32) // todo: 64?
 	sha3.ShakeSum256(seedMatrixA, append([]byte{'M', 'A'}, seed...))
 	res.paramMatrixA, err = res.expandPubMatrixA(seedMatrixA)
 	if err != nil {
@@ -138,12 +140,14 @@ func NewPublicParameter(
 	}
 
 	// generate the public matrix paramVecA from seed
-	seedVeca := make([]byte, 32)
+	// todo: 20220414 review, check why use sha3.ShakeSum256, also use Hash()?
+	seedVeca := make([]byte, 32) // todo: 64?
 	sha3.ShakeSum256(seedVeca, append([]byte{'M', 'a'}, seed...))
 	res.paramVecA, err = res.expandPubVecA(seedVeca)
 
 	// generate the public matrix paramMatrixB from seed
-	seedMatrixB := make([]byte, 32)
+	// todo: 20220414 review, check why use sha3.ShakeSum256, also use Hash()?
+	seedMatrixB := make([]byte, 32) // todo: 64?
 	sha3.ShakeSum256(seedMatrixB, append([]byte{'M', 'B'}, seed...))
 	res.paramMatrixB, err = res.expandPubMatrixB(seedMatrixB)
 	if err != nil {
@@ -151,7 +155,8 @@ func NewPublicParameter(
 	}
 
 	// generate the public matrix paramMatrixH from seed
-	seedMatrixH := make([]byte, 32)
+	// todo: 20220414 review, check why use sha3.ShakeSum256, also use Hash()?
+	seedMatrixH := make([]byte, 32) // todo: 64?
 	sha3.ShakeSum256(seedMatrixH, append([]byte{'M', 'H'}, seed...))
 	res.paramMatrixH, err = res.expandPubMatrixH(seedMatrixH)
 	if err != nil {
@@ -289,7 +294,13 @@ func (pp *PublicParameter) ParamSeedBytesLen() int {
 	return pp.paramKeyGenSeedBytesLen
 }
 
+// todo: 20220414 review
 func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
+	if len(seed) == 0 {
+		return nil, errors.New("expandPubMatrixA: the seed is empty")
+	}
+	seedUsed := append([]byte("MatrixA"), seed...)
+
 	res := make([]*PolyANTTVec, pp.paramKA)
 
 	unit := pp.NewZeroPolyA()
@@ -297,7 +308,7 @@ func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error)
 	unitNTT := pp.NTTPolyA(unit)
 
 	// generate the right sub-matrix A'
-	matrixAp, err := pp.generatePolyANTTMatrix(seed, pp.paramKA, 1+pp.paramLambdaA)
+	matrixAp, err := pp.generatePolyANTTMatrix(seedUsed, pp.paramKA, 1+pp.paramLambdaA)
 	if err != nil {
 		return nil, err
 	}
@@ -320,13 +331,19 @@ func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error)
 	return res, nil
 }
 
+// todo: 20220414 review
 func (pp *PublicParameter) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
+	if len(seed) == 0 {
+		return nil, errors.New("expandPubVecA: the seed is empty")
+	}
+	seedUsed := append([]byte("VectorA"), seed...)
+
 	unit := pp.NewZeroPolyA()
 	unit.coeffs[0] = 1
 	unitNTT := pp.NTTPolyA(unit)
 
 	// generate the right vector a'
-	vecAp, err := pp.generatePolyANTTMatrix(seed, 1, pp.paramLambdaA)
+	vecAp, err := pp.generatePolyANTTMatrix(seedUsed, 1, pp.paramLambdaA)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +359,13 @@ func (pp *PublicParameter) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
 	return res, nil
 }
 
+// todo: 20220414 review
 func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec, err error) {
+	if len(seed) == 0 {
+		return nil, errors.New("expandPubMatrixB: the seed is empty")
+	}
+	seedUsed := append([]byte("MatrixB"), seed...)
+
 	res := make([]*PolyCNTTVec, pp.paramKC)
 
 	unit := pp.NewZeroPolyC()
@@ -350,7 +373,7 @@ func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec
 	unitNTT := pp.NTTPolyC(unit)
 
 	// generate the right sub-matrix B'
-	matrixBp, err := pp.generatePolyCNTTMatrix(seed, pp.paramKC, pp.paramI+pp.paramJ+7+pp.paramLambdaC)
+	matrixBp, err := pp.generatePolyCNTTMatrix(seedUsed, pp.paramKC, pp.paramI+pp.paramJ+7+pp.paramLambdaC)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +395,13 @@ func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec
 	return res, nil
 }
 
+// todo: 20220414 review
 func (pp *PublicParameter) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec, err error) {
+	if len(seed) == 0 {
+		return nil, errors.New("expandPubMatrixH: the seed is empty")
+	}
+	seedUsed := append([]byte("MatrixH"), seed...)
+
 	res := make([]*PolyCNTTVec, pp.paramI+pp.paramJ+7)
 
 	unitPoly := pp.NewZeroPolyC()
@@ -380,7 +409,7 @@ func (pp *PublicParameter) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec
 	unitNTT := pp.NTTPolyC(unitPoly)
 
 	// generate the right sub-matrix H'
-	matrixHp, err := pp.generatePolyCNTTMatrix(seed, pp.paramI+pp.paramJ+7, pp.paramLambdaC)
+	matrixHp, err := pp.generatePolyCNTTMatrix(seedUsed, pp.paramI+pp.paramJ+7, pp.paramLambdaC)
 	if err != nil {
 		return nil, err
 	}

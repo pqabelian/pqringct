@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"errors"
 	"github.com/cryptosuite/pqringct/pqringctkem"
-	"golang.org/x/crypto/sha3"
 	"math/big"
 )
 
@@ -165,7 +164,7 @@ type elrsSignature struct {
 func (pp *PublicParameter) AddressKeyGen(seed []byte) (apk *AddressPublicKey, ask *AddressSecretKey, err error) {
 	// check the validity of the length of seed
 	if seed != nil && len(seed) != pp.paramKeyGenSeedBytesLen {
-		return nil, nil, errors.New("the length of seed is invalid")
+		return nil, nil, errors.New("AddressKeyGen: the length of seed is invalid")
 	}
 	if seed == nil {
 		seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
@@ -276,7 +275,10 @@ func (pp *PublicParameter) rpulpProve(message []byte, cmts []*ValueCommitment, c
 	}
 
 rpUlpProveRestart:
-	tmpg := pp.samplePloyCWithLowZeros()
+	tmpg, err := pp.samplePloyCWithLowZeros()
+	if err != nil {
+		return nil, err
+	}
 	g := pp.NTTPolyC(tmpg)
 	// c_hat(n2+1)
 	c_hat_g := pp.PolyCNTTAdd(pp.PolyCNTTVecInnerProduct(pp.paramMatrixH[pp.paramI+pp.paramJ+5], r_hat, pp.paramLC), g)
@@ -853,24 +855,30 @@ func (pp *PublicParameter) ExpandKIDR(lgrtxo *LgrTxo) (*PolyANTT, error) {
 		return nil, err
 	}
 
-	bitNum := 38
-	bound := pp.paramQA
-	xof := sha3.NewShake128()
-	xof.Reset()
-	length := pp.paramDA
-	coeffs := make([]int64, 0, length)
-	xof.Write(seed)
-	for len(coeffs) < length {
-		expectedNum := length - len(coeffs)
-		buf := make([]byte, (int64(bitNum*expectedNum)*(1<<bitNum)/bound+7)/8)
-		xof.Read(buf)
-		tmp := fillWithBound(buf, expectedNum, bitNum, bound)
-		coeffs = append(coeffs, tmp...)
+	coeffs, err := pp.randomDaIntegersInQa(seed)
+	if err != nil {
+		return nil, err
 	}
-	for i := 0; i < length; i++ {
-		coeffs[i] = reduceInt64(coeffs[i], pp.paramQA)
-	}
-	return &PolyANTT{coeffs: coeffs}, nil
+	return &PolyANTT{coeffs}, nil
+
+	//bitNum := 38
+	//bound := pp.paramQA
+	//xof := sha3.NewShake128()
+	//xof.Reset()
+	//length := pp.paramDA
+	//coeffs := make([]int64, 0, length)
+	//xof.Write(seed)
+	//for len(coeffs) < length {
+	//	expectedNum := length - len(coeffs)
+	//	buf := make([]byte, (int64(bitNum*expectedNum)*(1<<bitNum)/bound+7)/8)
+	//	xof.Read(buf)
+	//	tmp := fillWithBoundOld(buf, expectedNum, bitNum, bound)
+	//	coeffs = append(coeffs, tmp...)
+	//}
+	//for i := 0; i < length; i++ {
+	//	coeffs[i] = reduceInt64(coeffs[i], pp.paramQA)
+	//}
+	//return &PolyANTT{coeffs: coeffs}, nil
 }
 
 func (pp *PublicParameter) ELRSSign(

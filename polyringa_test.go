@@ -2,6 +2,7 @@ package pqringct
 
 import (
 	"fmt"
+	"log"
 	"math/big"
 	"testing"
 )
@@ -26,9 +27,15 @@ func TestPublicParameter_MulKaratsuba(t *testing.T) {
 	pp := Initialize(nil)
 	length := 32
 	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	ap := pp.randomDaIntegersInQa(seed)
+	ap, err := pp.randomDaIntegersInQa(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	seedp := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	bp := pp.randomDaIntegersInQa(seedp)
+	bp, err := pp.randomDaIntegersInQa(seedp)
+	if err != nil {
+		log.Fatal(err)
+	}
 	a := make([]int64, length)
 	b := make([]int64, length)
 
@@ -65,11 +72,17 @@ func (pp *PublicParameter) PolyAMul(a *PolyA, b *PolyA) *PolyA {
 func TestPublicParameter_PolyANTTMul(t *testing.T) {
 	pp := Initialize(nil)
 	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmpA := pp.randomDaIntegersInQa(seed)
+	tmpA, err := pp.randomDaIntegersInQa(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	a := &PolyA{coeffs: tmpA}
 
 	seedp := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmpB := pp.randomDaIntegersInQa(seedp)
+	tmpB, err := pp.randomDaIntegersInQa(seedp)
+	if err != nil {
+		log.Fatal(err)
+	}
 	b := &PolyA{coeffs: tmpB}
 
 	c := pp.PolyAMul(a, b)
@@ -99,7 +112,10 @@ func TestPublicParameter_NTTPolyA(t *testing.T) {
 	//}
 
 	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmpA := pp.randomDaIntegersInQa(seed)
+	tmpA, err := pp.randomDaIntegersInQa(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	//tmpA := make([]int64, pp.paramDA)
 	//for i := 0; i < pp.paramDA; i++ {
 	//	tmpA[i] = int64(1000 + i)

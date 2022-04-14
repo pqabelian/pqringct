@@ -1,6 +1,7 @@
 package pqringct
 
 import (
+	"errors"
 	"math/big"
 )
 
@@ -15,22 +16,29 @@ const (
 )
 
 //	todo: to review
+// todo: 20220414 review
 // generatePolyCNTTMatrix generate a matrix with rowLength * colLength, and the element in matrix is length
 func (pp *PublicParameter) generatePolyCNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyCNTTVec, error) {
 	// check the length of seed
+
+	var err error
 
 	tmpSeedLen := len(seed) + 2
 	tmpSeed := make([]byte, tmpSeedLen) //	1 byte for row index, and 1 byte for col index, assuming the row and col number is smaller than 127
 
 	rst := make([]*PolyCNTTVec, rowLength)
 	for i := 0; i < rowLength; i++ {
-		rst[i] = pp.NewZeroPolyCNTTVec(colLength)
+		//rst[i] = pp.NewZeroPolyCNTTVec(colLength)
+		rst[i] = pp.NewPolyCNTTVec(colLength)
 		for j := 0; j < colLength; j++ {
 			copy(tmpSeed, seed)
 			tmpSeed[tmpSeedLen-2] = byte(i)
 			tmpSeed[tmpSeedLen-1] = byte(j)
-
-			copy(rst[i].polyCNTTs[j].coeffs, pp.randomDcIntegersInQc(tmpSeed))
+			rst[i].polyCNTTs[j].coeffs, err = pp.randomDcIntegersInQc(tmpSeed)
+			if err != nil {
+				return nil, err
+			}
+			//copy(rst[i].polyCNTTs[j].coeffs, pp.randomDcIntegersInQc(tmpSeed))
 		}
 	}
 	return rst, nil
@@ -43,6 +51,7 @@ func (pp *PublicParameter) generatePolyANTTMatrix(seed []byte, rowLength int, co
 	tmpSeedLen := len(seed) + 2
 	tmpSeed := make([]byte, tmpSeedLen)
 
+	var err error
 	rst := make([]*PolyANTTVec, rowLength)
 	for i := 0; i < rowLength; i++ {
 		rst[i] = pp.NewPolyANTTVec(colLength)
@@ -51,7 +60,11 @@ func (pp *PublicParameter) generatePolyANTTMatrix(seed []byte, rowLength int, co
 			tmpSeed[tmpSeedLen-2] = byte(i)
 			tmpSeed[tmpSeedLen-1] = byte(j)
 
-			copy(rst[i].polyANTTs[j].coeffs, pp.randomDaIntegersInQa(tmpSeed))
+			rst[i].polyANTTs[j].coeffs, err = pp.randomDaIntegersInQa(tmpSeed)
+			if err != nil {
+				return nil, err
+			}
+			//copy(rst[i].polyANTTs[j].coeffs, pp.randomDaIntegersInQa(tmpSeed))
 		}
 	}
 	return rst, nil
@@ -237,46 +250,67 @@ func (pp *PublicParameter) collectBytesForRPULP2(
 	return rst
 }
 
-// todo: review
+// todo: 20220414 review
+// expandCombChallengeInRpulp() outputs n1 *PolyCNTT, paramK *PolyCNTT, paramK [m][paramDc]int64
 func (pp *PublicParameter) expandCombChallengeInRpulp(seed []byte, n1 uint8, m uint8) (alphas []*PolyCNTT, betas []*PolyCNTT, gammas [][][]int64, err error) {
-	alphas = make([]*PolyCNTT, n1)
-	betas = make([]*PolyCNTT, pp.paramK)
-	gammas = make([][][]int64, pp.paramK)
+
 	// check the length of seed
+	if len(seed) == 0 {
+		return nil, nil, nil, errors.New("expandCombChallengeInRpulp: seed is empty")
+	}
 
 	// alpha
+	alphas = make([]*PolyCNTT, n1)
+
 	alphaSeed := append([]byte{'A'}, seed...)
 	tmpSeedLen := len(alphaSeed) + 1 //	1 byte for index in [0, n1-1]
 	tmpSeed := make([]byte, tmpSeedLen)
-	for i := 0; i < int(n1); i++ {
+	for i := uint8(0); i < n1; i++ {
 		copy(tmpSeed, alphaSeed)
-		tmpSeed = append(tmpSeed, byte(i))
-		coeffs := pp.randomDcIntegersInQc(tmpSeed)
+		tmpSeed[tmpSeedLen-1] = byte(i)
+		//tmpSeed = append(tmpSeed, byte(i))
+		coeffs, err := pp.randomDcIntegersInQc(tmpSeed)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 		alphas[i] = &PolyCNTT{coeffs}
 	}
 
 	// betas
+	betas = make([]*PolyCNTT, pp.paramK)
+
 	betaSeed := append([]byte{'B'}, seed...)
 	tmpSeedLen = len(betaSeed) + 1 //	1 byte for index in [0, paramK]
 	tmpSeed = make([]byte, tmpSeedLen)
 	for i := 0; i < pp.paramK; i++ {
 		copy(tmpSeed, betaSeed)
-		tmpSeed = append(tmpSeed, byte(i))
-		coeffs := pp.randomDcIntegersInQc(tmpSeed)
+		tmpSeed[tmpSeedLen-1] = byte(i)
+		//tmpSeed = append(tmpSeed, byte(i))
+		coeffs, err := pp.randomDcIntegersInQc(tmpSeed)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 		betas[i] = &PolyCNTT{coeffs}
 	}
 
 	// gammas
+	gammas = make([][][]int64, pp.paramK)
+
 	gammaSeed := append([]byte{'G'}, seed...)
 	tmpSeedLen = len(gammaSeed) + 2 //	1 byte for index in [0, paramK], 1 byte for index in [0, m-1]
 	tmpSeed = make([]byte, tmpSeedLen)
 	for i := 0; i < pp.paramK; i++ {
 		gammas[i] = make([][]int64, m)
-		for j := 0; j < int(m); j++ {
+		for j := uint8(0); j < m; j++ {
 			copy(tmpSeed, gammaSeed)
-			tmpSeed = append(tmpSeed, byte(i))
-			tmpSeed = append(tmpSeed, byte(j))
-			gammas[i][j] = pp.randomDcIntegersInQc(tmpSeed)
+			tmpSeed[tmpSeedLen-2] = byte(i)
+			tmpSeed[tmpSeedLen-1] = byte(j)
+			//tmpSeed = append(tmpSeed, byte(i))
+			//tmpSeed = append(tmpSeed, byte(j))
+			gammas[i][j], err = pp.randomDcIntegersInQc(tmpSeed)
+			if err != nil {
+				return nil, nil, nil, err
+			}
 		}
 	}
 

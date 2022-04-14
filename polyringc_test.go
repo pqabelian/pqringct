@@ -2,6 +2,7 @@ package pqringct
 
 import (
 	"fmt"
+	"log"
 	"testing"
 )
 
@@ -39,7 +40,10 @@ func TestPublicParameter_NTTPolyC(t *testing.T) {
 	//}
 
 	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmpC := pp.randomDcIntegersInQc(seed)
+	tmpC, err := pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	//tmpA := make([]int64, pp.paramDA)
 	//for i := 0; i < pp.paramDA; i++ {
 	//	tmpA[i] = int64(1000 + i)

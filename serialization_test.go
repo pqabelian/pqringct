@@ -20,7 +20,11 @@ func Test_writePolyANTT_readPolyANTT(t *testing.T) {
 	pp := Initialize(nil)
 
 	for t := 0; t < 1000; t++ {
-		polyANTT = &PolyANTT{coeffs: pp.randomDaIntegersInQa(nil)}
+		coeffs, err := pp.randomDaIntegersInQa(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		polyANTT = &PolyANTT{coeffs}
 
 		if testBound {
 			polyANTT.coeffs[0] = (pp.paramQA - 1) >> 1
@@ -33,7 +37,7 @@ func Test_writePolyANTT_readPolyANTT(t *testing.T) {
 
 		size := pp.PolyANTTSerializeSize()
 		w := bytes.NewBuffer(make([]byte, 0, size))
-		err := pp.writePolyANTT(w, polyANTT)
+		err = pp.writePolyANTT(w, polyANTT)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -72,7 +76,11 @@ func Test_writePolyANTTVec_readPolyANTTVec(t *testing.T) {
 
 	polyANTTs := make([]*PolyANTT, pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
-		polyANTTs[i] = &PolyANTT{pp.randomDaIntegersInQa(nil)}
+		coeffs, err := pp.randomDaIntegersInQa(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		polyANTTs[i] = &PolyANTT{coeffs}
 	}
 
 	polyANTTVec := &PolyANTTVec{polyANTTs: polyANTTs}
@@ -315,7 +323,11 @@ func Test_writePolyCNTT_readPolyCNTT(t *testing.T) {
 	pp := Initialize(nil)
 
 	for t := 0; t < 1000; t++ {
-		polyCNTT = &PolyCNTT{coeffs: pp.randomDcIntegersInQc(nil)}
+		coeffs, err := pp.randomDcIntegersInQc(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		polyCNTT = &PolyCNTT{coeffs}
 
 		if testBound {
 			polyCNTT.coeffs[0] = (pp.paramQC - 1) >> 1
@@ -329,7 +341,7 @@ func Test_writePolyCNTT_readPolyCNTT(t *testing.T) {
 
 		size := pp.PolyCNTTSerializeSize()
 		w := bytes.NewBuffer(make([]byte, 0, size))
-		err := pp.writePolyCNTT(w, polyCNTT)
+		err = pp.writePolyCNTT(w, polyCNTT)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -368,7 +380,11 @@ func Test_writePolyCNTTVec_readPolyCNTTVec(t *testing.T) {
 
 	polyCNTTs := make([]*PolyCNTT, pp.paramKC)
 	for i := 0; i < pp.paramKC; i++ {
-		polyCNTTs[i] = &PolyCNTT{pp.randomDcIntegersInQc(nil)}
+		coeffs, err := pp.randomDcIntegersInQc(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		polyCNTTs[i] = &PolyCNTT{coeffs}
 	}
 
 	polyCNTTVec := &PolyCNTTVec{polyCNTTs: polyCNTTs}
@@ -556,9 +572,18 @@ func TestAddressPubicKeySerialize(t *testing.T) {
 	// normal
 	apkt := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
-		apkt.polyANTTs[i] = &PolyANTT{coeffs: pp.randomDaIntegersInQa(nil)}
+		coeffs, err := pp.randomDaIntegersInQa(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		apkt.polyANTTs[i] = &PolyANTT{coeffs}
 	}
-	apke := &PolyANTT{pp.randomDaIntegersInQa(nil)}
+
+	coeffs, err := pp.randomDaIntegersInQa(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	apke := &PolyANTT{coeffs}
 
 	apk := &AddressPublicKey{t: apkt, e: apke}
 
@@ -591,9 +616,17 @@ func TestAddressPubicKeySerialize(t *testing.T) {
 	if testAbnormal {
 		apkt = pp.NewPolyANTTVec(pp.paramKA + 1)
 		for i := 0; i < pp.paramKA+1; i++ {
-			apkt.polyANTTs[i] = &PolyANTT{coeffs: pp.randomDaIntegersInQa(nil)}
+			coeffs, err := pp.randomDaIntegersInQa(nil)
+			if err != nil {
+				log.Fatal(err)
+			}
+			apkt.polyANTTs[i] = &PolyANTT{coeffs}
 		}
-		apke = &PolyANTT{pp.randomDaIntegersInQa(nil)}
+		coeffs, err := pp.randomDaIntegersInQa(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		apke = &PolyANTT{coeffs}
 
 		apk = &AddressPublicKey{t: apkt, e: apke}
 
@@ -610,7 +643,7 @@ func TestAddressPubicKeySerialize(t *testing.T) {
 func TestSerializeAddressSecretKeySp(t *testing.T) {
 	pp := Initialize(nil)
 
-	testAbnormal := true
+	testAbnormal := false
 
 	var err error
 	s := pp.NewPolyAVec(pp.paramLA)
@@ -663,9 +696,12 @@ func TestSerializeAddressSecretKeySp(t *testing.T) {
 
 func TestSerializeAddressSecretKeySn(t *testing.T) {
 	pp := Initialize(nil)
-
+	coeffs, err := pp.randomDaIntegersInQa(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	m_a := &PolyANTT{
-		coeffs: pp.randomDaIntegersInQa(nil),
+		coeffs,
 	}
 
 	asksn := &AddressSecretKeySn{m_a}
@@ -699,9 +735,17 @@ func TestSerializeValueCommitment(t *testing.T) {
 
 	b := pp.NewPolyCNTTVec(pp.paramKC)
 	for i := 0; i < len(b.polyCNTTs); i++ {
-		b.polyCNTTs[i] = &PolyCNTT{pp.randomDcIntegersInQc(nil)}
+		coeffs, err := pp.randomDcIntegersInQc(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		b.polyCNTTs[i] = &PolyCNTT{coeffs}
 	}
-	c := &PolyCNTT{pp.randomDcIntegersInQc(nil)}
+	coeffs, err := pp.randomDcIntegersInQc(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	c := &PolyCNTT{coeffs}
 
 	vcmt := &ValueCommitment{b, c}
 
@@ -871,6 +915,8 @@ func TestSerializeTxo(t *testing.T) {
 		log.Fatal("wrong size")
 	}
 
+	fmt.Println("txo size:", len(serialzed))
+
 	recovered, err := pp.DeserializeTxo(serialzed)
 
 	if len(recovered.AddressPublicKey.t.polyANTTs) != pp.paramKA {
@@ -986,26 +1032,39 @@ func TestSerializeRpulpProof(t *testing.T) {
 	c_waves := make([]*PolyCNTT, n)
 	for i := 0; i < n; i++ {
 		seed = RandomBytes(RandSeedBytesLen)
-		tmp := pp.randomDcIntegersInQc(seed)
+		tmp, err := pp.randomDcIntegersInQc(seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 		c_waves[i] = &PolyCNTT{coeffs: tmp}
 	}
 
 	//	c_hat_g *PolyCNTT
 	var c_hat_g *PolyCNTT
 	seed = RandomBytes(RandSeedBytesLen)
-	tmp := pp.randomDcIntegersInQc(seed)
+	tmp, err := pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
+	//tmp := pp.randomDcIntegersInQc(seed)
 	c_hat_g = &PolyCNTT{coeffs: tmp}
 
 	//	psi     *PolyCNTT
 	var psi *PolyCNTT
 	seed = RandomBytes(RandSeedBytesLen)
-	tmp = pp.randomDcIntegersInQc(seed)
+	tmp, err = pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	psi = &PolyCNTT{coeffs: tmp}
 
 	//	phi     *PolyCNTT
 	var phi *PolyCNTT
 	seed = RandomBytes(RandSeedBytesLen)
-	tmp = pp.randomDcIntegersInQc(seed)
+	tmp, err = pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	phi = &PolyCNTT{coeffs: tmp}
 
 	//	chseed  []byte
@@ -2306,7 +2365,10 @@ func TestPublicParameter_SerializeAddressSecretSpAndSnKey_DeserializeAddressSecr
 	}
 	var e *PolyANTT
 	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp := pp.randomDaIntegersInQa(seed)
+	tmp, err := pp.randomDaIntegersInQa(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	e = &PolyANTT{coeffs: tmp}
 
 	asksp := &AddressSecretKeySp{ts}
@@ -2348,12 +2410,18 @@ func TestPublicParameter_SerializeValueCommitment_DeserializeValueCommitment(t *
 	b := pp.NewPolyCNTTVec(pp.paramKC)
 	for i := 0; i < pp.paramKC; i++ {
 		seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-		tmp := pp.randomDcIntegersInQc(seed)
+		tmp, err := pp.randomDcIntegersInQc(seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 		b.polyCNTTs[i] = &PolyCNTT{coeffs: tmp}
 	}
 	var c *PolyCNTT
 	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp := pp.randomDcIntegersInQc(seed)
+	tmp, err := pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	c = &PolyCNTT{coeffs: tmp}
 
 	vcmt := &ValueCommitment{
@@ -2389,12 +2457,18 @@ func TestPublicParameter_SerializeAddressPublicKey(t *testing.T) {
 	ts := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
 		seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-		tmp := pp.randomDaIntegersInQa(seed)
+		tmp, err := pp.randomDaIntegersInQa(seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 		ts.polyANTTs[i] = &PolyANTT{coeffs: tmp}
 	}
 	var e *PolyANTT
 	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp := pp.randomDaIntegersInQa(seed)
+	tmp, err := pp.randomDaIntegersInQa(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	e = &PolyANTT{coeffs: tmp}
 
 	apk := &AddressPublicKey{
@@ -2430,12 +2504,18 @@ func TestPublicParameter_SerializeTxo_DeserializeTxo(t *testing.T) {
 	ts := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
 		seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-		tmp := pp.randomDaIntegersInQa(seed)
+		tmp, err := pp.randomDaIntegersInQa(seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 		ts.polyANTTs[i] = &PolyANTT{coeffs: tmp}
 	}
 	var e *PolyANTT
 	seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp := pp.randomDaIntegersInQa(seed)
+	tmp, err := pp.randomDaIntegersInQa(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	e = &PolyANTT{coeffs: tmp}
 
 	apk := &AddressPublicKey{
@@ -2446,12 +2526,18 @@ func TestPublicParameter_SerializeTxo_DeserializeTxo(t *testing.T) {
 	b := pp.NewPolyCNTTVec(pp.paramKC)
 	for i := 0; i < pp.paramKC; i++ {
 		seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-		tmp := pp.randomDcIntegersInQc(seed)
+		tmp, err := pp.randomDcIntegersInQc(seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 		b.polyCNTTs[i] = &PolyCNTT{coeffs: tmp}
 	}
 	var c *PolyCNTT
 	seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp = pp.randomDcIntegersInQc(seed)
+	tmp, err = pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	c = &PolyCNTT{coeffs: tmp}
 
 	vcmt := &ValueCommitment{
@@ -2495,12 +2581,18 @@ func TestPublicParameter_SerializeLgrTxo_DeserializeLgrTxo(t *testing.T) {
 	ts := pp.NewPolyANTTVec(pp.paramKA)
 	for i := 0; i < pp.paramKA; i++ {
 		seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-		tmp := pp.randomDaIntegersInQa(seed)
+		tmp, err := pp.randomDaIntegersInQa(seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 		ts.polyANTTs[i] = &PolyANTT{coeffs: tmp}
 	}
 	var e *PolyANTT
 	seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp := pp.randomDaIntegersInQa(seed)
+	tmp, err := pp.randomDaIntegersInQa(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	e = &PolyANTT{coeffs: tmp}
 
 	apk := &AddressPublicKey{
@@ -2511,12 +2603,18 @@ func TestPublicParameter_SerializeLgrTxo_DeserializeLgrTxo(t *testing.T) {
 	b := pp.NewPolyCNTTVec(pp.paramKC)
 	for i := 0; i < pp.paramKC; i++ {
 		seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-		tmp := pp.randomDcIntegersInQc(seed)
+		tmp, err := pp.randomDcIntegersInQc(seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 		b.polyCNTTs[i] = &PolyCNTT{coeffs: tmp}
 	}
 	var c *PolyCNTT
 	seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp = pp.randomDcIntegersInQc(seed)
+	tmp, err = pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	c = &PolyCNTT{coeffs: tmp}
 
 	vcmt := &ValueCommitment{
@@ -2563,26 +2661,38 @@ func TestPublicParameter_SerializeRpulpProof_DeserializeRpulpProof(t *testing.T)
 	c_waves := make([]*PolyCNTT, J)
 	for i := 0; i < J; i++ {
 		seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-		tmp := pp.randomDcIntegersInQc(seed)
+		tmp, err := pp.randomDcIntegersInQc(seed)
+		if err != nil {
+			log.Fatal(err)
+		}
 		c_waves[i] = &PolyCNTT{coeffs: tmp}
 	}
 
 	//	c_hat_g *PolyCNTT
 	var c_hat_g *PolyCNTT
 	seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp := pp.randomDcIntegersInQc(seed)
+	tmp, err := pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	c_hat_g = &PolyCNTT{coeffs: tmp}
 
 	//	psi     *PolyCNTT
 	var psi *PolyCNTT
 	seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp = pp.randomDcIntegersInQc(seed)
+	tmp, err = pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	psi = &PolyCNTT{coeffs: tmp}
 
 	//	phi     *PolyCNTT
 	var phi *PolyCNTT
 	seed = RandomBytes(pp.paramKeyGenSeedBytesLen)
-	tmp = pp.randomDcIntegersInQc(seed)
+	tmp, err = pp.randomDcIntegersInQc(seed)
+	if err != nil {
+		log.Fatal(err)
+	}
 	phi = &PolyCNTT{coeffs: tmp}
 
 	//	chseed  []byte

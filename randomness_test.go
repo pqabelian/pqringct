@@ -55,8 +55,8 @@ func TestNaive_randomBytes(t *testing.T) {
 				}
 			}
 			total := float64(count0 + count1)
-			fmt.Println("number of 0:", count0, "persent:", float64(count0)/total)
-			fmt.Println("number of 1:", count0, "persent:", float64(count1)/total)
+			fmt.Println("number of 0:", count0, "percent:", float64(count0)/total)
+			fmt.Println("number of 1:", count1, "percent:", float64(count1)/total)
 			if float64(count0)/total-tt.baseline > tt.precision || float64(count0)/total-tt.baseline < -tt.precision {
 				t.Errorf("uneven")
 			}
@@ -248,34 +248,34 @@ func TestNaive_randomPolyCinEtaC(t *testing.T) {
 		{
 			name:      "10000Time",
 			times:     10_000,
-			slotNum:   10,
-			precision: 1e-1,
-			baseline:  0.1,
+			slotNum:   100,
+			precision: 1e-3,
+			baseline:  0.01,
 			manual:    false,
 		},
 		{
 			name:      "50000Time",
 			times:     50_000,
-			slotNum:   10,
-			precision: 1e-2,
-			baseline:  0.1,
+			slotNum:   100,
+			precision: 1e-3,
+			baseline:  0.01,
 			manual:    false,
 		},
 		{
 			name:      "100000Time",
 			times:     100_000,
-			slotNum:   10,
+			slotNum:   100,
 			precision: 1e-3,
-			baseline:  0.1,
+			baseline:  0.01,
 			manual:    false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			count := make([]int, tt.slotNum)
+			count := make([]int, tt.slotNum+1)
 			start := -pp.paramEtaC
 			end := pp.paramEtaC + 1
-			step := (end - start) / 10
+			step := (end - start) / int64(tt.slotNum)
 
 			var polyC *PolyC
 			var err error
@@ -303,6 +303,7 @@ func TestNaive_randomPolyCinEtaC(t *testing.T) {
 			}
 			for i := 0; i < tt.slotNum; i++ {
 				ratio := float64(count[i]) / float64(total)
+				fmt.Println("i:", i, "count:", count[i], "ratio:", ratio)
 				if ratio-tt.baseline > tt.precision || ratio-tt.baseline < -tt.precision {
 					t.Errorf("slot %d, number %v, percent:%v", i, count[i], ratio)
 				}
@@ -398,6 +399,7 @@ func TestNaive_randomPolyAinEtaA(t *testing.T) {
 	}
 }
 
+//	retest done 0413
 func TestNaive_randomPolyAinGammaA5(t *testing.T) {
 	pp := Initialize(nil)
 	tests := []struct {
@@ -463,6 +465,7 @@ func TestNaive_randomPolyAinGammaA5(t *testing.T) {
 			}
 			for i := 0; i < tt.slotNum; i++ {
 				ratio := float64(count[i]) / float64(total)
+				fmt.Println("slot ", i, "ratio:", ratio)
 				if ratio-tt.baseline > tt.precision || ratio-tt.baseline < -tt.precision {
 					t.Errorf("slot %d, number %v, percent:%v", i, count[i], ratio)
 				}
@@ -569,37 +572,41 @@ func TestNaive_randomDcIntegersInQc(t *testing.T) {
 		{
 			name:      "10000Time",
 			times:     10_000,
-			slotNum:   10,
-			precision: 1e-1,
-			baseline:  0.1,
+			slotNum:   100,
+			precision: 1e-3,
+			baseline:  0.01,
 			manual:    false,
 		},
 		{
 			name:      "50000Time",
 			times:     50_000,
-			slotNum:   10,
-			precision: 1e-2,
-			baseline:  0.1,
+			slotNum:   100,
+			precision: 1e-3,
+			baseline:  0.01,
 			manual:    false,
 		},
 		{
 			name:      "100000Time",
 			times:     100_000,
-			slotNum:   10,
+			slotNum:   100,
 			precision: 1e-3,
-			baseline:  0.1,
+			baseline:  0.01,
 			manual:    false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			count := make([]int, tt.slotNum)
-			start := -pp.paramQC >> 1
-			end := pp.paramQC>>1 + 1
-			step := (end - start) / 10
+			start := -(pp.paramQC - 1) >> 1
+			end := (pp.paramQC-1)>>1 + 1
+			step := (end - start) / 100
 			var coeffs []int64
+			var err error
 			for cnt := 0; cnt < tt.times; cnt++ {
-				coeffs = pp.randomDcIntegersInQc(nil)
+				coeffs, err = pp.randomDcIntegersInQc(nil)
+				if err != nil {
+					log.Fatal(err)
+				}
 
 				for i := 0; i < pp.paramDC; i++ {
 					switch {
@@ -714,7 +721,7 @@ func TestNaive_randomDcIntegersInQcEtaF(t *testing.T) {
 	}
 }
 
-func TestNaive_randomDcIntegersInQa(t *testing.T) {
+func TestNaive_randomDaIntegersInQa(t *testing.T) {
 	pp := Initialize(nil)
 	tests := []struct {
 		name      string
@@ -749,25 +756,41 @@ func TestNaive_randomDcIntegersInQa(t *testing.T) {
 			manual:    false,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			count := make([]int, tt.slotNum)
-			start := -pp.paramQA >> 1
-			end := pp.paramQA>>1 + 1
-			step := (end - start) / 10
+			start := -((pp.paramQA - 1) >> 1)
+			end := -start
+			step := pp.paramQA / 10
 			var coeffs []int64
+			var err error
 			for cnt := 0; cnt < tt.times; cnt++ {
-				coeffs = pp.randomDaIntegersInQa(nil)
+				coeffs, err = pp.randomDaIntegersInQa(nil)
+				if err != nil {
+					t.Fatal(err)
+				}
 
 				for i := 0; i < pp.paramDA; i++ {
 					switch {
 					case coeffs[i] < start:
 						t.Fatalf("ERROR: Sample in left out with %v", coeffs[i])
-					case coeffs[i] >= end:
+					case coeffs[i] > end:
 						t.Fatalf("ERROR: Sample in right out with %v", coeffs[i])
 					default:
-						slot := (coeffs[i] - start) / step
-						count[slot] = count[slot] + 1
+						for j := 0; j < tt.slotNum; j++ {
+							left := start + int64(j)*step
+							right := left + step
+							if j == tt.slotNum-1 {
+								right = end + 1
+							}
+							if coeffs[i] >= left && coeffs[i] < right {
+								count[j] = count[j] + 1
+								break
+							}
+						}
+						//slot := (coeffs[i] - start) / step
+						//count[slot] = count[slot] + 1
 					}
 				}
 			}
@@ -777,6 +800,7 @@ func TestNaive_randomDcIntegersInQa(t *testing.T) {
 			}
 			for i := 0; i < tt.slotNum; i++ {
 				ratio := float64(count[i]) / float64(total)
+				fmt.Println("i", i, ":", ratio)
 				if ratio-tt.baseline > tt.precision || ratio-tt.baseline < -tt.precision {
 					t.Errorf("slot %d, number %v, percent:%v", i, count[i], ratio)
 				}
@@ -950,6 +974,7 @@ func TestNaive_expandChallengeC(t *testing.T) {
 			for i := 0; i < pp.paramDC; i++ {
 				for j := 0; j < tt.slotNum; j++ {
 					ratio := float64(count[i][j]) / float64(total[i])
+					//					fmt.Println("i:", i, "ratio:", ratio)
 					if ratio-tt.baseline[j] > tt.precision || ratio-tt.baseline[j] < -tt.precision {
 						t.Errorf("slot %d, number %v, percent:%v, expected:%v", j, count[i], ratio, tt.baseline[j])
 					}
@@ -1007,8 +1032,12 @@ func TestNaive_samplePloyCWithLowZeros(t *testing.T) {
 			end := pp.paramQC>>1 + 1
 			step := (end - start) / 10
 			var polyC *PolyC
+			var err error
 			for cnt := 0; cnt < tt.times; cnt++ {
-				polyC = pp.samplePloyCWithLowZeros()
+				polyC, err = pp.samplePloyCWithLowZeros()
+				if err != nil {
+					log.Fatal(err)
+				}
 
 				for i := 0; i < pp.paramK; i++ {
 					if polyC.coeffs[i] != 0 {
@@ -1045,5 +1074,36 @@ func TestNaive_samplePloyCWithLowZeros(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestExpandBinaryMatrix(t *testing.T) {
+	pp := Initialize(nil)
+
+	for i := 0; i < 10; i++ {
+		seed := RandomBytes(RandSeedBytesLen)
+		BinM, err := expandBinaryMatrix(seed, pp.paramDC, pp.paramDC)
+		if err != nil {
+			log.Fatal(err)
+		}
+		count1 := 0
+		count0 := 0
+		for j := 0; j < pp.paramDC; j++ {
+			for k := 0; k < (pp.paramDC+7)/8; k++ {
+				for bb := 0; bb < 8; bb++ {
+					if (BinM[j][k]>>bb)&1 == 1 {
+						count1++
+					} else {
+						count0++
+					}
+				}
+
+			}
+		}
+
+		ratio0 := float64(count0) / float64(count0+count1)
+		ratio1 := float64(count1) / float64(count0+count1)
+		fmt.Println("0:", ratio0, "1:", ratio1)
+
 	}
 }
