@@ -3,7 +3,6 @@ package pqringct
 import (
 	"errors"
 	"github.com/cryptosuite/pqringct/pqringctkem"
-	"golang.org/x/crypto/sha3"
 	"log"
 	"math/big"
 )
@@ -131,33 +130,36 @@ func NewPublicParameter(
 	}
 
 	// generate the public matrix paramMatrixA from seed
-	// todo: 20220414 review, check why use sha3.ShakeSum256, also use Hash()?
-	seedMatrixA := make([]byte, 32) // todo: 64?
-	sha3.ShakeSum256(seedMatrixA, append([]byte{'M', 'A'}, seed...))
+	//seedMatrixA := make([]byte, 32)
+	//sha3.ShakeSum256(seedMatrixA, append([]byte{'M', 'A'}, seed...))
+	seedMatrixA := append([]byte{'M', 'A'}, seed...)
 	res.paramMatrixA, err = res.expandPubMatrixA(seedMatrixA)
 	if err != nil {
 		return nil, err
 	}
 
 	// generate the public matrix paramVecA from seed
-	// todo: 20220414 review, check why use sha3.ShakeSum256, also use Hash()?
-	seedVeca := make([]byte, 32) // todo: 64?
-	sha3.ShakeSum256(seedVeca, append([]byte{'M', 'a'}, seed...))
+	//seedVeca := make([]byte, 32)
+	//sha3.ShakeSum256(seedVeca, append([]byte{'M', 'a'}, seed...))
+	seedVeca := append([]byte{'V', 'a'}, seed...)
 	res.paramVecA, err = res.expandPubVecA(seedVeca)
+	if err != nil {
+		return nil, err
+	}
 
 	// generate the public matrix paramMatrixB from seed
-	// todo: 20220414 review, check why use sha3.ShakeSum256, also use Hash()?
-	seedMatrixB := make([]byte, 32) // todo: 64?
-	sha3.ShakeSum256(seedMatrixB, append([]byte{'M', 'B'}, seed...))
+	//seedMatrixB := make([]byte, 32)
+	//sha3.ShakeSum256(seedMatrixB, append([]byte{'M', 'B'}, seed...))
+	seedMatrixB := append([]byte{'M', 'B'}, seed...)
 	res.paramMatrixB, err = res.expandPubMatrixB(seedMatrixB)
 	if err != nil {
 		return nil, err
 	}
 
 	// generate the public matrix paramMatrixH from seed
-	// todo: 20220414 review, check why use sha3.ShakeSum256, also use Hash()?
-	seedMatrixH := make([]byte, 32) // todo: 64?
-	sha3.ShakeSum256(seedMatrixH, append([]byte{'M', 'H'}, seed...))
+	//seedMatrixH := make([]byte, 32)
+	//sha3.ShakeSum256(seedMatrixH, append([]byte{'M', 'H'}, seed...))
+	seedMatrixH := append([]byte{'M', 'H'}, seed...)
 	res.paramMatrixH, err = res.expandPubMatrixH(seedMatrixH)
 	if err != nil {
 		return nil, err
