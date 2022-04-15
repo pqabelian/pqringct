@@ -13,7 +13,7 @@ const RandSeedBytesLen = 64 // 512-bits
 // extendable output function is instanced as sha3.Shake128()
 // to get expected length number but the input of sha3.Shake128()
 // is output of sha3.Sha512() function.
-// todo: 20220414 review
+
 // filterWithBound() returns numbers in [0, bound], where bound is assumed to < 2^{63}-1。
 // i.e., it is assumed that bitNumPerSample <= 63
 func filterWithBound(buf []byte, expectedCount int, bitNumPerSample int, positiveBound int64) []int64 {
@@ -72,42 +72,7 @@ func filterWithBound(buf []byte, expectedCount int, bitNumPerSample int, positiv
 	return rst
 }
 
-//	todo: could be removed
-func fillWithBoundOld(buf []byte, expectCount int, bitNumPerSample int, bound int64) []int64 {
-	res := make([]int64, 0, expectCount)
-	// todo: to English comments
-	// 首先计算bitNum和8的最小公倍数，每次可以拿出needPer个byte生成
-	g := gcd(bitNumPerSample, 8)
-	needPer, gotPer := bitNumPerSample/g, 8/g
-	pos := 0
-	// 每次取needPer个byte
-	for pos+needPer-1 < len(buf) {
-		for i := 0; i < gotPer; i++ {
-			t := int64(0)
-			// [0,needPer*8] 中取出 [i*bitNumPerSample,(i+1)*bitNumPerSample]
-			for j := i * bitNumPerSample; j < (i+1)*bitNumPerSample; j++ {
-				t |= int64((buf[pos+j/8]&(1<<(j%8)))>>(j%8)) << (j - i*bitNumPerSample)
-			}
-			if t <= bound {
-				res = append(res, t)
-				if len(res) == expectCount {
-					return res
-				}
-			}
-		}
-		pos += needPer
-	}
-	return res
-}
-func gcd(a int, b int) int {
-	if b == 0 {
-		return a
-	}
-	return gcd(b, a%b)
-}
-
 // RandomBytes returns a byte array with given length from crypto/rand.Reader
-// todo: 20220414 review
 func RandomBytes(length int) []byte {
 	res := make([]byte, 0, length)
 
@@ -129,9 +94,7 @@ func RandomBytes(length int) []byte {
 // 523987 = 0111_1111_1110_1101_0011
 // randomPolyAForResponseA() returns a PolyA, where each coefficient lies in [-(eta_a - beta_a), (eta_a - beta_a)],
 // where eta_a = 2^{19}-1 and beta=120
-// todo: 20220414 review
 func (pp *PublicParameter) randomPolyAForResponseA() (*PolyA, error) {
-
 	seed := RandomBytes(RandSeedBytesLen)
 
 	xof := sha3.NewShake128()
@@ -210,7 +173,6 @@ func (pp *PublicParameter) randomPolyAForResponseA() (*PolyA, error) {
 	//return &PolyA{coeffs}, nil
 }
 
-// todo: 20220414 review
 //	randomPolyAinEtaA() outputs a PolyA, where each coefficient lies in [-eta_a, eta_a].
 func (pp *PublicParameter) randomPolyAinEtaA() (*PolyA, error) {
 
@@ -296,7 +258,6 @@ func (pp *PublicParameter) randomPolyAinEtaA() (*PolyA, error) {
 // 16777087 = 1111_1111_1111_1111_0111_1111
 // randomPolyCForResponseC() returns a PolyC, where each coefficient lies in [-(eta_c - beta_c), (eta_c - beta_c)],
 // where eta_c = 2^{24}-1 and beta_c=128
-// todo: 20220414 review
 func (pp *PublicParameter) randomPolyCForResponseC() (*PolyC, error) {
 	seed := RandomBytes(RandSeedBytesLen)
 
@@ -380,7 +341,6 @@ func (pp *PublicParameter) randomPolyCForResponseC() (*PolyC, error) {
 // 2^24-1= 1111_1111_1111_1111_1111_1111
 //	randomPolyCinEtaC() outputs a PolyC, where each coefficient lies in [-eta_c, eta_c].
 //	eta_c = 2^{24}-1, so that each coefficient needs 3 bytes (for absolute) and 1 bit (for signal)
-// todo: 20220414 review
 func (pp *PublicParameter) randomPolyCinEtaC() (*PolyC, error) {
 
 	seed := RandomBytes(RandSeedBytesLen)
@@ -464,7 +424,6 @@ func (pp *PublicParameter) randomPolyCinEtaC() (*PolyC, error) {
 }
 
 // [-2,2]
-// todo: 20220414 review
 func (pp *PublicParameter) randomPolyAinGammaA2(seed []byte) (*PolyA, error) {
 
 	var seedUsed []byte
@@ -560,56 +519,6 @@ func (pp *PublicParameter) randomPolyAinGammaA2Wrong(seed []byte) (*PolyA, error
 	return &PolyA{coeffs}, nil
 }
 
-// [-5,5]
-//	todo: this could be removed, since it will be used any more.
-func (pp *PublicParameter) randomPolyAinGammaA5(seed []byte) (*PolyA, error) {
-
-	var seedUsed []byte
-	if seed == nil {
-		seedUsed = RandomBytes(RandSeedBytesLen)
-	} else {
-		seedUsed = make([]byte, len(seed))
-		copy(seedUsed, seed)
-	}
-
-	xof := sha3.NewShake128()
-	xof.Reset()
-	_, err := xof.Write(seedUsed)
-	if err != nil {
-		return nil, err
-	}
-	var buf []byte
-	// random the number in range [0,2*bound], and then reduce to [-bound, bound]
-	// 2*bound=10, 4 bits are used to sample 1 number
-	// probability: (2*bound+1) / (1 << 4) // should be float
-	// needBits for each sample: 4*((1<<4)/(2*bound+1))
-	bound := int64(5) // [-5, 5] = [0,10]
-	bitNumPerSample := 4
-	expectedBitsPerSample := int(4*((1<<4)/float64(2*bound+1))) + 1 // should be less than 2^{32} bits
-
-	targetSampleCount := pp.paramDA
-	//	store the numbers that have been sampled, the target length is pp.paramDA
-	sampled := make([]int64, 0, targetSampleCount)
-
-	for len(sampled) < targetSampleCount {
-		// uniform reject sample from the buf
-		expectedSampleCount := targetSampleCount - len(sampled)
-		buf = make([]byte, (expectedSampleCount*expectedBitsPerSample+7)/8)
-		_, err = xof.Read(buf)
-		if err != nil {
-			return nil, err
-		}
-		tmp := filterWithBound(buf, expectedSampleCount, bitNumPerSample, 2*bound)
-		sampled = append(sampled, tmp...)
-	}
-
-	for i := 0; i < targetSampleCount; i++ {
-		sampled[i] = sampled[i] - bound
-	}
-	return &PolyA{sampled}, nil
-}
-
-// review done 0413
 //	expandValuePadRandomness() return pp.TxoValueBytesLen() bytes,
 //	which will be used to encrypt the value-bytes.
 //	pp.TxoValueBytesLen() is 7, which means we use XOF to generate 7*8 = 56 bits.
@@ -846,7 +755,6 @@ func (pp PublicParameter) sampleResponseC() (*PolyCVec, error) {
 // 4503599627373056 = 0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_000_1010_0000_0000
 //	randomDcIntegersInQc() outputs Dc int64,  by sampling uniformly (when seed is nil) or expanding from a seed (when seed is not nil)
 //	Each integer lies in [-(Q_c-1)/2, (Q_c-2)/2].
-// todo: 20220414 review
 func (pp *PublicParameter) randomDcIntegersInQc(seed []byte) ([]int64, error) {
 	var tmpSeed []byte
 	if len(seed) == 0 {
@@ -928,7 +836,6 @@ func (pp *PublicParameter) randomDcIntegersInQc(seed []byte) ([]int64, error) {
 //	randomDcIntegersInQcEtaF() outputs Dc int64,  by sampling uniformly.
 //	Each integer lies in [-eta_f, eta_f].
 //	eta_f = 2^23-1.
-// todo: 20220414 review
 func (pp *PublicParameter) randomDcIntegersInQcEtaF() ([]int64, error) {
 
 	seed := RandomBytes(RandSeedBytesLen)
@@ -1001,9 +908,6 @@ func (pp *PublicParameter) randomDcIntegersInQcEtaF() ([]int64, error) {
 
 }
 
-// 137438953937= 0010_0000_0000_0000_0000_0000_0000_0001_1101_0001
-// 0001_0000_0000_0000_0000_0000_0000_0000_1110_1000
-// todo: 20220414 review
 // q_a = 8522826353 = 2^32+2^31+2^30+2^29+2^28+2^27+2^26+2^9+2^6+2^5+2^4+1
 //	randomDaIntegersInQa() returns paramDA int64, each in the scope [-(q_a-1)/2, (q_a-1)/2].
 func (pp *PublicParameter) randomDaIntegersInQa(seed []byte) ([]int64, error) {
@@ -1058,8 +962,6 @@ func (pp *PublicParameter) randomDaIntegersInQa(seed []byte) ([]int64, error) {
 //	The seed could not be empty.
 // Firstly, set the 1 or -1 with total number is theta
 // Secondly, shuffle the array using the Knuth-Durstenfeld Shuffle
-// todo: 20220414 review; paramDA is 256, using 7 bit for shuffle, is there any problem?
-//	todo: 20220414 review; using the design and algorithm as in Dilithium
 func (pp *PublicParameter) expandChallengeA(seed []byte) (*PolyA, error) {
 	//tmpSeed := make([]byte, len(seed))
 	//copy(tmpSeed, seed)
@@ -1105,11 +1007,7 @@ func (pp *PublicParameter) expandChallengeA(seed []byte) (*PolyA, error) {
 //	expandChallengeC() returns a challenge for proof in value commitment, say a PolyC, //
 //	where each coefficient is sampled from {-1, 0, 1}, with Pr(0)=1/2, Pr(1)=Pr(-1)= 1/4.
 //	The seed could not be empty.
-// todo: 20220414 review
 func (pp PublicParameter) expandChallengeC(seed []byte) (*PolyC, error) {
-	//tmpSeed := make([]byte, len(seed))
-	//copy(tmpSeed, seed)
-
 	if len(seed) == 0 {
 		//	for such an expand fucntion, the seed could not be empty.
 		return nil, errors.New("expandChallengeC: the seed is empty")
@@ -1155,8 +1053,6 @@ func (pp PublicParameter) expandChallengeC(seed []byte) (*PolyC, error) {
 	return rst, nil
 }
 
-// todo: 20220414 review
-//	call pp.randomDcIntegersInQc() rather than directly call fillWithBoundOld()
 func (pp *PublicParameter) samplePloyCWithLowZeros() (*PolyC, error) {
 
 	coeffs, err := pp.randomDcIntegersInQc(nil)
@@ -1197,7 +1093,6 @@ func (pp *PublicParameter) samplePloyCWithLowZeros() (*PolyC, error) {
 //	return rst
 //}
 
-// todo: 20220414 review
 func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err error) {
 	if len(seed) == 0 {
 		//	for such an expand function, the seed should not be empty.
@@ -1222,24 +1117,6 @@ func expandBinaryMatrix(seed []byte, rownum int, colnum int) (binM [][]byte, err
 		copy(binM[i], buf)
 	}
 	return binM, nil
-
-	//binM = make([][]byte, rownum)
-	//XOF := sha3.NewShake128()
-	//for i := 0; i < rownum; i++ {
-	//	buf := make([]byte, (colnum+7)/8)
-	//	binM[i] = make([]byte, (colnum+7)/8)
-	//	XOF.Reset()
-	//	_, err = XOF.Write(append(seed, byte(i)))
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	_, err = XOF.Read(buf)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	binM[i] = buf
-	//}
-	//return binM, nil
 }
 
 func expandBinaryMatrixOld(seed []byte, rownum int, colnum int) (binM [][]byte, err error) {

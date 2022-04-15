@@ -22,7 +22,7 @@ const (
 )
 
 func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, error) {
-	apk, ask, err := pp.AddressKeyGen(seed)
+	apk, ask, err := pp.addressKeyGen(seed)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -45,7 +45,7 @@ func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, er
 
 //	ask = (s, m_a), apk = (t = As, e = <a,s>+m_a). s is asksp, m_a is asksn
 func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
-	vpk, vsk, err := pp.ValueKeyGen(seed)
+	vpk, vsk, err := pp.valueKeyGen(seed)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -53,20 +53,20 @@ func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 }
 
 func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDesc, txMemo []byte) (cbTx *CoinbaseTx, err error) {
-	return pp.CoinbaseTxGen(vin, txOutputDescs, txMemo)
+	return pp.coinbaseTxGen(vin, txOutputDescs, txMemo)
 }
 func CoinbaseTxVerify(pp *PublicParameter, cbTx *CoinbaseTx) (bool, error) {
-	return pp.CoinbaseTxVerify(cbTx)
+	return pp.coinbaseTxVerify(cbTx)
 }
 
 func TransferTxGen(pp *PublicParameter, inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64, txMemo []byte) (trTx *TransferTx, err error) {
-	return pp.TransferTxGen(inputDescs, outputDescs, fee, txMemo)
+	return pp.transferTxGen(inputDescs, outputDescs, fee, txMemo)
 }
 func TransferTxVerify(pp *PublicParameter, trTx *TransferTx) (bool, error) {
-	return pp.TransferTxVerify(trTx)
+	return pp.transferTxVerify(trTx)
 }
 func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVPk []byte, serializedVSk []byte) (valid bool, v uint64, err error) {
-	bl, value, err := pp.TxoCoinReceive(txo, address, serializedVPk, serializedVSk)
+	bl, value, err := pp.txoCoinReceive(txo, address, serializedVPk, serializedVSk)
 
 	if err != nil {
 		return false, 0, err
@@ -193,11 +193,11 @@ func GetTxOutputMaxNum(pp *PublicParameter) int {
 }
 
 func GetSerialNumberSerializeSize(pp *PublicParameter) int {
-	return pp.LedgerTxoSerialNumberSerializeSize()
+	return pp.ledgerTxoSerialNumberSerializeSize()
 }
 
 func GetNullSerialNumber(pp *PublicParameter) []byte {
-	snSize := pp.LedgerTxoSerialNumberSerializeSize()
+	snSize := pp.ledgerTxoSerialNumberSerializeSize()
 	nullSn := make([]byte, snSize)
 	for i := 0; i < snSize; i++ {
 		nullSn[i] = 0

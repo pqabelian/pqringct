@@ -887,12 +887,12 @@ func TestSerializeTxo(t *testing.T) {
 
 	pp := Initialize(nil)
 
-	apk, _, err := pp.AddressKeyGen(nil)
+	apk, _, err := pp.addressKeyGen(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	vpk, _, err := pp.ValueKeyGen(nil)
+	vpk, _, err := pp.valueKeyGen(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -965,12 +965,12 @@ func TestSerializeTxo(t *testing.T) {
 func TestSerializeLgrTxo(t *testing.T) {
 	pp := Initialize(nil)
 
-	apk, _, err := pp.AddressKeyGen(nil)
+	apk, _, err := pp.addressKeyGen(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	vpk, _, err := pp.ValueKeyGen(nil)
+	vpk, _, err := pp.valueKeyGen(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1210,28 +1210,28 @@ func TestWriteCarryVectorRProof(t *testing.T) {
 func TestSerializeCoinbaseTx(t *testing.T) {
 	pp := Initialize(nil)
 	seed1 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk1, _, _ := pp.AddressKeyGen(seed1)
-	serializedVPk1, _, _ := pp.ValueKeyGen(seed1)
+	apk1, _, _ := pp.addressKeyGen(seed1)
+	serializedVPk1, _, _ := pp.valueKeyGen(seed1)
 	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
 
 	seed2 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk2, _, _ := pp.AddressKeyGen(seed2)
-	serializedVPk2, _, _ := pp.ValueKeyGen(seed2)
+	apk2, _, _ := pp.addressKeyGen(seed2)
+	serializedVPk2, _, _ := pp.valueKeyGen(seed2)
 	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)
 
 	seed3 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk3, _, _ := pp.AddressKeyGen(seed3)
-	serializedVPk3, _, _ := pp.ValueKeyGen(seed3)
+	apk3, _, _ := pp.addressKeyGen(seed3)
+	serializedVPk3, _, _ := pp.valueKeyGen(seed3)
 	serializedAPk3, _ := pp.SerializeAddressPublicKey(apk3)
 
 	seed4 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk4, _, _ := pp.AddressKeyGen(seed4)
-	serializedVPk4, _, _ := pp.ValueKeyGen(seed4)
+	apk4, _, _ := pp.addressKeyGen(seed4)
+	serializedVPk4, _, _ := pp.valueKeyGen(seed4)
 	serializedAPk4, _ := pp.SerializeAddressPublicKey(apk4)
 
 	seed5 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk5, _, _ := pp.AddressKeyGen(seed5)
-	serializedVPk5, _, _ := pp.ValueKeyGen(seed5)
+	apk5, _, _ := pp.addressKeyGen(seed5)
+	serializedVPk5, _, _ := pp.valueKeyGen(seed5)
 	serializedAPk5, _ := pp.SerializeAddressPublicKey(apk5)
 
 	type cbtxGenArgs struct {
@@ -1323,9 +1323,9 @@ func TestSerializeCoinbaseTx(t *testing.T) {
 	var err error
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cbTx, err = pp.CoinbaseTxGen(tt.args.vin, tt.args.txOutputDescs, tt.args.txMemo)
+			cbTx, err = pp.coinbaseTxGen(tt.args.vin, tt.args.txOutputDescs, tt.args.txMemo)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("coinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			serializedWithoutWitness, err := pp.SerializeCoinbaseTx(cbTx, false)
@@ -1377,13 +1377,13 @@ func TestSerializeCoinbaseTx(t *testing.T) {
 				log.Fatal(err)
 			}
 
-			got, err := pp.CoinbaseTxVerify(cbTxRe)
+			got, err := pp.coinbaseTxVerify(cbTxRe)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("coinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("CoinbaseTxVerify() = %v, want %v", got, tt.want)
+				t.Errorf("coinbaseTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1393,10 +1393,10 @@ func TestSerializeTransferTx(t *testing.T) {
 	pp := Initialize(nil)
 
 	seed1 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk1, ask1, _ := pp.AddressKeyGen(seed1)
+	apk1, ask1, _ := pp.addressKeyGen(seed1)
 	serializedASkSp1, _ := pp.SerializeAddressSecretKeySp(ask1.AddressSecretKeySp)
 	serializedASkSn1, _ := pp.SerializeAddressSecretKeySn(ask1.AddressSecretKeySn)
-	serializedVPk1, serializedVSk1, _ := pp.ValueKeyGen(seed1)
+	serializedVPk1, serializedVSk1, _ := pp.valueKeyGen(seed1)
 	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
 
 	if false {
@@ -1406,10 +1406,10 @@ func TestSerializeTransferTx(t *testing.T) {
 	}
 
 	seed2 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk2, ask2, _ := pp.AddressKeyGen(seed2)
+	apk2, ask2, _ := pp.addressKeyGen(seed2)
 	serializedASkSp2, _ := pp.SerializeAddressSecretKeySp(ask2.AddressSecretKeySp)
 	serializedASkSn2, _ := pp.SerializeAddressSecretKeySn(ask2.AddressSecretKeySn)
-	serializedVPk2, serializedVSk2, _ := pp.ValueKeyGen(seed2)
+	serializedVPk2, serializedVSk2, _ := pp.valueKeyGen(seed2)
 	serializedAPk2, _ := pp.SerializeAddressPublicKey(apk2)
 
 	if false {
@@ -1419,11 +1419,11 @@ func TestSerializeTransferTx(t *testing.T) {
 	}
 
 	seed3 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk3, ask3, _ := pp.AddressKeyGen(seed3)
+	apk3, ask3, _ := pp.addressKeyGen(seed3)
 	serializedASkSp3, _ := pp.SerializeAddressSecretKeySp(ask3.AddressSecretKeySp)
 	serializedASkSn3, _ := pp.SerializeAddressSecretKeySn(ask3.AddressSecretKeySn)
 
-	serializedVPk3, serializedVSk3, _ := pp.ValueKeyGen(seed3)
+	serializedVPk3, serializedVSk3, _ := pp.valueKeyGen(seed3)
 	serializedAPk3, _ := pp.SerializeAddressPublicKey(apk3)
 
 	if false {
@@ -1433,10 +1433,10 @@ func TestSerializeTransferTx(t *testing.T) {
 	}
 
 	seed4 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk4, ask4, _ := pp.AddressKeyGen(seed4)
+	apk4, ask4, _ := pp.addressKeyGen(seed4)
 	serializedASkSp4, _ := pp.SerializeAddressSecretKeySp(ask4.AddressSecretKeySp)
 	serializedASkSn4, _ := pp.SerializeAddressSecretKeySn(ask4.AddressSecretKeySn)
-	serializedVPk4, serializedVSk4, _ := pp.ValueKeyGen(seed4)
+	serializedVPk4, serializedVSk4, _ := pp.valueKeyGen(seed4)
 	serializedAPk4, _ := pp.SerializeAddressPublicKey(apk4)
 
 	if false {
@@ -1446,10 +1446,10 @@ func TestSerializeTransferTx(t *testing.T) {
 	}
 
 	seed5 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk5, ask5, _ := pp.AddressKeyGen(seed5)
+	apk5, ask5, _ := pp.addressKeyGen(seed5)
 	serializedASkSp5, _ := pp.SerializeAddressSecretKeySp(ask5.AddressSecretKeySp)
 	serializedASkSn5, _ := pp.SerializeAddressSecretKeySn(ask5.AddressSecretKeySn)
-	serializedVPk5, serializedVSk5, _ := pp.ValueKeyGen(seed5)
+	serializedVPk5, serializedVSk5, _ := pp.valueKeyGen(seed5)
 	serializedAPk5, _ := pp.SerializeAddressPublicKey(apk5)
 
 	if false {
@@ -1459,10 +1459,10 @@ func TestSerializeTransferTx(t *testing.T) {
 	}
 
 	seed6 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk6, ask6, _ := pp.AddressKeyGen(seed6)
+	apk6, ask6, _ := pp.addressKeyGen(seed6)
 	serializedASkSp6, _ := pp.SerializeAddressSecretKeySp(ask6.AddressSecretKeySp)
 	serializedASkSn6, _ := pp.SerializeAddressSecretKeySn(ask6.AddressSecretKeySn)
-	serializedVPk6, serializedVSk6, _ := pp.ValueKeyGen(seed6)
+	serializedVPk6, serializedVSk6, _ := pp.valueKeyGen(seed6)
 	serializedAPk6, _ := pp.SerializeAddressPublicKey(apk6)
 
 	if false {
@@ -1474,10 +1474,10 @@ func TestSerializeTransferTx(t *testing.T) {
 	}
 
 	seed7 := RandomBytes(pp.paramKeyGenSeedBytesLen)
-	apk7, ask7, _ := pp.AddressKeyGen(seed7)
+	apk7, ask7, _ := pp.addressKeyGen(seed7)
 	serializedASkSp7, _ := pp.SerializeAddressSecretKeySp(ask7.AddressSecretKeySp)
 	serializedASkSn7, _ := pp.SerializeAddressSecretKeySn(ask7.AddressSecretKeySn)
-	serializedVPk7, serializedVSk7, _ := pp.ValueKeyGen(seed7)
+	serializedVPk7, serializedVSk7, _ := pp.valueKeyGen(seed7)
 	serializedAPk7, _ := pp.SerializeAddressPublicKey(apk7)
 
 	if false {
@@ -1565,9 +1565,9 @@ func TestSerializeTransferTx(t *testing.T) {
 	//	for _, tt := range testsCb {
 	tt := testsCb[0]
 	t.Run(tt.name, func(t *testing.T) {
-		cbTx0, err = pp.CoinbaseTxGen(tt.args.vin, tt.args.txOutputDescs, tt.args.txMemo)
+		cbTx0, err = pp.coinbaseTxGen(tt.args.vin, tt.args.txOutputDescs, tt.args.txMemo)
 		if (err != nil) != tt.wantErr {
-			t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
+			t.Errorf("coinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 			return
 		}
 		//serializedWithWitness0, err := pp.SerializeCoinbaseTx(cbTx0, true)
@@ -1581,22 +1581,22 @@ func TestSerializeTransferTx(t *testing.T) {
 		//	log.Fatal("deserialized does not equal to the original")
 		//}
 		//
-		//got0, err := pp.CoinbaseTxVerify(cbTxRe0)
+		//got0, err := pp.coinbaseTxVerify(cbTxRe0)
 		//if (err != nil) != tt.wantErr {
-		//	t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
+		//	t.Errorf("coinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 		//	return
 		//}
 		//if got0 != tt.want {
-		//	t.Errorf("CoinbaseTxVerify() = %v, want %v", got0, tt.want)
+		//	t.Errorf("coinbaseTxVerify() = %v, want %v", got0, tt.want)
 		//}
 	})
 	//	}
 
 	tt = testsCb[1]
 	t.Run(tt.name, func(t *testing.T) {
-		cbTx1, err = pp.CoinbaseTxGen(tt.args.vin, tt.args.txOutputDescs, tt.args.txMemo)
+		cbTx1, err = pp.coinbaseTxGen(tt.args.vin, tt.args.txOutputDescs, tt.args.txMemo)
 		if (err != nil) != tt.wantErr {
-			t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
+			t.Errorf("coinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 			return
 		}
 		//		serializedWithWitness1, err := pp.SerializeCoinbaseTx(cbTx1, true)
@@ -1610,13 +1610,13 @@ func TestSerializeTransferTx(t *testing.T) {
 		//	log.Fatal("deserialized does not equal to the original")
 		//}
 
-		//got1, err := pp.CoinbaseTxVerify(cbTxRe1)
+		//got1, err := pp.coinbaseTxVerify(cbTxRe1)
 		//if (err != nil) != tt.wantErr {
-		//	t.Errorf("CoinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
+		//	t.Errorf("coinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 		//	return
 		//}
 		//if got1 != tt.want {
-		//	t.Errorf("CoinbaseTxVerify() = %v, want %v", got1, tt.want)
+		//	t.Errorf("coinbaseTxVerify() = %v, want %v", got1, tt.want)
 		//}
 	})
 
@@ -2026,9 +2026,9 @@ func TestSerializeTransferTx(t *testing.T) {
 	}
 	for _, tt := range testTrTxs {
 		t.Run(tt.name, func(t *testing.T) {
-			trTx, err := pp.TransferTxGen(tt.args.inputDescs, tt.args.outputDescs, tt.args.fee, tt.args.txMemo)
+			trTx, err := pp.transferTxGen(tt.args.inputDescs, tt.args.outputDescs, tt.args.fee, tt.args.txMemo)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("TransferTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("transferTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
@@ -2063,13 +2063,13 @@ func TestSerializeTransferTx(t *testing.T) {
 			fmt.Println("ElrsSig Expected Size:", pp.ElrsSignatureSerializeSize(trTxDeser.TxWitness.elrsSigs[0]))
 			fmt.Println("ElrsSig Actual Size:", len(serElsSig))
 
-			got, err := pp.TransferTxVerify(trTxDeser)
+			got, err := pp.transferTxVerify(trTxDeser)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("TransferTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("transferTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("TransferTxVerify() = %v, want %v", got, tt.want)
+				t.Errorf("transferTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -41,8 +41,8 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 	serializedASksns := make([][]byte, peerNum)
 	for i := 0; i < peerNum; i++ {
 		seeds[i] = RandomBytes(pp.paramKeyGenSeedBytesLen)
-		apks[i], asks[i], _ = pp.AddressKeyGen(seeds[i])
-		serializedVPks[i], serializedVSks[i], _ = pp.ValueKeyGen(seeds[i])
+		apks[i], asks[i], _ = pp.addressKeyGen(seeds[i])
+		serializedVPks[i], serializedVSks[i], _ = pp.valueKeyGen(seeds[i])
 		copyNum := 3
 		serializedVSksCopy[i] = make([][]byte, copyNum)
 		for j := 0; j < copyNum; j++ {
@@ -66,7 +66,7 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 	var err error
 	// generate coinbase transaction with txOutputDescs
 	for i := 0; i < cbTxNum; i++ {
-		cbTxs[i], err = pp.CoinbaseTxGen(512, txOutputDescs, nil)
+		cbTxs[i], err = pp.coinbaseTxGen(512, txOutputDescs, nil)
 		if err != nil {
 			t.Errorf(err.Error())
 		}
@@ -81,7 +81,7 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 			t.Errorf(err.Error())
 		}
 		var valid bool
-		valid, err = pp.CoinbaseTxVerify(cbTx1Deser)
+		valid, err = pp.coinbaseTxVerify(cbTx1Deser)
 		if err != nil {
 			t.Errorf(err.Error())
 		}
@@ -211,9 +211,9 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotTrTx, err := pp.TransferTxGen(tt.args.inputDescs, tt.args.outputDescs, tt.args.fee, tt.args.txMemo)
+			gotTrTx, err := pp.transferTxGen(tt.args.inputDescs, tt.args.outputDescs, tt.args.fee, tt.args.txMemo)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("TransferTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("transferTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
@@ -233,13 +233,13 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 			fmt.Println("TrTxWitnessSizeApprox:", pp.TrTxWitnessSerializeSizeApprox(ringSizes, len(gotTrTx.OutputTxos)))
 			fmt.Println("TrTxWitnessSizeExact:", pp.TrTxWitnessSerializeSize(gotTrTx.TxWitness))
 
-			got, err := pp.TransferTxVerify(gotTrTxDeser)
+			got, err := pp.transferTxVerify(gotTrTxDeser)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("TransferTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("transferTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("TransferTxVerify() = %v, want %v", got, tt.want)
+				t.Errorf("transferTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
 	}

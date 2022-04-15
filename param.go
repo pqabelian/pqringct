@@ -296,7 +296,6 @@ func (pp *PublicParameter) ParamSeedBytesLen() int {
 	return pp.paramKeyGenSeedBytesLen
 }
 
-// todo: 20220414 review
 func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error) {
 	if len(seed) == 0 {
 		return nil, errors.New("expandPubMatrixA: the seed is empty")
@@ -333,7 +332,6 @@ func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error)
 	return res, nil
 }
 
-// todo: 20220414 review
 func (pp *PublicParameter) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
 	if len(seed) == 0 {
 		return nil, errors.New("expandPubVecA: the seed is empty")
@@ -361,7 +359,6 @@ func (pp *PublicParameter) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
 	return res, nil
 }
 
-// todo: 20220414 review
 func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec, err error) {
 	if len(seed) == 0 {
 		return nil, errors.New("expandPubMatrixB: the seed is empty")
@@ -397,7 +394,6 @@ func (pp *PublicParameter) expandPubMatrixB(seed []byte) (matrixB []*PolyCNTTVec
 	return res, nil
 }
 
-// todo: 20220414 review
 func (pp *PublicParameter) expandPubMatrixH(seed []byte) (matrixH []*PolyCNTTVec, err error) {
 	if len(seed) == 0 {
 		return nil, errors.New("expandPubMatrixH: the seed is empty")

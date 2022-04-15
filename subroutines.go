@@ -15,8 +15,6 @@ const (
 	RpUlpTypeTrTx2 RpUlpType = 3
 )
 
-//	todo: to review
-// todo: 20220414 review
 // generatePolyCNTTMatrix generate a matrix with rowLength * colLength, and the element in matrix is length
 func (pp *PublicParameter) generatePolyCNTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyCNTTVec, error) {
 	// check the length of seed
@@ -44,7 +42,6 @@ func (pp *PublicParameter) generatePolyCNTTMatrix(seed []byte, rowLength int, co
 	return rst, nil
 }
 
-// todo: review 20220404
 // generatePolyANTTMatrix() expands the seed to a polyANTT matrix.
 func (pp *PublicParameter) generatePolyANTTMatrix(seed []byte, rowLength int, colLength int) ([]*PolyANTTVec, error) {
 	// check the length of seed
@@ -250,7 +247,6 @@ func (pp *PublicParameter) collectBytesForRPULP2(
 	return rst
 }
 
-// todo: 20220414 review
 // expandCombChallengeInRpulp() outputs n1 *PolyCNTT, paramK *PolyCNTT, paramK [m][paramDc]int64
 func (pp *PublicParameter) expandCombChallengeInRpulp(seed []byte, n1 uint8, m uint8) (alphas []*PolyCNTT, betas []*PolyCNTT, gammas [][][]int64, err error) {
 
@@ -267,9 +263,10 @@ func (pp *PublicParameter) expandCombChallengeInRpulp(seed []byte, n1 uint8, m u
 	tmpSeed := make([]byte, tmpSeedLen)
 	for i := uint8(0); i < n1; i++ {
 		copy(tmpSeed, alphaSeed)
-		tmpSeed[tmpSeedLen-1] = byte(i)
+		tmpSeed[tmpSeedLen-1] = i
 		//tmpSeed = append(tmpSeed, byte(i))
-		coeffs, err := pp.randomDcIntegersInQc(tmpSeed)
+		var coeffs []int64
+		coeffs, err = pp.randomDcIntegersInQc(tmpSeed)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -637,8 +634,7 @@ func reduceInt64(a int64, q int64) int64 {
 	return r
 }
 
-// todo: review
-//	intToBinary() returns the bits representation of v, supposing paramDc >= 64
+//	intToBinary() returns the bit representation of v, supposing paramDc >= 64
 func (pp *PublicParameter) intToBinary(v uint64) (bits []int64) {
 	rstBits := make([]int64, pp.paramDC)
 	for i := 0; i < pp.paramDC; i++ {
@@ -647,7 +643,6 @@ func (pp *PublicParameter) intToBinary(v uint64) (bits []int64) {
 	return rstBits
 }
 
-//	todo: to review
 func getMatrixColumn(matrix [][]byte, rowNum int, j int) (col []int64) {
 	retcol := make([]int64, rowNum)
 	for i := 0; i < rowNum; i++ {

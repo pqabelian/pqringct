@@ -360,7 +360,6 @@ func (pp *PublicParameter) PolyCNTTVecScaleMul(polyCNTTScale *PolyCNTT, polyCNTT
 	return rst
 }
 
-// todo: need to review
 func (pp *PublicParameter) sigmaPowerPolyCNTT(polyCNTT *PolyCNTT, t int) (r *PolyCNTT) {
 	rst := pp.NewPolyCNTT()
 	for i := 0; i < pp.paramDC; i++ {
