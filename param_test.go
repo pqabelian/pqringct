@@ -203,7 +203,7 @@ func TestPublicParameters_MatrixA(t *testing.T) {
 	step = (end - start) / int64(slotNum)
 	for j := pp.paramKA + 1; j < pp.paramLA; j++ {
 		for k := 0; k < pp.paramDA; k++ {
-			coeff := pp.paramVecA.polyANTTs[j].coeffs[k]
+			coeff := pp.paramVectorA.polyANTTs[j].coeffs[k]
 
 			if coeffmap[coeff] != nil {
 				fmt.Println("repeated:", coeffmap[coeff])

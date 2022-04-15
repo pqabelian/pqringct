@@ -138,11 +138,11 @@ func NewPublicParameter(
 		return nil, err
 	}
 
-	// generate the public matrix paramVecA from seed
-	//seedVeca := make([]byte, 32)
-	//sha3.ShakeSum256(seedVeca, append([]byte{'M', 'a'}, seed...))
-	seedVeca := append([]byte{'V', 'a'}, seed...)
-	res.paramVecA, err = res.expandPubVecA(seedVeca)
+	// generate the public matrix paramVectorA from seed
+	//seedVectorA := make([]byte, 32)
+	//sha3.ShakeSum256(seedVectorA, append([]byte{'M', 'a'}, seed...))
+	seedVectorA := append([]byte{'V', 'a'}, seed...)
+	res.paramVectorA, err = res.expandPubVectorA(seedVectorA)
 	if err != nil {
 		return nil, err
 	}
@@ -269,14 +269,14 @@ type PublicParameter struct {
 	// paramSigmaPermutations [t] with t=0~(k-1) works for sigma^t
 	paramSigmaPermutations [][]int
 
-	// As paramParameterSeedString is used to generate the public matrix, such as paramMatrixA, paramVecA, paramMatrixB, paramMatrixH
+	// As paramParameterSeedString is used to generate the public matrix, such as paramMatrixA, paramVectorA, paramMatrixB, paramMatrixH
 	paramParameterSeedString []byte
 
 	// paramMatrixA is expand from paramParameterSeedString, with size k_a rows, each row with size l_a
 	paramMatrixA []*PolyANTTVec
 
-	// paramVecA is expand from paramParameterSeedString, with size l_a
-	paramVecA *PolyANTTVec
+	// paramVectorA is expand from paramParameterSeedString, with size l_a
+	paramVectorA *PolyANTTVec
 
 	//paramMatrixB is expand from paramParameterSeedString, with size k_c rows, each row with size l_c
 	paramMatrixB []*PolyCNTTVec
@@ -332,9 +332,9 @@ func (pp *PublicParameter) expandPubMatrixA(seed []byte) ([]*PolyANTTVec, error)
 	return res, nil
 }
 
-func (pp *PublicParameter) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
+func (pp *PublicParameter) expandPubVectorA(seed []byte) (*PolyANTTVec, error) {
 	if len(seed) == 0 {
-		return nil, errors.New("expandPubVecA: the seed is empty")
+		return nil, errors.New("expandPubVectorA: the seed is empty")
 	}
 	seedUsed := append([]byte("VectorA"), seed...)
 
@@ -343,18 +343,18 @@ func (pp *PublicParameter) expandPubVecA(seed []byte) (*PolyANTTVec, error) {
 	unitNTT := pp.NTTPolyA(unit)
 
 	// generate the right vector a'
-	vecAp, err := pp.generatePolyANTTMatrix(seedUsed, 1, pp.paramLambdaA)
+	vectorAp, err := pp.generatePolyANTTMatrix(seedUsed, 1, pp.paramLambdaA)
 	if err != nil {
 		return nil, err
 	}
 
-	// [0 ... 0(k_a) , 1, vecAp (lambda_a)]
+	// [0 ... 0(k_a) , 1, vectorAp (lambda_a)]
 	res := pp.NewZeroPolyANTTVec(pp.paramLA) // L_a = K_a+1+lambda_a
 
 	res.polyANTTs[pp.paramKA] = unitNTT
 
 	for j := 0; j < pp.paramLambdaA; j++ {
-		res.polyANTTs[pp.paramKA+1+j] = vecAp[0].polyANTTs[j]
+		res.polyANTTs[pp.paramKA+1+j] = vectorAp[0].polyANTTs[j]
 	}
 	return res, nil
 }

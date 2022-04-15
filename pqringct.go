@@ -36,7 +36,7 @@ func (ask *AddressSecretKey) checkMatchPublciKey(apk *AddressPublicKey, pp *Publ
 		return false
 	}
 	// e = <a,s>+ma
-	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVecA, s_ntt, pp.paramLA), ask.ma)
+	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVectorA, s_ntt, pp.paramLA), ask.ma)
 	if !pp.PolyANTTEqualCheck(e, apk.e) {
 		return false
 	}
@@ -190,7 +190,7 @@ func (pp *PublicParameter) addressKeyGen(seed []byte) (apk *AddressPublicKey, as
 	t := pp.PolyANTTMatrixMulVector(pp.paramMatrixA, s_ntt, pp.paramKA, pp.paramLA)
 
 	// e = <a,s>+ma
-	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVecA, s_ntt, pp.paramLA), ma)
+	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVectorA, s_ntt, pp.paramLA), ma)
 
 	apk = &AddressPublicKey{
 		t: t,
@@ -947,7 +947,7 @@ func (pp *PublicParameter) elrsSign(
 			return nil, err
 		}
 		delta_as[j] = pp.PolyANTTSub(
-			pp.PolyANTTVecInnerProduct(pp.paramVecA, z_as_ntt[j], pp.paramLA),
+			pp.PolyANTTVecInnerProduct(pp.paramVectorA, z_as_ntt[j], pp.paramLA),
 			pp.PolyANTTMul(
 				da,
 				pp.PolyANTTSub(
@@ -1030,7 +1030,7 @@ ELRSSignRestart:
 	}
 	y_a := pp.NTTPolyAVec(tmpYa)
 	w_as[sindex] = pp.PolyANTTMatrixMulVector(pp.paramMatrixA, y_a, pp.paramKA, pp.paramLA)
-	delta_as[sindex] = pp.PolyANTTVecInnerProduct(pp.paramVecA, y_a, pp.paramLA)
+	delta_as[sindex] = pp.PolyANTTVecInnerProduct(pp.paramVectorA, y_a, pp.paramLA)
 
 	y_cs := make([]*PolyCNTTVec, pp.paramK)
 	y_cps := make([]*PolyCNTTVec, pp.paramK)
@@ -1291,7 +1291,7 @@ func (pp *PublicParameter) elrsVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 			return false, err
 		}
 		delta_as[j] = pp.PolyANTTSub(
-			pp.PolyANTTVecInnerProduct(pp.paramVecA, z_as_ntt, pp.paramLA),
+			pp.PolyANTTVecInnerProduct(pp.paramVectorA, z_as_ntt, pp.paramLA),
 			pp.PolyANTTMul(
 				da,
 				pp.PolyANTTSub(
