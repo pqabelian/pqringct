@@ -265,7 +265,7 @@ func Test_writePolyAGamma_readPolyAGamma(t *testing.T) {
 
 	var err error
 	for t := 0; t < 10000; t++ {
-		polyA, err = pp.randomPolyAinGammaA5(nil)
+		polyA, err = pp.randomPolyAinGammaA2(nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -648,7 +648,7 @@ func TestSerializeAddressSecretKeySp(t *testing.T) {
 	var err error
 	s := pp.NewPolyAVec(pp.paramLA)
 	for i := 0; i < pp.paramLA; i++ {
-		s.polyAs[i], err = pp.randomPolyAinGammaA5(nil)
+		s.polyAs[i], err = pp.randomPolyAinGammaA2(nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -2262,7 +2262,7 @@ func TestSerializeTransferTx(t *testing.T) {
 //func TestPublicParameter_writePolyAGamma_readPolyAGamma(t *testing.T) {
 //	pp := DefaultPP
 //	seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-//	as, err := pp.randomPolyAinGammaA5(seed)
+//	as, err := pp.randomPolyAinGammaA2(seed)
 //	if err != nil {
 //		log.Fatalln(err)
 //	}
@@ -2291,7 +2291,7 @@ func TestSerializeTransferTx(t *testing.T) {
 //	as := pp.NewPolyAVec(pp.paramLA)
 //	for i := 0; i < pp.paramLA; i++ {
 //		seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-//		tmp, err := randomPolyAinGammaA5(seed, pp.paramDA)
+//		tmp, err := randomPolyAinGammaA2(seed, pp.paramDA)
 //		if err != nil {
 //			log.Fatalln(err)
 //		}
@@ -2357,7 +2357,7 @@ func TestPublicParameter_SerializeAddressSecretSpAndSnKey_DeserializeAddressSecr
 	ts := pp.NewPolyAVec(pp.paramLA)
 	for i := 0; i < pp.paramLA; i++ {
 		seed := RandomBytes(pp.paramKeyGenSeedBytesLen)
-		tmp, err := pp.randomPolyAinGammaA5(seed)
+		tmp, err := pp.randomPolyAinGammaA2(seed)
 		if err != nil {
 			log.Fatalln(err)
 		}

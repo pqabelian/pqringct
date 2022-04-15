@@ -14,36 +14,54 @@ const (
 	ErrNilPointer    = "there are nil pointer"
 )
 
+// todo: 20220414 review
 // For PolyANTT, each coefficient lies in the scope [-(q_a-1)/2, (q_a-1)/2].
-// Note that q_a = 137438953937 = 2^{37} + 2^{8} + 2^{7} + 2^{6} + 2^{4} + 2^{0} is a 38-bit number
-// We use 38-bit to encode/serialze a coefficient in [-(q_a-1)/2, (q_a-1)/2], say 37-bit for absoulte and 1 bit for signal.
-// Thta is, we use 5-byte to encode/serialize a coefficient.
+// Note that q_a = 8522826353 = 2^32+2^31+2^30+2^29+2^28+2^27+2^26+2^9+2^6+2^5+2^4+1 is a 33-bit number.
+// We use 33-bit to encode/serialze a coefficient in [-(q_a-1)/2, (q_a-1)/2], say 32-bit for absoulte and 1 bit for signal.
 func (pp *PublicParameter) PolyANTTSerializeSize() int {
-	return pp.paramDA * 5
+	return pp.paramDA*4 + pp.paramDA/8 //	pp.paramDA is 2^n, at this moment pp.paramDA=256
 }
 func (pp *PublicParameter) writePolyANTT(w io.Writer, a *PolyANTT) error {
 	if a == nil {
 		return errors.New("writePolyANTT: attempting to serialize a nil PolyANTT")
 	}
+
+	signalBytes := make([]byte, pp.paramDA/8)
+	for i := 0; i < pp.paramDA/8; i++ {
+		signalBytes[i] = 0
+	}
+
 	var coeff int64
-	tmp := make([]byte, 5)
+	tmp := make([]byte, 4)
 	for i := 0; i < pp.paramDA; i++ {
 		coeff = a.coeffs[i]
 		tmp[0] = byte(coeff >> 0)
 		tmp[1] = byte(coeff >> 8)
 		tmp[2] = byte(coeff >> 16)
 		tmp[3] = byte(coeff >> 24)
-		tmp[4] = byte(coeff >> 32)
 		_, err := w.Write(tmp)
 		if err != nil {
 			return err
 		}
+
+		if byte(coeff>>32)&1 == 1 {
+			// -signal
+			signalBytes[i/8] = signalBytes[i/8] | (1 << (i % 8))
+		}
 	}
+
+	_, err := w.Write(signalBytes)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
+// todo: 20220414 review
 func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
-	tmp := make([]byte, 5)
+
+	tmp := make([]byte, 4)
 	var coeff int64
 
 	retPolyANTT := pp.NewPolyANTT()
@@ -56,14 +74,26 @@ func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
 		coeff |= int64(tmp[1]) << 8
 		coeff |= int64(tmp[2]) << 16
 		coeff |= int64(tmp[3]) << 24
-		coeff |= int64(tmp[4]) << 32
 
-		if tmp[4]>>7 == 1 {
-			//	37-bit for absolute
-			coeff = int64(uint64(coeff) | 0xFFFFFF0000000000)
-		}
 		retPolyANTT.coeffs[i] = coeff
 	}
+
+	signalBytes := make([]byte, pp.paramDA/8)
+	_, err := r.Read(signalBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	var signalHint byte
+	for i := 0; i < pp.paramDA; i++ {
+		signalHint = 1 << (i % 8)
+		if signalBytes[i/8]&signalHint == signalHint {
+			//	- signal
+			coeff = retPolyANTT.coeffs[i]
+			retPolyANTT.coeffs[i] = int64(uint64(coeff) | 0xFFFFFFFF00000000)
+		}
+	}
+
 	return retPolyANTT, nil
 }
 
@@ -253,31 +283,50 @@ func (pp *PublicParameter) readPolyAVecEta(r io.Reader) (*PolyAVec, error) {
 	return &PolyAVec{polyAs: res}, nil
 }
 
+// todo: 20220414 review
 // PolyASerializeSizeGamma() returns the serialize size of a PolyA in S_{gamma_a},
-// where gamma_a = 5 = 2^2 + 1 is a 3-bits number.
+// where gamma_a = 2 is a 2-bits number.
 // For each coefficient is in [-gamma_a, gamma_a],
-// we use 4-bits (3 bits for absolute and 1 bit for signal) to serialize/encode it.
-// Each two coefficients use 1 byte.
+// we use 3-bits (2 bits for absolute and 1 bit for signal) to serialize/encode it.
+// Each 4 coefficients use 1 byte.
 // As the AskSp in AddressSecretKey has infinity form in [-gamma_a, gamma_a], here we only handle Poly, rather than PolyNTT.
 func (pp *PublicParameter) PolyASerializeSizeGamma() int {
-	return pp.paramDA / 2
+	return pp.paramDA/4 + pp.paramDA/8 // pp.paramDA = 2^n for some n, at this moment pp.paramDA=256
 }
 func (pp *PublicParameter) writePolyAGamma(w io.Writer, polyA *PolyA) error {
 	if polyA == nil {
 		return errors.New("writePolyAGamma: attempting to serialize a nil PolyA")
 	}
 
-	var tmpLow, tmpHigh byte
-	tmp := make([]byte, pp.paramDA/2)
-	j := 0
-	for i := 0; i < pp.paramDA; i = i + 2 {
-		tmpLow = byte(polyA.coeffs[i]) & 0x0F    //	the low four bits include the signal bit
-		tmpHigh = byte(polyA.coeffs[i+1]) & 0x0F // the low four bits include the signal bit
-
-		tmp[j] = (tmpHigh << 4) | tmpLow
-		j++
+	signalBytes := make([]byte, pp.paramDA/8)
+	for i := 0; i < pp.paramDA/8; i++ {
+		signalBytes[i] = 0
 	}
-	_, err := w.Write(tmp)
+
+	serialized := make([]byte, pp.paramDA/4)
+	t := 0
+	for i := 0; i < pp.paramDA; i = i + 4 {
+		tmp0 := byte(polyA.coeffs[i] & 0x03 << 0)
+		tmp1 := byte(polyA.coeffs[i+1] & 0x03 << 2)
+		tmp2 := byte(polyA.coeffs[i+2] & 0x03 << 4)
+		tmp3 := byte(polyA.coeffs[i+3] & 0x03 << 6)
+		serialized[t] = tmp0 | tmp1 | tmp2 | tmp3
+		t += 1
+
+		for j := 0; j < 4; j++ { // i, i+1, i+2, i+4 four coeffs
+			if polyA.coeffs[i+j]&0x04 == 0x04 { // binary 00000100 to get the signal bit
+				//	- signal
+				signalBytes[(i+j)/8] = signalBytes[(i+j)/8] | (1 << ((i + j) % 8))
+			}
+		}
+	}
+
+	_, err := w.Write(serialized)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(signalBytes)
 	if err != nil {
 		return err
 	}
@@ -285,40 +334,46 @@ func (pp *PublicParameter) writePolyAGamma(w io.Writer, polyA *PolyA) error {
 	return nil
 }
 
+// todo: 20220414 review
 func (pp *PublicParameter) readPolyAGamma(r io.Reader) (*PolyA, error) {
 	polyA := pp.NewPolyA()
 
-	tmp := make([]byte, pp.paramDA/2)
-	_, err := r.Read(tmp)
+	serialzed := make([]byte, pp.paramDA/4)
+	_, err := r.Read(serialzed)
 	if err != nil {
 		return nil, err
 	}
 
-	var tmpLow, tmpHigh byte
-	var lowCoeff, highCoeff int64
-
 	j := 0
-	for i := 0; i < pp.paramDA; i = i + 2 {
-		tmpLow = tmp[j] & 0x0F
-		tmpHigh = (tmp[j] & 0xF0) >> 4
+	for i := 0; i < pp.paramDA/4; i++ {
+		polyA.coeffs[j] = int64((serialzed[i] >> 0) & 0x03)
 
-		lowCoeff = int64(tmpLow)
-		highCoeff = int64(tmpHigh)
+		polyA.coeffs[j+1] = int64((serialzed[i] >> 2) & 0x03)
 
-		if tmpLow&0x08 == 0x08 {
-			// - signal
-			lowCoeff = int64(uint64(lowCoeff) | 0xFFFFFFFFFFFFFFF0)
-		}
-		polyA.coeffs[i] = lowCoeff
+		polyA.coeffs[j+2] = int64((serialzed[i] >> 4) & 0x03)
 
-		if tmpHigh&0x08 == 0x08 {
-			// - signal
-			highCoeff = int64(uint64(highCoeff) | 0xFFFFFFFFFFFFFFF0)
-		}
-		polyA.coeffs[i+1] = highCoeff
+		polyA.coeffs[j+3] = int64((serialzed[i] >> 6) & 0x03)
 
-		j++
+		j = j + 4
 	}
+
+	signalBytes := make([]byte, pp.paramDA/8)
+	_, err = r.Read(signalBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	var coeff int64
+	var signalHint byte
+	for i := 0; i < pp.paramDA; i++ {
+		signalHint = 1 << (i % 8)
+		if signalBytes[i/8]&signalHint == signalHint {
+			//	- signal
+			coeff = polyA.coeffs[i]
+			polyA.coeffs[i] = int64(uint64(coeff) | 0xFFFFFFFFFFFFFFF8)
+		}
+	}
+
 	return polyA, nil
 }
 
@@ -487,9 +542,9 @@ func (pp *PublicParameter) writePolyCEta(w io.Writer, polyC *PolyC) error {
 	var tmpSignal byte
 	tmp := make([]byte, 3)
 
-	signals := make([]byte, pp.paramDC/8)
+	signalBytes := make([]byte, pp.paramDC/8)
 	for i := 0; i < pp.paramDC/8; i++ {
-		signals[i] = 0
+		signalBytes[i] = 0
 	}
 	for i := 0; i < pp.paramDC; i++ {
 		coeff = polyC.coeffs[i]
@@ -500,7 +555,7 @@ func (pp *PublicParameter) writePolyCEta(w io.Writer, polyC *PolyC) error {
 		tmpSignal = byte(coeff >> 24)
 
 		if tmpSignal&0x01 == 0x01 {
-			signals[i/8] = signals[i/8] | (0x01 << (i % 8))
+			signalBytes[i/8] = signalBytes[i/8] | (0x01 << (i % 8))
 		}
 
 		_, err = w.Write(tmp)
@@ -509,7 +564,7 @@ func (pp *PublicParameter) writePolyCEta(w io.Writer, polyC *PolyC) error {
 		}
 	}
 
-	_, err = w.Write(signals)
+	_, err = w.Write(signalBytes)
 	if err != nil {
 		return err
 	}
@@ -538,17 +593,17 @@ func (pp *PublicParameter) readPolyCEta(r io.Reader) (*PolyC, error) {
 		rst.coeffs[i] = coeff
 	}
 
-	signals := make([]byte, pp.paramDC/8)
-	_, err = r.Read(signals)
+	signalBytes := make([]byte, pp.paramDC/8)
+	_, err = r.Read(signalBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	var signalByte byte
+	var signalHint byte
 	for i := 0; i < pp.paramDC; i++ {
-		signalByte = 0x01 << (i % 8)
+		signalHint = 0x01 << (i % 8)
 
-		if signals[i/8]&signalByte == signalByte {
+		if signalBytes[i/8]&signalHint == signalHint {
 			//	- signal
 			coeff = rst.coeffs[i]
 			rst.coeffs[i] = int64(uint64(coeff) | 0xFFFFFFFFFF000000)

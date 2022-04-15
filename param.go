@@ -438,13 +438,13 @@ func Initialize(paramterSeedString []byte) *PublicParameter {
 	var defaultPP *PublicParameter
 	defaultPP, err = NewPublicParameter(
 		256,
-		137438953937,
+		8522826353, // 2^32+2^31+2^30+2^29+2^28+2^27+2^26+2^9+2^6+2^5+2^4+1
 		60,
-		5,
-		4,
-		5,
+		8,
+		7,
+		2,
 		1<<19-1, //524287
-		300,
+		120,
 		5,
 		5,
 		51,
@@ -459,7 +459,7 @@ func Initialize(paramterSeedString []byte) *PublicParameter {
 		64,      // 64 bytes = 512 bits
 		-70368744177704,
 		-2251799813686528,
-		-12372710086,
+		-2943398012,
 		16,
 		-3961374278055081,
 		256,

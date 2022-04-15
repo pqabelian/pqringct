@@ -131,7 +131,7 @@ func RandomBytes(length int) []byte {
 
 // 523987 = 0111_1111_1110_1101_0011
 // randomPolyAForResponseA() returns a PolyA, where each coefficient lies in [-(eta_a - beta_a), (eta_a - beta_a)],
-// where eta_a = 2^{19}-1 and beta=300
+// where eta_a = 2^{19}-1 and beta=120
 // todo: 20220414 review
 func (pp *PublicParameter) randomPolyAForResponseA() (*PolyA, error) {
 
@@ -145,7 +145,7 @@ func (pp *PublicParameter) randomPolyAForResponseA() (*PolyA, error) {
 	}
 	var buf []byte
 
-	// Note that eta_a = 2^{19}-1 is a 19-bit number, and beta_a = 300, so that (eta_a - beta_a) is also a 19-bit number.
+	// Note that eta_a = 2^{19}-1 is a 19-bit number, and beta_a = 120, so that (eta_a - beta_a) is also a 19-bit number.
 	// For [-(eta_a - beta_a), (eta_a - beta_a)], the bound is (eta_a - beta_a), and each number in [-(eta_a - beta_a), (eta_a - beta_a)] = [0, 2*(eta_a - beta_a)] needs 20 bits to sample.
 	// probability: (2*bound+1) / (1 << 20) // should be float
 	// needBits for each sample: 20*((1<<20)/(2*bound+1))
@@ -466,8 +466,105 @@ func (pp *PublicParameter) randomPolyCinEtaC() (*PolyC, error) {
 	//return &PolyC{coeffs}, nil
 }
 
-// [-5,5]
+// [-2,2]
 // todo: 20220414 review
+func (pp *PublicParameter) randomPolyAinGammaA2(seed []byte) (*PolyA, error) {
+
+	var seedUsed []byte
+	if seed == nil {
+		seedUsed = RandomBytes(RandSeedBytesLen)
+	} else {
+		seedUsed = make([]byte, len(seed))
+		copy(seedUsed, seed)
+	}
+
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Write(seedUsed)
+	if err != nil {
+		return nil, err
+	}
+	var buf []byte
+	// random the number in range [0,2*bound], and then reduce to [-bound, bound]
+	// bound = 2, 2*bound=4, 3 bits are used to sample 1 number
+	// probability: (2*bound+1) / (1 << 3) // should be float
+	// needBits for each sample: 3*((1<<3)/(2*bound+1))
+	bound := int64(2) // [-2, 2] = [0,4]
+	bitNumPerSample := 3
+	expectedBitsPerSample := int(3*((1<<3)/float64(2*bound+1))) + 1 // should be less than 2^{32} bits
+
+	targetSampleCount := pp.paramDA
+	//	store the numbers that have been sampled, the target length is pp.paramDA
+	sampled := make([]int64, 0, targetSampleCount)
+
+	for len(sampled) < targetSampleCount {
+		// uniform reject sample from the buf
+		expectedSampleCount := targetSampleCount - len(sampled)
+		buf = make([]byte, (expectedSampleCount*expectedBitsPerSample+7)/8)
+		_, err = xof.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		tmp := filterWithBound(buf, expectedSampleCount, bitNumPerSample, 2*bound)
+		sampled = append(sampled, tmp...)
+	}
+
+	for i := 0; i < targetSampleCount; i++ {
+		sampled[i] = sampled[i] - bound
+	}
+	return &PolyA{sampled}, nil
+}
+
+//	This is a WRONG implementation.
+func (pp *PublicParameter) randomPolyAinGammaA2Wrong(seed []byte) (*PolyA, error) {
+
+	var seedUsed []byte
+	if seed == nil {
+		seedUsed = RandomBytes(RandSeedBytesLen)
+	} else {
+		seedUsed = make([]byte, len(seed))
+		copy(seedUsed, seed)
+	}
+
+	xof := sha3.NewShake128()
+	xof.Reset()
+	_, err := xof.Write(seedUsed)
+	if err != nil {
+		return nil, err
+	}
+	//	bound = 2, each 4 bits can be used to sample a number in [-2, 2], by using the hamming weight
+	buf := make([]byte, pp.paramDA/2)
+	_, err = xof.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	var lowWight, highWeight int8
+	coeffs := make([]int64, pp.paramDA)
+	t := 0
+	for i := 0; i < pp.paramDA/2; i++ {
+		lowWight = int8((buf[i] >> 0) & 1)
+		lowWight += int8((buf[i] >> 1) & 1)
+		highWeight = int8((buf[i] >> 2) & 1)
+		highWeight += int8((buf[i] >> 3) & 1)
+
+		coeffs[t] = int64(highWeight - lowWight)
+
+		lowWight = int8((buf[i] >> 4) & 1)
+		lowWight += int8((buf[i] >> 5) & 1)
+		highWeight = int8((buf[i] >> 6) & 1)
+		highWeight += int8((buf[i] >> 7) & 1)
+
+		coeffs[t+1] = int64(highWeight - lowWight)
+
+		t += 2
+	}
+
+	return &PolyA{coeffs}, nil
+}
+
+// [-5,5]
+//	todo: this could be removed, since it will be used any more.
 func (pp *PublicParameter) randomPolyAinGammaA5(seed []byte) (*PolyA, error) {
 
 	var seedUsed []byte
@@ -556,15 +653,17 @@ func (pp *PublicParameter) expandAddressSKsp(seed []byte) (*PolyAVec, error) {
 	tmpSeedLen := len(realSeed) + 1
 	tmpSeed := make([]byte, tmpSeedLen) // 1 byte for index i \in [0, paramLA -1], where paramLA is assumed to be smaller than 127
 
+	var err error
 	rst := pp.NewPolyAVec(pp.paramLA)
 	for i := 0; i < pp.paramLA; i++ {
 		copy(tmpSeed, realSeed)
 		tmpSeed[tmpSeedLen-1] = byte(i)
-		tmp, err := pp.randomPolyAinGammaA5(tmpSeed)
+
+		rst.polyAs[i], err = pp.randomPolyAinGammaA2(tmpSeed)
 		if err != nil {
 			return nil, err
 		}
-		rst.polyAs[i] = tmp
+		//rst.polyAs[i] = tmp
 	}
 	return rst, nil
 }
@@ -908,6 +1007,7 @@ func (pp *PublicParameter) randomDcIntegersInQcEtaF() ([]int64, error) {
 // 137438953937= 0010_0000_0000_0000_0000_0000_0000_0001_1101_0001
 // 0001_0000_0000_0000_0000_0000_0000_0000_1110_1000
 // todo: 20220414 review
+// q_a = 8522826353 = 2^32+2^31+2^30+2^29+2^28+2^27+2^26+2^9+2^6+2^5+2^4+1
 //	randomDaIntegersInQa() returns paramDA int64, each in the scope [-(q_a-1)/2, (q_a-1)/2].
 func (pp *PublicParameter) randomDaIntegersInQa(seed []byte) ([]int64, error) {
 	var tmpSeed []byte
@@ -926,13 +1026,13 @@ func (pp *PublicParameter) randomDaIntegersInQa(seed []byte) ([]int64, error) {
 	}
 	var buf []byte
 
-	// Note that q_a = 137438953937 = 2^{37} + 2^{8} + 2^{7} + 2^{6} + 2^{4} + 2^{0} is a 38-bit number
-	// 2*bound=q_a-1, [0, 2*bound], 38 bits are used to sample 1 number
-	// probability: (2*bound+1) / (1 << 38) // should be float
-	// needBits for each sample: 38*((1<<38)/(2*bound+1))
+	// Note that q_a = 8522826353 = 2^32+2^31+2^30+2^29+2^28+2^27+2^26+2^9+2^6+2^5+2^4+1 is a 33-bit number.
+	// bound = (q_a-1)/2, 2*bound=q_a-1, [0, 2*bound], 33 bits are used to sample 1 number
+	// probability: (2*bound+1) / (1 << 33) // should be float
+	// needBits for each sample: 33*((1<<33)/(2*bound+1))
 	bound := (pp.paramQA - 1) >> 1 // [-(q_a-1)/2, (q_a -1)/2] = [0, q_a-1]
-	bitNumPerSample := 38
-	expectedBitsPerSample := int(38*((1<<38)/float64(2*bound+1))) + 1 // should be less than 2^{32} bits
+	bitNumPerSample := 33
+	expectedBitsPerSample := int(33*((1<<33)/float64(2*bound+1))) + 1 // should be less than 2^{32} bits
 
 	targetSampleCount := pp.paramDA
 	//	store the numbers that have been sampled, the target length is pp.paramDA
@@ -961,8 +1061,8 @@ func (pp *PublicParameter) randomDaIntegersInQa(seed []byte) ([]int64, error) {
 //	The seed could not be empty.
 // Firstly, set the 1 or -1 with total number is theta
 // Secondly, shuffle the array using the Knuth-Durstenfeld Shuffle
-// todo: 20220414 review; paramDA is 256, using 7 bit for shullfe, is there any problem?
-//	todo: using the design and algorithm as in Dilithium
+// todo: 20220414 review; paramDA is 256, using 7 bit for shuffle, is there any problem?
+//	todo: 20220414 review; using the design and algorithm as in Dilithium
 func (pp *PublicParameter) expandChallengeA(seed []byte) (*PolyA, error) {
 	//tmpSeed := make([]byte, len(seed))
 	//copy(tmpSeed, seed)
