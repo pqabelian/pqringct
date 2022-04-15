@@ -1,12 +1,9 @@
 package pqringct
 
 import (
-	"bytes"
 	"crypto/rand"
 	"errors"
 	"golang.org/x/crypto/sha3"
-	"io"
-	"math/big"
 )
 
 var ErrLength = errors.New("invalid length")
@@ -1072,9 +1069,6 @@ func (pp *PublicParameter) expandChallengeA(seed []byte) (*PolyA, error) {
 	}
 	tmpSeed := append([]byte{'C', 'H', 'A'}, seed...)
 
-	coeffs := make([]int64, pp.paramDA)
-	// cnt is used for resetting the buf
-	// cur is used for loop the buf
 	xof := sha3.NewShake128()
 	xof.Reset()
 	xof.Write(tmpSeed)
@@ -1083,29 +1077,27 @@ func (pp *PublicParameter) expandChallengeA(seed []byte) (*PolyA, error) {
 	// Setting
 	buf := make([]byte, (pp.paramThetaA+7)/8)
 	xof.Read(buf)
-	for i := 0; i < pp.paramThetaA; i++ {
-		if buf[i/8]&(1<<(i%8))>>(i%8) == 0 {
-			coeffs[i] = -1
-		} else {
-			coeffs[i] = 1
-		}
+	signs := uint64(0)
+	for i := 0; i < 8; i++ {
+		signs |= uint64(buf[i]) << (8 * i)
 	}
-	// Shuffling
+
+	coeffs := make([]int64, pp.paramDA)
 	buf = make([]byte, pp.paramDA)
+	pos := 0
 	xof.Read(buf)
-	reader := bytes.NewReader(buf)
-	k := pp.paramDA
-	for k > 0 {
-		n, err := rand.Int(reader, big.NewInt(int64(k)))
-		if err == io.EOF {
-			buf = make([]byte, pp.paramDA)
-			xof.Read(buf)
-			reader = bytes.NewReader(buf)
-			continue
+	for i := int64(pp.paramDA - pp.paramThetaA); i < int64(pp.paramDA); i++ {
+		b := int64(pp.paramDA)
+		for b > i && pos < len(buf) {
+			b = int64(buf[pos])
+			pos++
+			if pos == len(buf) {
+				xof.Read(buf)
+				pos = 0
+			}
 		}
-		p := n.Int64()
-		coeffs[p], coeffs[k-1] = coeffs[k-1], coeffs[p]
-		k--
+		coeffs[i], coeffs[b] = coeffs[b], int64(1-2*(signs&1))
+		signs >>= 1
 	}
 	return &PolyA{coeffs: coeffs}, nil
 }

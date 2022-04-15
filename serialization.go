@@ -312,12 +312,11 @@ func (pp *PublicParameter) writePolyAGamma(w io.Writer, polyA *PolyA) error {
 		tmp3 := byte(polyA.coeffs[i+3] & 0x03 << 6)
 		serialized[t] = tmp0 | tmp1 | tmp2 | tmp3
 		t += 1
-
-		for j := 0; j < 4; j++ { // i, i+1, i+2, i+4 four coeffs
-			if polyA.coeffs[i+j]&0x04 == 0x04 { // binary 00000100 to get the signal bit
-				//	- signal
-				signalBytes[(i+j)/8] = signalBytes[(i+j)/8] | (1 << ((i + j) % 8))
-			}
+	}
+	for i := 0; i < pp.paramDA; i++ {
+		if polyA.coeffs[i]&0x04 == 0x04 { // binary 00000100 to get the signal bit
+			//	- signal
+			signalBytes[i/8] = signalBytes[i/8] | (1 << (i % 8))
 		}
 	}
 
@@ -370,7 +369,7 @@ func (pp *PublicParameter) readPolyAGamma(r io.Reader) (*PolyA, error) {
 		if signalBytes[i/8]&signalHint == signalHint {
 			//	- signal
 			coeff = polyA.coeffs[i]
-			polyA.coeffs[i] = int64(uint64(coeff) | 0xFFFFFFFFFFFFFFF8)
+			polyA.coeffs[i] = int64(uint64(coeff) | 0xFFFFFFFFFFFFFFFC)
 		}
 	}
 
