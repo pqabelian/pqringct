@@ -212,6 +212,10 @@ func (pp *PublicParameter) txoGen(apk *AddressPublicKey, vpk []byte, vin uint64)
 	//	got (C, kappa) from key encapsulate mechanism
 	// Restore the KEM version
 	CtKemSerialized, kappa, err := pqringctkem.Encaps(pp.paramKem, vpk)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	//	expand the kappa to PolyCVec with length Lc
 	cmtr_poly, err := pp.expandValueCmtRandomness(kappa)
 	if err != nil {
