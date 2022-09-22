@@ -185,6 +185,11 @@ func GetAddressPublicKeySerializeSize(pp *PublicParameter) int {
 	return pp.AddressPublicKeySerializeSize()
 }
 
+//	todo: refactor the address
+func GetValuePublicKeySerializeSize(pp *PublicParameter) int {
+	return 0
+}
+
 func GetTxInputMaxNum(pp *PublicParameter) int {
 	return pp.paramI
 }

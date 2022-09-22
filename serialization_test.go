@@ -2036,6 +2036,9 @@ func TestSerializeTransferTx(t *testing.T) {
 			if err != nil {
 				t.Errorf(err.Error())
 			}
+
+			fmt.Println(len(serializedtrTx))
+
 			trTxDeser, err := pp.DeserializeTransferTx(serializedtrTx, true)
 			if err != nil {
 				t.Errorf(err.Error())

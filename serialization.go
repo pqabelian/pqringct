@@ -667,6 +667,7 @@ func (pp *PublicParameter) AddressPublicKeySerializeSize() int {
 	//return pp.PolyANTTVecSerializeSize(a.t) + pp.PolyANTTSerializeSize()
 	return (pp.paramKA + 1) * pp.PolyANTTSerializeSize()
 }
+
 func (pp *PublicParameter) SerializeAddressPublicKey(apk *AddressPublicKey) ([]byte, error) {
 	var err error
 	if apk == nil || apk.t == nil || apk.e == nil {

@@ -91,6 +91,46 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 	}
 }
 
+func TestPublicParameterV2_TransferTxGenTEST(t *testing.T) {
+	pp := Initialize(nil)
+	type args struct {
+		inputDescs  []*TxInputDesc
+		outputDescs []*TxOutputDesc
+		fee         uint64
+		txMemo      []byte
+	}
+	//seed1 := []byte{
+	//	2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 1,
+	//	33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}
+	//seed2 := []byte{
+	//	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+	//	33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
+	//}
+	seed1 := RandomBytes(pp.paramKeyGenSeedBytesLen)
+	apk1, _, _ := pp.addressKeyGen(seed1)
+	serializedVPk1, serializedVSk1, _ := pp.valueKeyGen(seed1)
+	serializedVSk1C0 := make([]byte, len(serializedVSk1))
+	copy(serializedVSk1C0, serializedVSk1)
+	serializedVSk1C1 := make([]byte, len(serializedVSk1))
+	copy(serializedVSk1C1, serializedVSk1)
+	serializedVSk1C2 := make([]byte, len(serializedVSk1))
+	copy(serializedVSk1C2, serializedVSk1)
+	serializedAPk1, _ := pp.SerializeAddressPublicKey(apk1)
+
+	cbTx0, err := pp.coinbaseTxGen(1<<51-1, []*TxOutputDesc{
+		{
+			serializedAPk: serializedAPk1,
+			serializedVPk: serializedVPk1,
+			value:         1<<51 - 1,
+		},
+	}, []byte{'t', 'e', 's', 't'})
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	cbTx0SerializedWoWit, err := pp.SerializeCoinbaseTx(cbTx0, false)
+	fmt.Println(len(cbTx0SerializedWoWit))
+}
+
 func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	pp := Initialize(nil)
 	type args struct {
@@ -149,6 +189,9 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	}
 	fmt.Println("CbTxWitnessJ2SizeApprox:", pp.CbTxWitnessJ2SerializeSizeApprox(3))
 	fmt.Println("CbTxWitnessJ2SizeExact (J=3):", pp.CbTxWitnessJ2SerializeSize(cbTx0.TxWitnessJ2))
+
+	cbTx0SerializedWoWit, err := pp.SerializeCoinbaseTx(cbTx0, false)
+	fmt.Println(len(cbTx0SerializedWoWit))
 
 	cbTx0Deser, err := pp.DeserializeCoinbaseTx(cbTx0Serialized, true)
 	if err != nil {
