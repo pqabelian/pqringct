@@ -8,7 +8,7 @@ package pqringct
 //	TxWitnessSerializeSizeMaxAllowed    = 8388608 //1024*1024*8, 8M bytes
 //)
 
-//	Put these serialization-related constants here, since the caller may need to know these constants.
+// Put these serialization-related constants here, since the caller may need to know these constants.
 const (
 	MAXALLOWED                  uint32 = 4294967295 // 2^32-1
 	MaxAllowedKemCiphertextSize uint32 = 1048576    // 2^20
@@ -43,7 +43,7 @@ func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, er
 	return serializedAPk, serializedASksp, serializedASksn, nil
 }
 
-//	ask = (s, m_a), apk = (t = As, e = <a,s>+m_a). s is asksp, m_a is asksn
+// ask = (s, m_a), apk = (t = As, e = <a,s>+m_a). s is asksp, m_a is asksn
 func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 	vpk, vsk, err := pp.valueKeyGen(seed)
 	if err != nil {
@@ -124,7 +124,7 @@ func NewLgrTxo(txo *Txo, id []byte) *LgrTxo {
 
 //	Data structures for Transaction generation/verify	end
 
-//	serialize APIs	begin
+// serialize APIs	begin
 func SerializeTxo(pp *PublicParameter, txo *Txo) ([]byte, error) {
 	serialized, err := pp.SerializeTxo(txo)
 	if err != nil {
@@ -185,9 +185,8 @@ func GetAddressPublicKeySerializeSize(pp *PublicParameter) int {
 	return pp.AddressPublicKeySerializeSize()
 }
 
-//	todo: refactor the address
 func GetValuePublicKeySerializeSize(pp *PublicParameter) int {
-	return 0
+	return 1188
 }
 
 func GetTxInputMaxNum(pp *PublicParameter) int {
@@ -212,7 +211,7 @@ func GetNullSerialNumber(pp *PublicParameter) []byte {
 
 //	sizes end
 
-//	approximate Size begin
+// approximate Size begin
 func GetTxoSerializeSizeApprox(pp *PublicParameter) int {
 	return pp.TxoSerializeSize()
 }
