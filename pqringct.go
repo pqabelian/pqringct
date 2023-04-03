@@ -98,14 +98,14 @@ type CbTxWitnessJ2 struct {
 	rpulpproof *rpulpProof
 }
 
-//	For CoinbaseTxGen and TransferTxGen
+// For CoinbaseTxGen and TransferTxGen
 type TxOutputDesc struct {
 	serializedAPk []byte
 	serializedVPk []byte
 	value         uint64
 }
 
-//	For trasnferTx Gen
+// For trasnferTx Gen
 type TxInputDesc struct {
 	lgrTxoList      []*LgrTxo
 	sidx            uint8 //	consumed Txo index
@@ -116,17 +116,17 @@ type TxInputDesc struct {
 	value           uint64
 }
 
-//	LgrTxo consists of a Txo and a txoId-in-ledger, which is the unique identifier of a Txo in the ledger/blockchain/datase.
-//	Txo's ID in ledger is determined by the ledger layer.
+// LgrTxo consists of a Txo and a txoId-in-ledger, which is the unique identifier of a Txo in the ledger/blockchain/datase.
+// Txo's ID in ledger is determined by the ledger layer.
 type LgrTxo struct {
 	txo *Txo
 	id  []byte
 }
 
-//	TransferTx's TxWitness only authenticate the transferTxContent, which include the details of input and output.
-//	TransferTx's TxWitness does not care the storage and organization of traneferTx in blocks and ledger.
-//	This is because pqringct serves as the crypto-layer.
-//	The fields of Tx are defined as exported.
+// TransferTx's TxWitness only authenticate the transferTxContent, which include the details of input and output.
+// TransferTx's TxWitness does not care the storage and organization of traneferTx in blocks and ledger.
+// This is because pqringct serves as the crypto-layer.
+// The fields of Tx are defined as exported.
 type TransferTx struct {
 	//	Version uint32	//	crypto-layer does not care the (actually has not the concept of) version of transferTx.
 	Inputs     []*TrTxInput
@@ -203,8 +203,34 @@ func (pp *PublicParameter) addressKeyGen(seed []byte) (apk *AddressPublicKey, as
 	return apk, ask, nil
 }
 
+func (pp *PublicParameter) addressKeyVerify(apk *AddressPublicKey, ask *AddressSecretKey) (valid bool, hints string) {
+	//	verify the normal of ask.s
+	if !pp.isAddressSKspNormalInBound(ask.s) {
+		return false, "the normal of AddressSecretKeySp is not in the expected bound"
+	}
+
+	// compute t = A * s
+	s_ntt := pp.NTTPolyAVec(ask.s)
+	t := pp.PolyANTTMatrixMulVector(pp.paramMatrixA, s_ntt, pp.paramKA, pp.paramLA)
+
+	// compute e = <a,s>+ma
+	e := pp.PolyANTTAdd(pp.PolyANTTVecInnerProduct(pp.paramVectorA, s_ntt, pp.paramLA), ask.ma)
+
+	// compare computed (t,e) and (apk.t, apk.e)
+	if !(pp.PolyANTTVecEqualCheck(t, apk.t) && pp.PolyANTTEqualCheck(e, apk.e)) {
+		return false, "the AddressPublicKey computed from AddressSecretKey does not match the input one"
+	}
+
+	return true, ""
+}
+
 func (pp *PublicParameter) valueKeyGen(seed []byte) ([]byte, []byte, error) {
 	return pqringctkem.KeyGen(pp.paramKem, seed, pp.paramKeyGenSeedBytesLen)
+}
+
+func (pp *PublicParameter) valueKeyVerify(vpk []byte, vsk []byte) (valid bool, hints string) {
+	//	From the caller, (vpk []byte, vsk []byte) was obtained by calling (pp *PublicParameter) valueKeyGen(seed []byte) ([]byte, []byte, error)
+	return pqringctkem.VerifyKeyPair(pp.paramKem, vpk, vsk)
 }
 
 // txoGen() returns a transaction output and the randomness used to generate the commitment.
@@ -1241,7 +1267,7 @@ func (pp *PublicParameter) collectBytesForElrsChallenge(
 	return rst, nil
 }
 
-//	elrsVerify() verify the validity of a given (message, signature) pair.
+// elrsVerify() verify the validity of a given (message, signature) pair.
 func (pp *PublicParameter) elrsVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment, msg []byte, sig *elrsSignature) (bool, error) {
 	ringLen := len(lgrTxoList)
 	if ringLen == 0 {
@@ -1371,7 +1397,7 @@ func (pp *PublicParameter) elrsVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 	return true, nil
 }
 
-//	CoinbaseTxGen() generates a coinbase transaction.
+// CoinbaseTxGen() generates a coinbase transaction.
 func (pp *PublicParameter) coinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDesc, txMemo []byte) (cbTx *CoinbaseTx, err error) {
 	V := uint64(1)<<pp.paramN - 1
 
@@ -2577,7 +2603,7 @@ func (pp *PublicParameter) ledgerTxoSerialNumberCompute(ma_p *PolyANTT) ([]byte,
 	//return res
 }
 
-//	pqringct uses Kyber, where serializedVPk can be computed from serializedVSk, so that here serializedVPk is not used when calling pqringctkem.Decaps.
+// pqringct uses Kyber, where serializedVPk can be computed from serializedVSk, so that here serializedVPk is not used when calling pqringctkem.Decaps.
 func (pp *PublicParameter) txoCoinReceive(txo *Txo, serializedAPk []byte, serializedVPk []byte, serializedVSk []byte) (valid bool, v uint64, err error) {
 	if txo == nil {
 		return false, 0, errors.New("nil txo in txoCoinReceive")
@@ -2642,7 +2668,7 @@ func (pp *PublicParameter) txoCoinReceive(txo *Txo, serializedAPk []byte, serial
 
 }
 
-//	ledgerTXOSerialNumberGen() generates serial number for a ledger-txo, say a (txo, txolid) pair.
+// ledgerTXOSerialNumberGen() generates serial number for a ledger-txo, say a (txo, txolid) pair.
 func (pp *PublicParameter) ledgerTXOSerialNumberGen(lgrTxo *LgrTxo, serializedAsksn []byte) ([]byte, error) {
 	//txo, err := pp.DeserializeTxo(serializedTxo)
 	//if err != nil {

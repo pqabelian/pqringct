@@ -173,7 +173,7 @@ func (pp *PublicParameter) randomPolyAForResponseA() (*PolyA, error) {
 	//return &PolyA{coeffs}, nil
 }
 
-//	randomPolyAinEtaA() outputs a PolyA, where each coefficient lies in [-eta_a, eta_a].
+// randomPolyAinEtaA() outputs a PolyA, where each coefficient lies in [-eta_a, eta_a].
 func (pp *PublicParameter) randomPolyAinEtaA() (*PolyA, error) {
 
 	seed := RandomBytes(RandSeedBytesLen)
@@ -339,6 +339,7 @@ func (pp *PublicParameter) randomPolyCForResponseC() (*PolyC, error) {
 }
 
 // 2^24-1= 1111_1111_1111_1111_1111_1111
+//
 //	randomPolyCinEtaC() outputs a PolyC, where each coefficient lies in [-eta_c, eta_c].
 //	eta_c = 2^{24}-1, so that each coefficient needs 3 bytes (for absolute) and 1 bit (for signal)
 func (pp *PublicParameter) randomPolyCinEtaC() (*PolyC, error) {
@@ -471,7 +472,7 @@ func (pp *PublicParameter) randomPolyAinGammaA2(seed []byte) (*PolyA, error) {
 	return &PolyA{sampled}, nil
 }
 
-//	This is a WRONG implementation.
+// This is a WRONG implementation.
 func (pp *PublicParameter) randomPolyAinGammaA2Wrong(seed []byte) (*PolyA, error) {
 
 	var seedUsed []byte
@@ -519,11 +520,11 @@ func (pp *PublicParameter) randomPolyAinGammaA2Wrong(seed []byte) (*PolyA, error
 	return &PolyA{coeffs}, nil
 }
 
-//	expandValuePadRandomness() return pp.TxoValueBytesLen() bytes,
-//	which will be used to encrypt the value-bytes.
-//	pp.TxoValueBytesLen() is 7, which means we use XOF to generate 7*8 = 56 bits.
-//	For security, the length of output does not matter,
-//	since the seed (KEM-generated key) is used only once.
+// expandValuePadRandomness() return pp.TxoValueBytesLen() bytes,
+// which will be used to encrypt the value-bytes.
+// pp.TxoValueBytesLen() is 7, which means we use XOF to generate 7*8 = 56 bits.
+// For security, the length of output does not matter,
+// since the seed (KEM-generated key) is used only once.
 func (pp *PublicParameter) expandValuePadRandomness(seed []byte) ([]byte, error) {
 	if len(seed) == 0 {
 		//	for such an expand function, the seed should not be empty.
@@ -546,8 +547,8 @@ func (pp *PublicParameter) expandValuePadRandomness(seed []byte) ([]byte, error)
 	return buf, nil
 }
 
-//	expandAddressSKsp() expand s \in (S_{\gamma_a})^{L_a} from input seed.
-//	To be self-completed, this function append 'ASKSP' before seed to form the real used seed.
+// expandAddressSKsp() expand s \in (S_{\gamma_a})^{L_a} from input seed.
+// To be self-completed, this function append 'ASKSP' before seed to form the real used seed.
 func (pp *PublicParameter) expandAddressSKsp(seed []byte) (*PolyAVec, error) {
 	if len(seed) == 0 {
 		//	for such an expand function, the seed should not be empty.
@@ -574,8 +575,17 @@ func (pp *PublicParameter) expandAddressSKsp(seed []byte) (*PolyAVec, error) {
 	return rst, nil
 }
 
-//	expandAddressSKsn() expand AddressSKsn from an input seed, and directly output the NTT form.
-//	To be self-completed, this function append 'ASKSN' before seed to form the real used seed.
+func (pp *PublicParameter) isAddressSKspNormalInBound(addressSKsp *PolyAVec) (inBound bool) {
+	if addressSKsp.infNorm() > 2 {
+		// 2 is consistent with the pp.randomPolyAinGammaA2(tmpSeed)
+		return false
+	}
+
+	return true
+}
+
+// expandAddressSKsn() expand AddressSKsn from an input seed, and directly output the NTT form.
+// To be self-completed, this function append 'ASKSN' before seed to form the real used seed.
 func (pp *PublicParameter) expandAddressSKsn(seed []byte) (*PolyANTT, error) {
 	if len(seed) == 0 {
 		return nil, ErrLength
@@ -630,8 +640,8 @@ func (pp *PublicParameter) sampleValueCmtRandomness() (*PolyCVec, error) {
 	return rst, nil
 }
 
-//	review done 0413
-//	Each coefficient of PolyCinDistributionChi is sampled from {-1, 0, 1}, where both 1 and -1 has probability 5/16, and 0 has probability 6/16.
+// review done 0413
+// Each coefficient of PolyCinDistributionChi is sampled from {-1, 0, 1}, where both 1 and -1 has probability 5/16, and 0 has probability 6/16.
 func (pp *PublicParameter) randomPolyCinDistributionChi(seed []byte) (*PolyC, error) {
 
 	var seedUsed []byte
@@ -720,8 +730,8 @@ func (pp *PublicParameter) sampleMaskingVecC() (*PolyCVec, error) {
 
 }
 
-//	sampleResponseA() returns a PolyAVec with length paramLa,
-//	where each coefficient lies in [-(eta_a-beta_a), (eta_a-beta_a)], where eta_a = 2^{19}-1, beta_a = 300
+// sampleResponseA() returns a PolyAVec with length paramLa,
+// where each coefficient lies in [-(eta_a-beta_a), (eta_a-beta_a)], where eta_a = 2^{19}-1, beta_a = 300
 func (pp *PublicParameter) sampleResponseA() (*PolyAVec, error) {
 	rst := pp.NewPolyAVec(pp.paramLA)
 
@@ -753,6 +763,7 @@ func (pp PublicParameter) sampleResponseC() (*PolyCVec, error) {
 
 // 9007199254746113 = 0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001_0100_0000_0001
 // 4503599627373056 = 0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_000_1010_0000_0000
+//
 //	randomDcIntegersInQc() outputs Dc int64,  by sampling uniformly (when seed is nil) or expanding from a seed (when seed is not nil)
 //	Each integer lies in [-(Q_c-1)/2, (Q_c-2)/2].
 func (pp *PublicParameter) randomDcIntegersInQc(seed []byte) ([]int64, error) {
@@ -833,9 +844,9 @@ func (pp *PublicParameter) randomDcIntegersInQc(seed []byte) ([]int64, error) {
 	//return coeffs
 }
 
-//	randomDcIntegersInQcEtaF() outputs Dc int64,  by sampling uniformly.
-//	Each integer lies in [-eta_f, eta_f].
-//	eta_f = 2^23-1.
+// randomDcIntegersInQcEtaF() outputs Dc int64,  by sampling uniformly.
+// Each integer lies in [-eta_f, eta_f].
+// eta_f = 2^23-1.
 func (pp *PublicParameter) randomDcIntegersInQcEtaF() ([]int64, error) {
 
 	seed := RandomBytes(RandSeedBytesLen)
@@ -909,6 +920,7 @@ func (pp *PublicParameter) randomDcIntegersInQcEtaF() ([]int64, error) {
 }
 
 // q_a = 8522826353 = 2^32+2^31+2^30+2^29+2^28+2^27+2^26+2^9+2^6+2^5+2^4+1
+//
 //	randomDaIntegersInQa() returns paramDA int64, each in the scope [-(q_a-1)/2, (q_a-1)/2].
 func (pp *PublicParameter) randomDaIntegersInQa(seed []byte) ([]int64, error) {
 	var tmpSeed []byte
@@ -959,7 +971,9 @@ func (pp *PublicParameter) randomDaIntegersInQa(seed []byte) ([]int64, error) {
 }
 
 // expandSigACh should output a {-1,0,1}^DC vector with the number of not-0 is theta_a from a byte array.
+//
 //	The seed could not be empty.
+//
 // Firstly, set the 1 or -1 with total number is theta
 // Secondly, shuffle the array using the Knuth-Durstenfeld Shuffle
 func (pp *PublicParameter) expandChallengeA(seed []byte) (*PolyA, error) {
@@ -1004,9 +1018,9 @@ func (pp *PublicParameter) expandChallengeA(seed []byte) (*PolyA, error) {
 	return &PolyA{coeffs: coeffs}, nil
 }
 
-//	expandChallengeC() returns a challenge for proof in value commitment, say a PolyC, //
-//	where each coefficient is sampled from {-1, 0, 1}, with Pr(0)=1/2, Pr(1)=Pr(-1)= 1/4.
-//	The seed could not be empty.
+// expandChallengeC() returns a challenge for proof in value commitment, say a PolyC, //
+// where each coefficient is sampled from {-1, 0, 1}, with Pr(0)=1/2, Pr(1)=Pr(-1)= 1/4.
+// The seed could not be empty.
 func (pp PublicParameter) expandChallengeC(seed []byte) (*PolyC, error) {
 	if len(seed) == 0 {
 		//	for such an expand fucntion, the seed could not be empty.

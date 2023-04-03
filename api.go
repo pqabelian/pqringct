@@ -43,6 +43,30 @@ func AddressKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, []byte, er
 	return serializedAPk, serializedASksp, serializedASksn, nil
 }
 
+func AddressKeyVerify(pp *PublicParameter, serialzedAPk []byte, serializedASksp []byte, serializedASksn []byte) (valid bool, hints string) {
+	apk, err := pp.DeserializeAddressPublicKey(serialzedAPk)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	asksp, err := pp.DeserializeAddressSecretKeySp(serializedASksp)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	asksn, err := pp.DeserializeAddressSecretKeySn(serializedASksn)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	ask := &AddressSecretKey{
+		AddressSecretKeySp: asksp,
+		AddressSecretKeySn: asksn,
+	}
+
+	return pp.addressKeyVerify(apk, ask)
+}
+
 // ask = (s, m_a), apk = (t = As, e = <a,s>+m_a). s is asksp, m_a is asksn
 func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 	vpk, vsk, err := pp.valueKeyGen(seed)
@@ -50,6 +74,11 @@ func ValueKeyGen(pp *PublicParameter, seed []byte) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 	return vpk, vsk, nil
+}
+
+func ValueKeyVerify(pp *PublicParameter, serialzedVPk []byte, serializedVsp []byte) (valid bool, hints string) {
+	//	From the caller, (serialzedVPk, serializedVsp) was obtained by call ValueKeyGen(pp *PublicParameter, seed []byte).
+	return pp.valueKeyVerify(serialzedVPk, serializedVsp)
 }
 
 func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDesc, txMemo []byte) (cbTx *CoinbaseTx, err error) {

@@ -76,6 +76,52 @@ func KeyGen(ppkem *ParamKem, seed []byte, seedLen int) ([]byte, []byte, error) {
 	return retSerializedPK, retSerializedSK, nil
 }
 
+func VerifyKeyPair(ppkem *ParamKem, serializedPK []byte, serializedSK []byte) (valid bool, hints string) {
+	panic("implement me")
+	//var originSerializedPK, originSerializedSK []byte
+	//var err error
+	//switch ppkem.Version {
+	//case KEM_KYBER:
+	//	originSerializedPK, originSerializedSK, err = pqringctkyber.KeyPair(ppkem.Kyber, seed, seedLen)
+	//	if err != nil {
+	//		return nil, nil, err
+	//	}
+	//case KEM_OQS_KYBER:
+	//	var recovery bool
+	//	if seed == nil || seedLen < 32 {
+	//		// allocate the space of seed is to match the cgo in  pqringctOQSKem.KeyPair()
+	//		seed = make([]byte, 32)
+	//		recovery = false
+	//	} else {
+	//		recovery = true
+	//	}
+	//	originSerializedPK, originSerializedSK, err = pqringctOQSKem.KeyPair(ppkem.OQSKyber, seed, recovery)
+	//	if err != nil {
+	//		return nil, nil, err
+	//	}
+	//default:
+	//	log.Fatalln("Unsupported KEM version.")
+	//}
+	//retSerializedPK := make([]byte, 0, 4+len(originSerializedPK))
+	//retSerializedPK = append(retSerializedPK, byte(ppkem.Version>>0))
+	//retSerializedPK = append(retSerializedPK, byte(ppkem.Version>>8))
+	//retSerializedPK = append(retSerializedPK, byte(ppkem.Version>>16))
+	//retSerializedPK = append(retSerializedPK, byte(ppkem.Version>>24))
+	//retSerializedPK = append(retSerializedPK, originSerializedPK...)
+	//
+	//retSerializedSK := make([]byte, 0, 4+len(originSerializedSK))
+	//retSerializedSK = append(retSerializedSK, byte(ppkem.Version>>0))
+	//retSerializedSK = append(retSerializedSK, byte(ppkem.Version>>8))
+	//retSerializedSK = append(retSerializedSK, byte(ppkem.Version>>16))
+	//retSerializedSK = append(retSerializedSK, byte(ppkem.Version>>24))
+	//retSerializedSK = append(retSerializedSK, originSerializedSK...)
+	//
+	//return retSerializedPK, retSerializedSK, nil
+
+	// todo:
+	return true, ""
+}
+
 func Encaps(ppkem *ParamKem, pk []byte) ([]byte, []byte, error) {
 	var serializedC, kappa []byte
 	var err error
