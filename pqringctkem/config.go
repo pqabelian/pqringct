@@ -1,6 +1,7 @@
 package pqringctkem
 
 import (
+	"bytes"
 	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
 	"github.com/cryptosuite/pqringct/pqringctkem/pqringctOQSKem"
@@ -77,48 +78,35 @@ func KeyGen(ppkem *ParamKem, seed []byte, seedLen int) ([]byte, []byte, error) {
 }
 
 func VerifyKeyPair(ppkem *ParamKem, serializedPK []byte, serializedSK []byte) (valid bool, hints string) {
-	panic("implement me")
-	//var originSerializedPK, originSerializedSK []byte
-	//var err error
-	//switch ppkem.Version {
-	//case KEM_KYBER:
-	//	originSerializedPK, originSerializedSK, err = pqringctkyber.KeyPair(ppkem.Kyber, seed, seedLen)
-	//	if err != nil {
-	//		return nil, nil, err
-	//	}
-	//case KEM_OQS_KYBER:
-	//	var recovery bool
-	//	if seed == nil || seedLen < 32 {
-	//		// allocate the space of seed is to match the cgo in  pqringctOQSKem.KeyPair()
-	//		seed = make([]byte, 32)
-	//		recovery = false
-	//	} else {
-	//		recovery = true
-	//	}
-	//	originSerializedPK, originSerializedSK, err = pqringctOQSKem.KeyPair(ppkem.OQSKyber, seed, recovery)
-	//	if err != nil {
-	//		return nil, nil, err
-	//	}
-	//default:
-	//	log.Fatalln("Unsupported KEM version.")
-	//}
-	//retSerializedPK := make([]byte, 0, 4+len(originSerializedPK))
-	//retSerializedPK = append(retSerializedPK, byte(ppkem.Version>>0))
-	//retSerializedPK = append(retSerializedPK, byte(ppkem.Version>>8))
-	//retSerializedPK = append(retSerializedPK, byte(ppkem.Version>>16))
-	//retSerializedPK = append(retSerializedPK, byte(ppkem.Version>>24))
-	//retSerializedPK = append(retSerializedPK, originSerializedPK...)
-	//
-	//retSerializedSK := make([]byte, 0, 4+len(originSerializedSK))
-	//retSerializedSK = append(retSerializedSK, byte(ppkem.Version>>0))
-	//retSerializedSK = append(retSerializedSK, byte(ppkem.Version>>8))
-	//retSerializedSK = append(retSerializedSK, byte(ppkem.Version>>16))
-	//retSerializedSK = append(retSerializedSK, byte(ppkem.Version>>24))
-	//retSerializedSK = append(retSerializedSK, originSerializedSK...)
-	//
-	//return retSerializedPK, retSerializedSK, nil
+	// check the version
+	pkVersion := uint32(serializedPK[0]) << 0
+	pkVersion |= uint32(serializedPK[1]) << 8
+	pkVersion |= uint32(serializedPK[2]) << 16
+	pkVersion |= uint32(serializedPK[3]) << 24
 
-	// todo:
+	skVersion := uint32(serializedSK[0]) << 0
+	skVersion |= uint32(serializedSK[1]) << 8
+	skVersion |= uint32(serializedSK[2]) << 16
+	skVersion |= uint32(serializedSK[3]) << 24
+	if VersionKEM(pkVersion) != ppkem.Version {
+		return false, "the version is not matched"
+	}
+	if VersionKEM(skVersion) != ppkem.Version {
+		return false, "the version is not matched"
+	}
+
+	ctKemSerialized, kappa, err := Encaps(ppkem, serializedPK)
+	if err != nil {
+		return false, err.Error()
+	}
+	decapsedKappa, err := Decaps(ppkem, ctKemSerialized, serializedSK)
+	if err != nil {
+		return false, err.Error()
+	}
+	if !bytes.Equal(kappa, decapsedKappa) {
+		return false, "the key pair is not matched"
+	}
+
 	return true, ""
 }
 

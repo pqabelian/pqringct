@@ -2,6 +2,7 @@ package pqringct
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"testing"
 )
@@ -241,6 +242,43 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("transferTxVerify() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestValueKeyGen_ValueKeyVerify(t *testing.T) {
+	pp := Initialize(nil)
+	type args struct {
+		pp   *PublicParameter
+		seed []byte
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "1",
+			args: args{
+				pp:   pp,
+				seed: RandomBytes(pp.paramKeyGenSeedBytesLen),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fmt.Println("seed = ", hex.EncodeToString(tt.args.seed))
+			serializedPK, serializedSK, err := ValueKeyGen(tt.args.pp, tt.args.seed)
+			if err != nil {
+				t.Errorf("ValueKeyGen() error = %v", err)
+				return
+			}
+
+			valid, hints := ValueKeyVerify(tt.args.pp, serializedPK, serializedSK)
+			if !valid {
+				t.Errorf("ValueKeyGen is unmatched with ValueKeyVerify() error = %s", hints)
+				return
+			}
+
 		})
 	}
 }
