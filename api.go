@@ -218,6 +218,23 @@ func GetValuePublicKeySerializeSize(pp *PublicParameter) int {
 	return 1188
 }
 
+// GetAddressSecretKeySpSerializeSize
+// reviewed on 2023.12.12
+func GetAddressSecretKeySpSerializeSize(pp *PublicParameter) int {
+	return pp.AddressSecretKeySpSerializeSize()
+}
+
+// GetAddressSecretKeySnSerializeSize
+// reviewed on 2023.12.12
+func GetAddressSecretKeySnSerializeSize(pp *PublicParameter) int {
+	return pp.AddressSecretKeySnSerializeSize()
+}
+
+// todo(MLP):
+func GetValueSecretKeySerializeSize(pp *PublicParameter) int {
+	return 0
+}
+
 func GetTxInputMaxNum(pp *PublicParameter) int {
 	return pp.paramI
 }
