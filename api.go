@@ -84,14 +84,14 @@ func ValueKeyVerify(pp *PublicParameter, serialzedVPk []byte, serializedVsp []by
 func CoinbaseTxGen(pp *PublicParameter, vin uint64, txOutputDescs []*TxOutputDesc, txMemo []byte) (cbTx *CoinbaseTx, err error) {
 	return pp.coinbaseTxGen(vin, txOutputDescs, txMemo)
 }
-func CoinbaseTxVerify(pp *PublicParameter, cbTx *CoinbaseTx) (bool, error) {
+func CoinbaseTxVerify(pp *PublicParameter, cbTx *CoinbaseTx) error {
 	return pp.coinbaseTxVerify(cbTx)
 }
 
 func TransferTxGen(pp *PublicParameter, inputDescs []*TxInputDesc, outputDescs []*TxOutputDesc, fee uint64, txMemo []byte) (trTx *TransferTx, err error) {
 	return pp.transferTxGen(inputDescs, outputDescs, fee, txMemo)
 }
-func TransferTxVerify(pp *PublicParameter, trTx *TransferTx) (bool, error) {
+func TransferTxVerify(pp *PublicParameter, trTx *TransferTx) error {
 	return pp.transferTxVerify(trTx)
 }
 func TxoCoinReceive(pp *PublicParameter, txo *Txo, address []byte, serializedVPk []byte, serializedVSk []byte) (valid bool, v uint64, err error) {
