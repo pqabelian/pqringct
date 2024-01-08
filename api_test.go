@@ -81,13 +81,9 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 		if err != nil {
 			t.Errorf(err.Error())
 		}
-		var valid bool
-		valid, err = pp.coinbaseTxVerify(cbTx1Deser)
+		err = pp.coinbaseTxVerify(cbTx1Deser)
 		if err != nil {
 			t.Errorf(err.Error())
-		}
-		if valid {
-			fmt.Println("CbTx1 (J=2) serialze and deserialize Pass")
 		}
 	}
 
@@ -234,13 +230,10 @@ func TestPublicParameter_TransferTxGen_TransferTxVerify(t *testing.T) {
 			fmt.Println("TrTxWitnessSizeApprox:", pp.TrTxWitnessSerializeSizeApprox(ringSizes, len(gotTrTx.OutputTxos)))
 			fmt.Println("TrTxWitnessSizeExact:", pp.TrTxWitnessSerializeSize(gotTrTx.TxWitness))
 
-			got, err := pp.transferTxVerify(gotTrTxDeser)
+			err = pp.transferTxVerify(gotTrTxDeser)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("transferTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-			if got != tt.want {
-				t.Errorf("transferTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
 	}
