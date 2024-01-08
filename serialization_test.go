@@ -1377,13 +1377,10 @@ func TestSerializeCoinbaseTx(t *testing.T) {
 				log.Fatal(err)
 			}
 
-			got, err := pp.coinbaseTxVerify(cbTxRe)
+			err = pp.coinbaseTxVerify(cbTxRe)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("coinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-			if got != tt.want {
-				t.Errorf("coinbaseTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -2066,13 +2063,10 @@ func TestSerializeTransferTx(t *testing.T) {
 			fmt.Println("ElrsSig Expected Size:", pp.ElrsSignatureSerializeSize(trTxDeser.TxWitness.elrsSigs[0]))
 			fmt.Println("ElrsSig Actual Size:", len(serElsSig))
 
-			got, err := pp.transferTxVerify(trTxDeser)
+			err = pp.transferTxVerify(trTxDeser)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("transferTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-			if got != tt.want {
-				t.Errorf("transferTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
 	}

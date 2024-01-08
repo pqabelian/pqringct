@@ -79,13 +79,10 @@ func TestPublicParameterv2_CoinbaseTxGenAndCoinbaseTxVerify(t *testing.T) {
 				t.Errorf("coinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			got, err := pp.coinbaseTxVerify(cbTx)
+			err = pp.coinbaseTxVerify(cbTx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("coinbaseTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-			if got != tt.want {
-				t.Errorf("coinbaseTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -199,12 +196,9 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	}
 	fmt.Println(cbTx0Deser.TxMemo)
 	fmt.Println(cbTx0Deser.Vin)
-	validCbTx0, err := pp.coinbaseTxVerify(cbTx0Deser)
+	err = pp.coinbaseTxVerify(cbTx0Deser)
 	if err != nil {
 		t.Errorf(err.Error())
-	}
-	if validCbTx0 {
-		fmt.Println("CbTx0 (J=1) serialze and deserialize Pass")
 	}
 
 	cbTx1, err := pp.coinbaseTxGen(512, []*TxOutputDesc{
@@ -231,12 +225,9 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	validCbTx1, err := pp.coinbaseTxVerify(cbTx1Deser)
+	err = pp.coinbaseTxVerify(cbTx1Deser)
 	if err != nil {
 		t.Errorf(err.Error())
-	}
-	if validCbTx1 {
-		fmt.Println("CbTx1 (J=2) serialze and deserialize Pass")
 	}
 
 	cbTx2, err := pp.coinbaseTxGen(512, []*TxOutputDesc{
@@ -266,12 +257,9 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	validCbTx2, err := pp.coinbaseTxVerify(cbTx2Deser)
+	err = pp.coinbaseTxVerify(cbTx2Deser)
 	if err != nil {
 		t.Errorf(err.Error())
-	}
-	if validCbTx2 {
-		fmt.Println("CbTx2 (J=2) serialze and deserialize Pass")
 	}
 
 	fmt.Println("CbTxWitnessJ2SizeApprox(J=2):", pp.CbTxWitnessJ2SerializeSizeApprox(2))
@@ -409,13 +397,10 @@ func TestPublicParameterV2_TransferTxGen(t *testing.T) {
 			fmt.Println("TrTxWitnessSizeApprox:", pp.TrTxWitnessSerializeSizeApprox(ringSizes, len(gotTrTx.OutputTxos)))
 			fmt.Println("TrTxWitnessSizeExact:", pp.TrTxWitnessSerializeSize(gotTrTx.TxWitness))
 
-			got, err := pp.transferTxVerify(gotTrTxDeser)
+			err = pp.transferTxVerify(gotTrTxDeser)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("transferTxGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-			if got != tt.want {
-				t.Errorf("transferTxVerify() = %v, want %v", got, tt.want)
 			}
 		})
 	}
