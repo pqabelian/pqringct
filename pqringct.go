@@ -550,31 +550,33 @@ rpUlpProveRestart:
 	return retrpulppi, nil
 }
 
+// rpulpVerify
+// refactored on 2024.01.06, using err == nil or not to denote valid or invalid.
 func (pp *PublicParameter) rpulpVerify(message []byte,
 	cmts []*ValueCommitment, n uint8,
 	b_hat *PolyCNTTVec, c_hats []*PolyCNTT, n2 uint8,
 	n1 uint8, rpulpType RpUlpType, binMatrixB [][]byte, I uint8, J uint8, m uint8, u_hats [][]int64,
-	rpulppi *rpulpProof) (valid bool) {
+	rpulppi *rpulpProof) error {
 
 	if !(n >= 2 && n <= n1 && n1 <= n2 && int(n) <= pp.paramI+pp.paramJ && int(n2) <= pp.paramI+pp.paramJ+4) {
-		return false
+		return fmt.Errorf("rpulpVerify: the value of n(%d), n1(%d), n2(%d) is out of design", n, n1, n2)
 	}
 
 	if len(cmts) != int(n) {
-		return false
+		return fmt.Errorf("rpulpVerify: len(cmts) (%d) is not the same as n (%d)", len(cmts), n)
 	}
 
 	if b_hat == nil {
-		return false
+		return fmt.Errorf("rpulpVerify: b_hat is nil")
 	}
 
 	if len(c_hats) != int(n2) {
-		return false
+		return fmt.Errorf("rpulpVerify: c_hats is empty")
 	}
 
 	// check the matrix and u_hats
 	if len(binMatrixB) != pp.paramDC {
-		return false
+		return fmt.Errorf("rpulpVerify: len(binMatrixB) (%d) is not the same as paramDC (%d)", len(binMatrixB), pp.paramDC)
 	} else {
 		for i := 0; i < len(binMatrixB); i++ {
 			switch rpulpType {
@@ -582,49 +584,49 @@ func (pp *PublicParameter) rpulpVerify(message []byte,
 				fallthrough
 			case RpUlpTypeTrTx1:
 				if len(binMatrixB[i]) != pp.paramDC/8 {
-					return false
+					return fmt.Errorf("rpulpVerify: len(binMatrixB[%d]) (%d) is not paramDC/8 (%d)", i, len(binMatrixB[i]), pp.paramDC/8)
 				}
 			case RpUlpTypeTrTx2:
 				if len(binMatrixB[i]) != 2*pp.paramDC/8 {
-					return false
+					return fmt.Errorf("rpulpVerify: len(binMatrixB[%d]) (%d) is not 2*paramDC/8 (%d)", i, len(binMatrixB[i]), 2*pp.paramDC/8)
 				}
 			default:
-				return false
+				return fmt.Errorf("rpulpVerify: the input rpulpType(%d) is out of design", rpulpType)
 			}
 		}
 	}
 	if len(u_hats) != int(m) {
-		return false
+		return fmt.Errorf("rpulpVerify: len(u_hats) (%d) != m (%d)", len(u_hats), m)
 	} else {
 		for i := 0; i < len(u_hats); i++ {
 			if len(u_hats[0]) != pp.paramDC {
-				return false
+				return fmt.Errorf("rpulpVerify: len(u_hats[0]) (%d) is not paramDC (%d)", len(u_hats[0]), pp.paramDC)
 			}
 		}
 
 	}
 	// check the well-formness of the \pi
 	if len(rpulppi.c_waves) != int(n) || len(rpulppi.c_hat_g.coeffs) != pp.paramDC || len(rpulppi.psi.coeffs) != pp.paramDC || len(rpulppi.phi.coeffs) != pp.paramDC || len(rpulppi.zs) != pp.paramK || len(rpulppi.zs[0].polyCs) != pp.paramLC {
-		return false
+		return fmt.Errorf("rpulpVerify: rpulppi.c_waves, rpulppi.c_hat_g.coeffs, rpulppi.psi.coeffs, rpulppi.phi.coeffs, or rpulppi.zs is not well-form")
 	}
 	if rpulppi == nil {
-		return false
+		return fmt.Errorf("rpulpVerify: rpulppi is nil")
 	}
 	if len(rpulppi.c_waves) != int(n) {
-		return false
+		return fmt.Errorf("rpulpVerify: len(rpulppi.c_waves) (%d) is not n (%d)", len(rpulppi.c_waves), n)
 	}
 
 	if rpulppi.c_hat_g == nil || rpulppi.psi == nil || rpulppi.phi == nil || rpulppi.chseed == nil {
-		return false
+		return fmt.Errorf("rpulpVerify: rpulppi.c_hat_g, rpulppi.psi, rpulppi.phi, or rpulppi.chseed is nil")
 	}
 
 	if rpulppi.cmt_zs == nil || len(rpulppi.cmt_zs) != pp.paramK || rpulppi.zs == nil || len(rpulppi.zs) != pp.paramK {
-		return false
+		return fmt.Errorf("rpulpVerify: rpulppi.cmt_zs or rpulppi.zs is not well-form")
 	}
 
 	for t := 0; t < pp.paramK; t++ {
 		if rpulppi.cmt_zs[t] == nil || len(rpulppi.cmt_zs[t]) != int(n) {
-			return false
+			return fmt.Errorf("rpulpVerify: len(rpulppi.cmt_zs[%d]) (%d) is not n (%d)", t, len(rpulppi.cmt_zs[t]), n)
 		}
 	}
 
@@ -633,7 +635,7 @@ func (pp *PublicParameter) rpulpVerify(message []byte,
 	//fmt.Println("phiPoly", phiPoly.coeffs1)
 	for t := 0; t < pp.paramK; t++ {
 		if phiPoly.coeffs[t] != 0 {
-			return false
+			return fmt.Errorf("rpulpVerify: phiPoly.coeffs[%d] (%v) is not 0", t, phiPoly.coeffs[t])
 		}
 	}
 
@@ -641,16 +643,16 @@ func (pp *PublicParameter) rpulpVerify(message []byte,
 	for t := 0; t < pp.paramK; t++ {
 		for i := uint8(0); i < n; i++ {
 			if rpulppi.cmt_zs[t][i].infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
-				return false
+				return fmt.Errorf("rpulpVerify: rpulppi.cmt_zs[%d][%d].infNorm() (%v) is not as expected", t, i, rpulppi.cmt_zs[t][i].infNorm())
 			}
 		}
 		if rpulppi.zs[t].infNorm() > pp.paramEtaC-int64(pp.paramBetaC) {
-			return false
+			return fmt.Errorf("rpulpVerify: rpulppi.zs[%d].infNorm() (%v) is not as expected", t, rpulppi.zs[t].infNorm())
 		}
 	}
 	ch_poly, err := pp.expandChallengeC(rpulppi.chseed)
 	if err != nil {
-		return false
+		return err
 	}
 	ch := pp.NTTPolyC(ch_poly)
 
@@ -716,12 +718,12 @@ func (pp *PublicParameter) rpulpVerify(message []byte,
 		rpulppi.c_waves, rpulppi.c_hat_g, cmt_ws, delta_waves, delta_hats, ws)
 	seed_rand, err := Hash(preMsg)
 	if err != nil {
-		return false
+		return err
 	}
 	//fmt.Println("verify seed_rand=", seed_rand)
 	alphas, betas, gammas, err := pp.expandCombChallengeInRpulp(seed_rand, n1, m)
 	if err != nil {
-		return false
+		return err
 	}
 
 	// psi'
@@ -867,13 +869,13 @@ func (pp *PublicParameter) rpulpVerify(message []byte,
 	preMsgAll := pp.collectBytesForRPULP2(preMsg, rpulppi.psi, psip, rpulppi.phi, phips)
 	seed_ch, err := Hash(preMsgAll)
 	if err != nil {
-		return false
+		return err
 	}
 	if bytes.Compare(seed_ch, rpulppi.chseed) != 0 {
-		return false
+		return fmt.Errorf("rpulpVerify: the computed seed is differnet from rpulppi.chseed")
 	}
 
-	return true
+	return nil
 }
 
 func (pp *PublicParameter) expandKIDR(lgrtxo *LgrTxo) (*PolyANTT, error) {
@@ -1268,20 +1270,21 @@ func (pp *PublicParameter) collectBytesForElrsChallenge(
 }
 
 // elrsVerify() verify the validity of a given (message, signature) pair.
-func (pp *PublicParameter) elrsVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment, msg []byte, sig *elrsSignature) (bool, error) {
+// refactored on 2024.01.06, using err == nil or not to denote valid or not.
+func (pp *PublicParameter) elrsVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_p *ValueCommitment, msg []byte, sig *elrsSignature) error {
 	ringLen := len(lgrTxoList)
 	if ringLen == 0 {
-		return false, nil
+		return fmt.Errorf("elrsVerify: the input lgrTxoList is empty")
 	}
 	boundA := pp.paramEtaA - int64(pp.paramBetaA)
 	boundC := pp.paramEtaC - int64(pp.paramBetaC)
 	for j := 0; j < ringLen; j++ {
 		if sig.z_as[j].infNorm() > boundA {
-			return false, nil
+			return fmt.Errorf("elrsVerify: sig.z_as[%d].infNorm() (%v) is not in the expeacted range", j, sig.z_as[j].infNorm())
 		}
 		for tao := 0; tao < pp.paramK; tao++ {
 			if (sig.z_cs[j][tao].infNorm() > boundC) || (sig.z_cps[j][tao].infNorm() > boundC) {
-				return false, nil
+				return fmt.Errorf("elrsVerify: sig.z_cs[%d][%d].infNorm() (%v) is not in the range", j, tao, sig.z_cs[j][tao].infNorm())
 			}
 			//if sig.z_cps[j][tao].infNorm() > boundC {
 			//	return false, nil
@@ -1298,13 +1301,13 @@ func (pp *PublicParameter) elrsVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 	for j := 0; j < ringLen; j++ {
 		tmpDA, err := pp.expandChallengeA(sig.seeds[j])
 		if err != nil {
-			return false, err
+			return err
 		}
 		da := pp.NTTPolyA(tmpDA)
 
 		tmpDC, err := pp.expandChallengeC(sig.seeds[j])
 		if err != nil {
-			return false, err
+			return err
 		}
 		dc := pp.NTTPolyC(tmpDC)
 
@@ -1318,7 +1321,7 @@ func (pp *PublicParameter) elrsVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 		// theta_a_j = <a,z_a_j> - d_a_j * (e_j + expandKIDR(txo[j]) - m_a_p)
 		lgrTxoH, err := pp.expandKIDR(lgrTxoList[j])
 		if err != nil {
-			return false, err
+			return err
 		}
 		delta_as[j] = pp.PolyANTTSub(
 			pp.PolyANTTVecInnerProduct(pp.paramVectorA, z_as_ntt, pp.paramLA),
@@ -1376,11 +1379,11 @@ func (pp *PublicParameter) elrsVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 
 	preMsg, err := pp.collectBytesForElrsChallenge(lgrTxoList, ma_p, cmt_p, msg, w_as, delta_as, w_cs, w_cps, delta_cs)
 	if err != nil {
-		return false, err
+		return err
 	}
 	seed_ch, err := Hash(preMsg)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	seedByteLen := len(seed_ch)
@@ -1391,10 +1394,10 @@ func (pp *PublicParameter) elrsVerify(lgrTxoList []*LgrTxo, ma_p *PolyANTT, cmt_
 	}
 	for i := 0; i < seedByteLen; i++ {
 		if seed_ch[i] != 0 {
-			return false, nil
+			return fmt.Errorf("elrsVerify: the final seed verification fails on %d -th position", i)
 		}
 	}
-	return true, nil
+	return nil
 }
 
 // CoinbaseTxGen() generates a coinbase transaction.
@@ -1672,49 +1675,53 @@ func (pp *PublicParameter) coinbaseTxGen(vin uint64, txOutputDescs []*TxOutputDe
 }
 
 // CoinbaseTxVerify reports whether a coinbase transaction is legal.
-func (pp *PublicParameter) coinbaseTxVerify(cbTx *CoinbaseTx) (bool, error) {
+// refactored on 2024.01.06, using err == nil or not to denote valid or not
+func (pp *PublicParameter) coinbaseTxVerify(cbTx *CoinbaseTx) error {
 	if cbTx == nil {
-		return false, nil
+		return fmt.Errorf("coinbaseTxVerify: the input CoinbaseTx is nil")
 	}
 
 	V := uint64(1)<<pp.paramN - 1
 
 	if cbTx.Vin > V {
-		return false, nil
+		return fmt.Errorf("coinbaseTxVerify: cbTx.Vin (%v) > V (%v)", cbTx.Vin, V)
 	}
 
 	if len(cbTx.OutputTxos) == 0 {
-		return false, nil
+		return fmt.Errorf("coinbaseTxVerify: cbTx.OutputTxos is empty")
 	}
 
 	if cbTx.TxWitnessJ1 == nil && cbTx.TxWitnessJ2 == nil {
-		return false, nil
+		return fmt.Errorf("coinbaseTxVerify: cbTx.TxWitnessJ1 == nil && cbTx.TxWitnessJ2 == nil")
 	}
 
 	J := len(cbTx.OutputTxos)
 	if J > pp.paramJ {
-		return false, nil
+		return fmt.Errorf("coinbaseTxVerify: the numner of TxOutputs (%d) exceeds the allowed maximum value (%d)", J, pp.paramJ)
 	}
 
 	cbTxCon, err := pp.SerializeCoinbaseTx(cbTx, false)
 	if err != nil {
-		return false, err
+		return err
+	}
+	if len(cbTxCon) == 0 {
+		return fmt.Errorf("coinbaseTxVerify: the serilaized cbTxCon is empty")
 	}
 
 	if J == 1 {
 		if len(cbTx.TxWitnessJ1.zs) == 0 || len(cbTx.TxWitnessJ1.chseed) == 0 {
-			return false, nil
+			return fmt.Errorf("coinbaseTxVerify: cbTx.TxWitnessJ1.zs or cbTx.TxWitnessJ1.chseed is nil/empty")
 		}
 
 		// check the well-formof zs
 		if len(cbTx.TxWitnessJ1.zs) != pp.paramK {
-			return false, nil
+			return fmt.Errorf("coinbaseTxVerify: len(cbTx.TxWitnessJ1.zs) (%d) != pp.paramK", len(cbTx.TxWitnessJ1.zs))
 		}
 		// infNorm of z^t
 		bound := pp.paramEtaC - int64(pp.paramBetaC)
 		for t := 0; t < pp.paramK; t++ {
 			if cbTx.TxWitnessJ1.zs[t].infNorm() > bound {
-				return false, nil
+				return fmt.Errorf("coinbaseTxVerify: cbTx.TxWitnessJ1.zs[%d].infNorm() (%v) is not in the expected range", t, cbTx.TxWitnessJ1.zs[t].infNorm())
 			}
 		}
 
@@ -1723,7 +1730,7 @@ func (pp *PublicParameter) coinbaseTxVerify(cbTx *CoinbaseTx) (bool, error) {
 
 		ch_poly, err := pp.expandChallengeC(cbTx.TxWitnessJ1.chseed)
 		if err != nil {
-			return false, err
+			return err
 		}
 		ch := pp.NTTPolyC(ch_poly)
 		mtmp := pp.intToBinary(cbTx.Vin)
@@ -1751,32 +1758,32 @@ func (pp *PublicParameter) coinbaseTxVerify(cbTx *CoinbaseTx) (bool, error) {
 		preMsg := pp.collectBytesForCoinbaseTxJ1(cbTxCon, ws, deltas)
 		seed_ch, err := Hash(preMsg)
 		if err != nil {
-			return false, err
+			return err
 		}
 		if bytes.Compare(seed_ch, cbTx.TxWitnessJ1.chseed) != 0 {
-			return false, nil
+			return fmt.Errorf("coinbaseTxVerify: the computed seed_ch is not the same as cbTx.TxWitnessJ1.chseed")
 		}
 	} else {
 		// check the well-formness of cbTx.TxWitness
 		if cbTx.TxWitnessJ2.b_hat == nil || len(cbTx.TxWitnessJ2.c_hats) == 0 || len(cbTx.TxWitnessJ2.u_p) == 0 || cbTx.TxWitnessJ2.rpulpproof == nil {
-			return false, nil
+			return fmt.Errorf("coinbaseTxVerify: cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats, cbTx.TxWitnessJ2.u_p, or cbTx.TxWitnessJ2.rpulpproof is nil/empty")
 		}
 
 		n := J
 		n2 := J + 2
 
 		if len(cbTx.TxWitnessJ2.c_hats) != n2 {
-			return false, nil
+			return fmt.Errorf("coinbaseTxVerify: len(cbTx.TxWitnessJ2.c_hats) (%d) != n2 (%d)", len(cbTx.TxWitnessJ2.c_hats), n2)
 		}
 
 		//	infNorm of u'
 		//	u_p = B f + e, where e \in [-eta_f, eta_f], with eta_f < q_c/16.
-		//	As Bf should be bound by d_c J, so that |B f + e| < q_c/2, there should not modular reduction.
+		//	As Bf should be bound by d_c J, so that |B f + e| < q_c/2, there should not be modular reduction.
 		betaF := pp.paramDC * J
 		boundF := pp.paramEtaF - int64(betaF)
 		infNorm := int64(0)
 		if len(cbTx.TxWitnessJ2.u_p) != pp.paramDC {
-			return false, nil
+			return fmt.Errorf("coinbaseTxVerify: len(cbTx.TxWitnessJ2.u_p) (%d) != pp.paramDC (%d)", len(cbTx.TxWitnessJ2.u_p), pp.paramDC)
 		}
 		for i := 0; i < pp.paramDC; i++ {
 			infNorm = cbTx.TxWitnessJ2.u_p[i]
@@ -1785,18 +1792,18 @@ func (pp *PublicParameter) coinbaseTxVerify(cbTx *CoinbaseTx) (bool, error) {
 			}
 
 			if infNorm > boundF {
-				return false, nil
+				return fmt.Errorf("coinbaseTxVerify: cbTx.TxWitnessJ2.u_p[%d] (%v) is not in the expected range", i, cbTx.TxWitnessJ2.u_p[i])
 			}
 		}
 
 		preMsg := pp.collectBytesForCoinbaseTxJ2(cbTxCon, cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats)
 		seed_binM, err := Hash(preMsg) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
-			return false, nil
+			return err
 		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, pp.paramDC)
 		if err != nil {
-			return false, nil
+			return err
 		}
 
 		u_hats := make([][]int64, 3)
@@ -1810,11 +1817,13 @@ func (pp *PublicParameter) coinbaseTxVerify(cbTx *CoinbaseTx) (bool, error) {
 		}
 
 		n1 := n
-		flag := pp.rpulpVerify(cbTxCon, cmts, uint8(n), cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats, uint8(n2), uint8(n1), RpUlpTypeCbTx2, binM, 0, uint8(J), 3, u_hats, cbTx.TxWitnessJ2.rpulpproof)
-		return flag, nil
+		err = pp.rpulpVerify(cbTxCon, cmts, uint8(n), cbTx.TxWitnessJ2.b_hat, cbTx.TxWitnessJ2.c_hats, uint8(n2), uint8(n1), RpUlpTypeCbTx2, binM, 0, uint8(J), 3, u_hats, cbTx.TxWitnessJ2.rpulpproof)
+		if err != nil {
+			return err
+		}
 	}
 
-	return true, nil
+	return nil
 }
 
 func (pp *PublicParameter) collectBytesForCoinbaseTxJ1(premsg []byte, ws []*PolyCNTTVec, deltas []*PolyCNTT) []byte {
@@ -2387,25 +2396,29 @@ func (pp *PublicParameter) transferTxGen(inputDescs []*TxInputDesc, outputDescs 
 }
 
 // TransferTxVerify reports whether a transfer transaction is legal.
-func (pp *PublicParameter) transferTxVerify(trTx *TransferTx) (bool, error) {
+// refactored on 2024.01.06, using err == nil or not to denote valid or invalid
+func (pp *PublicParameter) transferTxVerify(trTx *TransferTx) error {
 	if trTx == nil {
-		return false, nil
+		return fmt.Errorf("transferTxVerify: the input TransferTx is nil")
 	}
 
 	I := len(trTx.Inputs)
 	J := len(trTx.OutputTxos)
 
 	if I <= 0 || I > pp.paramI {
-		return false, nil
+		return fmt.Errorf("transferTxVerify: the number of TxInput (%d) exceeds the allowed maximum value (%d)", I, pp.paramI)
 	}
 	if J <= 0 || J > pp.paramJ {
-		return false, nil
+		return fmt.Errorf("transferTxVerify: the number of TxOutput (%d) exceeds the allowed maximum value (%d)", J, pp.paramJ)
 	}
 
 	//	check the ring signatures
 	msgTrTxCon, err := pp.SerializeTransferTx(trTx, false)
-	if len(msgTrTxCon) == 0 || err != nil {
-		return false, nil
+	if err != nil {
+		return err
+	}
+	if len(msgTrTxCon) == 0 {
+		return fmt.Errorf("transferTxVerify: the serialized TrTxCon is empty")
 	}
 	/*	msgTrTxConHash, err := Hash(msgTrTxCon)
 		if err != nil {
@@ -2415,18 +2428,15 @@ func (pp *PublicParameter) transferTxVerify(trTx *TransferTx) (bool, error) {
 		//	check the validity of sigma_{lrs,i}
 		sn, err := pp.ledgerTxoSerialNumberCompute(trTx.TxWitness.ma_ps[i])
 		if err != nil {
-			return false, err
+			return err
 		}
 		if !bytes.Equal(trTx.Inputs[i].SerialNumber, sn) {
-			return false, nil
+			return fmt.Errorf("transferTxVerify: trTx.Inputs[%d].SerialNumber does not match with trTx.TxWitness.ma_ps[%d]", i, i)
 		}
 
-		elrsValid, err := pp.elrsVerify(trTx.Inputs[i].TxoList, trTx.TxWitness.ma_ps[i], trTx.TxWitness.cmt_ps[i], msgTrTxCon, trTx.TxWitness.elrsSigs[i])
+		err = pp.elrsVerify(trTx.Inputs[i].TxoList, trTx.TxWitness.ma_ps[i], trTx.TxWitness.cmt_ps[i], msgTrTxCon, trTx.TxWitness.elrsSigs[i])
 		if err != nil {
-			return false, err
-		}
-		if !elrsValid {
-			return false, nil
+			return err
 		}
 	}
 
@@ -2455,18 +2465,18 @@ func (pp *PublicParameter) transferTxVerify(trTx *TransferTx) (bool, error) {
 				infNorm = -infNorm
 			}
 			if infNorm > boundF {
-				return false, nil
+				return fmt.Errorf("transferTxVerify: trTx.TxWitness.u_p[%d] (%v) is not in the expected range", i, trTx.TxWitness.u_p[i])
 			}
 		}
 
 		preMsg := pp.collectBytesForTransferTx(msgTrTxCon, trTx.TxWitness.b_hat, trTx.TxWitness.c_hats)
 		seed_binM, err := Hash(preMsg) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		if err != nil {
-			return false, err
+			return err
 		}
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, pp.paramDC)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		u_hats := make([][]int64, 3)
@@ -2477,9 +2487,9 @@ func (pp *PublicParameter) transferTxVerify(trTx *TransferTx) (bool, error) {
 		}
 		u_hats[2] = trTx.TxWitness.u_p
 
-		flag := pp.rpulpVerify(msgTrTxCon, cmts, uint8(n), trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, uint8(n2), uint8(n1), RpUlpTypeTrTx1, binM, uint8(I), uint8(J), 3, u_hats, trTx.TxWitness.rpulpproof)
-		if !flag {
-			return false, nil
+		err = pp.rpulpVerify(msgTrTxCon, cmts, uint8(n), trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, uint8(n2), uint8(n1), RpUlpTypeTrTx1, binM, uint8(I), uint8(J), 3, u_hats, trTx.TxWitness.rpulpproof)
+		if err != nil {
+			return err
 		}
 	} else {
 		//	I >= 2
@@ -2495,7 +2505,7 @@ func (pp *PublicParameter) transferTxVerify(trTx *TransferTx) (bool, error) {
 				infNorm = -infNorm
 			}
 			if infNorm > boundF {
-				return false, nil
+				return fmt.Errorf("transferTxVerify: trTx.TxWitness.u_p[%d] (%v) is not in the expetced range", i, trTx.TxWitness.u_p[i])
 			}
 		}
 
@@ -2503,7 +2513,7 @@ func (pp *PublicParameter) transferTxVerify(trTx *TransferTx) (bool, error) {
 		seed_binM, err := Hash(preMsg) // todo_DONE: compute the seed using hash function on (b_hat, c_hats).
 		binM, err := expandBinaryMatrix(seed_binM, pp.paramDC, 2*pp.paramDC)
 		if err != nil {
-			return false, nil
+			return err
 		}
 
 		u_hats := make([][]int64, 5)
@@ -2522,13 +2532,13 @@ func (pp *PublicParameter) transferTxVerify(trTx *TransferTx) (bool, error) {
 			u_hats[3][0] = 0
 		}
 
-		flag := pp.rpulpVerify(msgTrTxCon, cmts, uint8(n), trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, uint8(n2), uint8(n1), RpUlpTypeTrTx2, binM, uint8(I), uint8(J), 5, u_hats, trTx.TxWitness.rpulpproof)
-		if !flag {
-			return false, nil
+		err = pp.rpulpVerify(msgTrTxCon, cmts, uint8(n), trTx.TxWitness.b_hat, trTx.TxWitness.c_hats, uint8(n2), uint8(n1), RpUlpTypeTrTx2, binM, uint8(I), uint8(J), 5, u_hats, trTx.TxWitness.rpulpproof)
+		if err != nil {
+			return err
 		}
 	}
 
-	return true, nil
+	return nil
 }
 
 func (pp *PublicParameter) collectBytesForTransferTx(premsg []byte, b_hat *PolyCNTTVec, c_hats []*PolyCNTT) []byte {
