@@ -1,5 +1,9 @@
 package pqringct
 
+import (
+	"github.com/cryptosuite/pqringct/pqringctkem"
+)
+
 //const (
 //	//	PQRingCT, 2022.03.31
 //	TxoSerializeSizeMaxAllowed          = 1048576 //1024*1024*1, 1M bytes
@@ -215,7 +219,7 @@ func GetAddressPublicKeySerializeSize(pp *PublicParameter) int {
 }
 
 func GetValuePublicKeySerializeSize(pp *PublicParameter) int {
-	return 1188
+	return pqringctkem.GetKemPublicKeyBytesLen(pp.paramKem)
 }
 
 // GetAddressSecretKeySpSerializeSize
@@ -232,7 +236,7 @@ func GetAddressSecretKeySnSerializeSize(pp *PublicParameter) int {
 
 // todo(MLP):
 func GetValueSecretKeySerializeSize(pp *PublicParameter) int {
-	return 0
+	return pqringctkem.GetKemSecretKeyBytesLen(pp.paramKem)
 }
 
 func GetTxInputMaxNum(pp *PublicParameter) int {
