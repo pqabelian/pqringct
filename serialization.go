@@ -462,9 +462,24 @@ func (pp *PublicParameter) readPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 		coeff |= int64(tmp[4]) << 32
 		coeff |= int64(tmp[5]) << 40
 		coeff |= int64(tmp[6]) << 48
-		if tmp[6]>>7 == 1 {
-			//	53-bit for absolute
+
+		//if tmp[6]>>7 == 1 {
+		//	//	53-bit for absolute
+		//	coeff = int64(uint64(coeff) | 0xFF00_0000_0000_0000) // 12*4=48 + 5 -> 0b1111 1111 1110 0000
+		//}
+
+		// As we only need one bit (say, 53-rd bit) to denote the signal,
+		// there are two bits (say, 55th, 54th bit) are free.
+		// To avoid the two bits are manipulated somehow, here we guarantee them to be well-form.
+		if (tmp[6] & 0xE0) == 0xE0 {
+			// the (55th, 54th, 53rd, 52nd) bits are (111X), implying -
 			coeff = int64(uint64(coeff) | 0xFF00000000000000)
+		} else if (tmp[6] & 0xE0) == 0x00 {
+			// the (55th, 54th, 53rd, 52nd) bits are (000X), implying +
+			// do nothing
+		} else {
+			// bad-form
+			return nil, fmt.Errorf("readPolyCNTT: %d-th coefficient's serializaiton is not well-form", i)
 		}
 		polyCNTT.coeffs[i] = coeff
 	}
