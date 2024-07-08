@@ -219,7 +219,7 @@ func GetKemCiphertextBytesLen(ppkem *ParamKem) int {
 	case KEM_OQS_KYBER:
 		length, err := pqringctOQSKem.LengthCiphertext(ppkem.OQSKyber)
 		if err != nil {
-			return -1
+			return 4 + 1088 // for back-compatible, use hardcoded length
 		}
 		return 4 + length
 	default:
