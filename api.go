@@ -1,7 +1,7 @@
 package pqringct
 
 import (
-	"github.com/cryptosuite/pqringct/pqringctkem"
+	"github.com/pqabelian/pqringct/pqringctkem"
 )
 
 //const (
