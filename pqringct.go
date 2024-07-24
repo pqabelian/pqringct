@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/cryptosuite/pqringct/pqringctkem"
+	"github.com/pqabelian/pqringct/pqringctkem"
 	"math/big"
 )
 
