@@ -2,7 +2,7 @@ package pqringct
 
 import (
 	"errors"
-	"github.com/cryptosuite/pqringct/pqringctkem"
+	"github.com/pqabelian/pqringct/pqringctkem"
 	"log"
 	"math/big"
 )

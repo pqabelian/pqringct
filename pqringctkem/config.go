@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"github.com/cryptosuite/kyber-go/kyber"
-	"github.com/cryptosuite/pqringct/pqringctkem/pqringctOQSKem"
-	"github.com/cryptosuite/pqringct/pqringctkem/pqringctkyber"
+	"github.com/pqabelian/pqringct/pqringctkem/pqringctOQSKem"
+	"github.com/pqabelian/pqringct/pqringctkem/pqringctkyber"
 	"log"
 )
 
