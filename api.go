@@ -262,7 +262,7 @@ func GetNullSerialNumber(pp *PublicParameter) []byte {
 //	sizes end
 
 // approximate Size begin
-func GetTxoSerializeSizeApprox(pp *PublicParameter) int {
+func GetTxoScriptSize(pp *PublicParameter) int {
 	return pp.TxoSerializeSize()
 }
 
