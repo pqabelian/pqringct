@@ -5,8 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/cryptosuite/pqringct/pqringctkem"
 	"io"
+
+	"github.com/cryptosuite/pqringct/pqringctkem"
 )
 
 const (
@@ -60,6 +61,7 @@ func (pp *PublicParameter) writePolyANTT(w io.Writer, a *PolyANTT) error {
 
 // todo: 20220414 review
 func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
+	bound := (pp.paramQA - 1) / 2
 
 	tmp := make([]byte, 4)
 	var coeff int64
@@ -91,6 +93,9 @@ func (pp *PublicParameter) readPolyANTT(r io.Reader) (*PolyANTT, error) {
 			//	- signal
 			coeff = retPolyANTT.coeffs[i]
 			retPolyANTT.coeffs[i] = int64(uint64(coeff) | 0xFFFFFFFF00000000)
+			if retPolyANTT.coeffs[i] < -bound || retPolyANTT.coeffs[i] > bound {
+				return nil, errors.New("readPolyANTT: invalid coefficient")
+			}
 		}
 	}
 
@@ -447,6 +452,8 @@ func (pp *PublicParameter) writePolyCNTT(w io.Writer, polyCNTT *PolyCNTT) error 
 func (pp *PublicParameter) readPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 	polyCNTT := pp.NewPolyCNTT()
 
+	bound := (pp.paramQC - 1) / 2
+
 	var coeff int64
 	tmp := make([]byte, 7)
 
@@ -482,6 +489,9 @@ func (pp *PublicParameter) readPolyCNTT(r io.Reader) (*PolyCNTT, error) {
 			return nil, fmt.Errorf("readPolyCNTT: %d-th coefficient's serializaiton is not well-form", i)
 		}
 		polyCNTT.coeffs[i] = coeff
+		if polyCNTT.coeffs[i] < -bound || polyCNTT.coeffs[i] > bound {
+			return nil, errors.New("readPolyCNTT: invalid coefficient")
+		}
 	}
 	return polyCNTT, nil
 }
@@ -1961,7 +1971,7 @@ func (pp *PublicParameter) DeserializeElrsSignature(serializeElrsSignature []byt
 	}, nil
 }
 
-//	TrTxWitnessSerializeSizeApprox() returns the approximate size of TrTxWitnessSerializeSize, based on the inputRingSizes and outputTxoNum.
+// TrTxWitnessSerializeSizeApprox() returns the approximate size of TrTxWitnessSerializeSize, based on the inputRingSizes and outputTxoNum.
 func (pp *PublicParameter) TrTxWitnessSerializeSizeApprox(inputRingSizes []int, outputTxoNum int) int {
 	lenApprox := VarIntSerializeSize(uint64(len(inputRingSizes))) + len(inputRingSizes)*pp.PolyANTTSerializeSize() + // ma_ps      []*PolyANTT, each ring has a ma_ps
 		VarIntSerializeSize(uint64(len(inputRingSizes))) + len(inputRingSizes)*pp.ValueCommitmentSerializeSize() // cmt_ps     []*ValueCommitment, each ring has a cnt_ps
@@ -2252,7 +2262,7 @@ func (pp *PublicParameter) TrTxInputSerializeSize(trTxIn *TrTxInput) int {
 	return length
 }
 
-//	serializeTrTxInput() is called only SerializeTransferTx() to prepare TrTxCon to be authenticated.
+// serializeTrTxInput() is called only SerializeTransferTx() to prepare TrTxCon to be authenticated.
 func (pp *PublicParameter) serializeTrTxInput(trTxIn *TrTxInput) ([]byte, error) {
 	if trTxIn == nil || len(trTxIn.TxoList) == 0 {
 		return nil, errors.New("serializeTrTxInput: there is nil pointer in TrTxInput")
