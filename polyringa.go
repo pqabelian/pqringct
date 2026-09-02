@@ -382,7 +382,9 @@ func (pp *PublicParameter) PolyANTTVecScaleMul(polyANTTScale *PolyANTT, polyANTT
 // F -> F[0] + F[1]x^n
 // G-> G[0] + G[1]x^n
 // F*G = F[0]G[0]+(F[0]G[1]+F[1]G[0])x^n+F[1]G[1]x^(2n)
-//     = F[0]G[0]+{(F[0]+F[1])(G[0]+G[1])-F[0]G[0]-F[1]G[1]}x^n+F[1]G[1]x^(2n)
+//
+//	= F[0]G[0]+{(F[0]+F[1])(G[0]+G[1])-F[0]G[0]-F[1]G[1]}x^n+F[1]G[1]x^(2n)
+//
 // F[0]+F[1],G[0]+G[1],F[0]G[0],F[1]G[1] as intermediate variables
 // It uses several addition/subtraction to substitute  multiplication
 func (pp *PublicParameter) MulKaratsuba(a, b []int64, n int) []int64 {
@@ -496,3 +498,100 @@ func (pp *PublicParameter) PolyANTTEqualCheck(a *PolyANTT, b *PolyANTT) (eq bool
 
 	return true
 }
+
+// sanity check functions	begin
+
+// PolyASanityCheck checks whether the input PolyA is well-form:
+// (1) not nil
+// (2) has d_a coefficients
+// (3) all coefficients are in [-(q_a-1)/2, (q_a-1)/2]
+// reviewed by Ocean
+func (pp *PublicParameter) PolyASanityCheck(a *PolyA) (bl bool) {
+	if a == nil {
+		return false
+	}
+
+	if len(a.coeffs) != pp.paramDA {
+		return false
+	}
+
+	bound := (pp.paramQA - 1) / 2
+	for i := 0; i < len(a.coeffs); i++ {
+		if a.coeffs[i] < -bound || a.coeffs[i] > bound {
+			return false
+		}
+	}
+
+	return true
+}
+
+// PolyANTTSanityCheck checks whether the input PolyANTT is well-form:
+// (1) not nil
+// (2) has d_a coefficients
+// (3) all coefficients are in [-(q_a-1)/2, (q_a-1)/2]
+func (pp *PublicParameter) PolyANTTSanityCheck(a *PolyANTT) (bl bool) {
+	if a == nil {
+		return false
+	}
+
+	if len(a.coeffs) != pp.paramDA {
+		return false
+	}
+
+	bound := (pp.paramQA - 1) / 2
+	for i := 0; i < len(a.coeffs); i++ {
+		if a.coeffs[i] < -bound || a.coeffs[i] > bound {
+			return false
+		}
+	}
+
+	return true
+}
+
+// PolyAEtaSanityCheck checks whether the input PolyA is well-form:
+// (1) not nil
+// (2) has d_a coefficients
+// (3) all coefficients are in [-(\eta_a-\beta_a), (\eta_a-\beta_a)]
+func (pp *PublicParameter) PolyAEtaSanityCheck(a *PolyA) (bl bool) {
+	if a == nil {
+		return false
+	}
+
+	if len(a.coeffs) != pp.paramDA {
+		return false
+	}
+
+	bound := pp.paramEtaA - int64(pp.paramBetaA)
+	for i := 0; i < len(a.coeffs); i++ {
+		if a.coeffs[i] < -bound || a.coeffs[i] > bound {
+			return false
+		}
+	}
+
+	return true
+}
+
+// PolyAGammaSanityCheck checks whether the input PolyA is well-form:
+// (1) not nil
+// (2) has d_a coefficients
+// (3) all coefficients are in [-2,2]
+func (pp *PublicParameter) PolyAGammaSanityCheck(a *PolyA) (bl bool) {
+	if a == nil {
+		return false
+	}
+
+	if len(a.coeffs) != pp.paramDA {
+		return false
+	}
+
+	bound := int64(2)
+	for i := 0; i < len(a.coeffs); i++ {
+		if a.coeffs[i] < -bound || a.coeffs[i] > bound {
+			return false
+		}
+	}
+
+	return true
+}
+
+// sanity check functions	end
