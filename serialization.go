@@ -1082,7 +1082,7 @@ func (pp *PublicParameter) DeserializeLgrTxo(serializedLgrTxo []byte) (*LgrTxo, 
 	r := bytes.NewReader(serializedLgrTxo)
 
 	serializedTxo := make([]byte, pp.TxoSerializeSize())
-	_, err := io.ReadFull(r, serializedLgrTxo)
+	_, err := io.ReadFull(r, serializedTxo)
 	if err != nil {
 		return nil, err
 	}

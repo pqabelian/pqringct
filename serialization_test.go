@@ -35,18 +35,39 @@ func Test_writePolyANTT_readPolyANTT_truncated(t *testing.T) {
 	}
 	//fmt.Println("serilaizeSize of a PolyANTT:", size)
 
-	r := bytes.NewReader(serialized[:len(serialized)-33])
+	// nothing to read
+	r0 := bytes.NewReader(serialized[:0])
 	//r := bytes.NewReader(serialized)
-	rePolyANTT, err := pp.readPolyANTT(r)
-	if err != nil {
+	rePolyANTT, err := pp.readPolyANTT(r0)
+	if !errors.Is(err, io.EOF) {
 		t.Fatal(err)
 	}
 
+	// incomplete first part
+	r1 := bytes.NewReader(serialized[:len(serialized)-33])
+	//r := bytes.NewReader(serialized)
+	rePolyANTT, err = pp.readPolyANTT(r1)
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatal(err)
+	}
+
+	// incomplete second part
+	r2 := bytes.NewReader(serialized[:len(serialized)-1])
+	rePolyANTT, err = pp.readPolyANTT(r2)
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatal(err)
+	}
+
+	// complete
+	r3 := bytes.NewReader(serialized[:len(serialized)])
+	rePolyANTT, err = pp.readPolyANTT(r3)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < pp.paramDA; i++ {
 		if polyANTT.coeffs[i] != rePolyANTT.coeffs[i] {
 			t.Fatal("i=", i, " origin[i]=", polyANTT.coeffs[i], " read[i]=", rePolyANTT.coeffs[i])
 		}
-
 	}
 }
 
