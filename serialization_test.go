@@ -4,11 +4,73 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/pqabelian/pqringct/pqringctkem"
+	"io"
 	"log"
 	"reflect"
 	"testing"
+
+	"github.com/pqabelian/pqringct/pqringctkem"
 )
+
+func Test_writePolyANTT_readPolyANTT_truncated(t *testing.T) {
+	var polyANTT *PolyANTT
+
+	pp := Initialize(nil)
+
+	coeffs, err := pp.randomDaIntegersInQa(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	polyANTT = &PolyANTT{coeffs}
+
+	size := pp.PolyANTTSerializeSize()
+	w := bytes.NewBuffer(make([]byte, 0, size))
+	err = pp.writePolyANTT(w, polyANTT)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	serialized := w.Bytes()
+	if len(serialized) != size {
+		t.Fatal(errors.New("size is worng"))
+	}
+	//fmt.Println("serilaizeSize of a PolyANTT:", size)
+
+	// nothing to read
+	r0 := bytes.NewReader(serialized[:0])
+	//r := bytes.NewReader(serialized)
+	rePolyANTT, err := pp.readPolyANTT(r0)
+	if !errors.Is(err, io.EOF) {
+		t.Fatal(err)
+	}
+
+	// incomplete first part
+	r1 := bytes.NewReader(serialized[:len(serialized)-33])
+	//r := bytes.NewReader(serialized)
+	rePolyANTT, err = pp.readPolyANTT(r1)
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatal(err)
+	}
+
+	// incomplete second part
+	r2 := bytes.NewReader(serialized[:len(serialized)-1])
+	rePolyANTT, err = pp.readPolyANTT(r2)
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatal(err)
+	}
+
+	// complete
+	r3 := bytes.NewReader(serialized[:len(serialized)])
+	rePolyANTT, err = pp.readPolyANTT(r3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < pp.paramDA; i++ {
+		if polyANTT.coeffs[i] != rePolyANTT.coeffs[i] {
+			t.Fatal("i=", i, " origin[i]=", polyANTT.coeffs[i], " read[i]=", rePolyANTT.coeffs[i])
+		}
+	}
+}
 
 func Test_writePolyANTT_readPolyANTT(t *testing.T) {
 	testBound := true

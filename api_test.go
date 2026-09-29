@@ -3,7 +3,10 @@ package pqringct
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
+	"reflect"
 	"testing"
 )
 
@@ -273,5 +276,318 @@ func TestValueKeyGen_ValueKeyVerify(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestDeserialize(t *testing.T) {
+	pp := Initialize(nil)
+
+	peerNum := 2
+	seeds := make([][]byte, peerNum)
+	apks := make([]*AddressPublicKey, peerNum)
+	asks := make([]*AddressSecretKey, peerNum)
+	serializedVPks := make([][]byte, peerNum)
+	serializedVSks := make([][]byte, peerNum)
+	serializedVSksCopy := make([][][]byte, peerNum)
+	serializedAPks := make([][]byte, peerNum)
+	serializedASksps := make([][]byte, peerNum)
+	serializedASksns := make([][]byte, peerNum)
+	for i := 0; i < peerNum; i++ {
+		seeds[i] = RandomBytes(pp.paramKeyGenSeedBytesLen)
+		apks[i], asks[i], _ = pp.addressKeyGen(seeds[i])
+		serializedVPks[i], serializedVSks[i], _ = pp.valueKeyGen(seeds[i])
+		copyNum := 3
+		serializedVSksCopy[i] = make([][]byte, copyNum)
+		for j := 0; j < copyNum; j++ {
+			serializedVSksCopy[i][j] = make([]byte, len(serializedVSks[i]))
+			copy(serializedVSksCopy[i][j], serializedVSks[i])
+		}
+		serializedAPks[i], _ = pp.SerializeAddressPublicKey(apks[i])
+		serializedASksps[i], _ = pp.SerializeAddressSecretKeySp(asks[i].AddressSecretKeySp)
+		serializedASksns[i], _ = pp.SerializeAddressSecretKeySn(asks[i].AddressSecretKeySn)
+	}
+	cbTxNum, outputNum := 3, 2
+	cbTxs := make([]*CoinbaseTx, cbTxNum)
+	txOutputDescs := make([]*TxOutputDesc, outputNum)
+	for i := 0; i < outputNum; i++ {
+		txOutputDescs[i] = &TxOutputDesc{
+			serializedAPk: serializedAPks[i],
+			serializedVPk: serializedVPks[i],
+			value:         256,
+		}
+	}
+	var err error
+	// generate coinbase transaction with txOutputDescs
+	for i := 0; i < cbTxNum; i++ {
+		cbTxs[i], err = pp.coinbaseTxGen(512, txOutputDescs, nil)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
+		for j := 0; j < len(txOutputDescs); j++ {
+			serializedTxo, err := pp.SerializeTxo(cbTxs[i].OutputTxos[j])
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+
+			// nothing to read
+			_, err = pp.DeserializeTxo(serializedTxo[:0])
+			if !errors.Is(err, io.EOF) {
+				t.Fatalf("expected io.EOF when nothong to read")
+			}
+
+			// truncated
+			_, err = pp.DeserializeTxo(serializedTxo[:len(serializedTxo)-1])
+			if !errors.Is(err, io.ErrUnexpectedEOF) {
+				t.Fatalf("expected io.ErrUnexpectedEOF for truncated serialized txo")
+			}
+
+			// complete
+			deserializedTxo, err := pp.DeserializeTxo(serializedTxo)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+			if !reflect.DeepEqual(deserializedTxo, cbTxs[i].OutputTxos[j]) {
+				t.Fatalf("deserialized txo is unmatched with deserialized txo")
+			}
+		}
+
+		if len(txOutputDescs) == 1 {
+			serializeCbTxWitnessJ1, err := pp.SerializeCbTxWitnessJ1(cbTxs[i].TxWitnessJ1)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+
+			// nothing to read
+			_, err = pp.DeserializeCbTxWitnessJ1(serializeCbTxWitnessJ1[:0])
+			if !errors.Is(err, io.EOF) {
+				t.Fatalf("expected io.EOF when nothong to read")
+			}
+
+			// truncated
+			_, err = pp.DeserializeCbTxWitnessJ1(serializeCbTxWitnessJ1[:len(serializeCbTxWitnessJ1)-1])
+			if !errors.Is(err, io.ErrUnexpectedEOF) {
+				t.Fatalf("expected io.ErrUnexpectedEOF for truncated serialized witnessJ1")
+			}
+
+			// complete
+			deserilizedCbTxWitnessJ1, err := pp.DeserializeCbTxWitnessJ1(serializeCbTxWitnessJ1)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+			if !reflect.DeepEqual(deserilizedCbTxWitnessJ1, cbTxs[i].TxWitnessJ1) {
+				t.Fatalf("deserialized txo is unmatched with deserialized coinbase witness")
+			}
+		} else {
+			serializeCbTxWitnessJ2, err := pp.SerializeCbTxWitnessJ2(cbTxs[i].TxWitnessJ2)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+
+			// nothing to read
+			_, err = pp.DeserializeCbTxWitnessJ2(serializeCbTxWitnessJ2[:0])
+			if !errors.Is(err, io.EOF) {
+				t.Fatalf("expected io.EOF when nothong to read")
+			}
+
+			// truncated
+			_, err = pp.DeserializeCbTxWitnessJ2(serializeCbTxWitnessJ2[:len(serializeCbTxWitnessJ2)-1])
+			if !errors.Is(err, io.ErrUnexpectedEOF) {
+				t.Fatalf("expected io.ErrUnexpectedEOF for truncated serialized witnessJ1")
+			}
+
+			// complete
+			deserilizedCbTxWitnessJ2, err := pp.DeserializeCbTxWitnessJ2(serializeCbTxWitnessJ2)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+			if !reflect.DeepEqual(deserilizedCbTxWitnessJ2, cbTxs[i].TxWitnessJ2) {
+				t.Fatalf("deserialized witness is unmatched with deserialized coinbase witness")
+			}
+		}
+	}
+
+	type args struct {
+		inputDescs  []*TxInputDesc
+		outputDescs []*TxOutputDesc
+		fee         uint64
+		txMemo      []byte
+	}
+
+	ehash := make([]byte, HashOutputBytesLen)
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+		want    bool
+	}{
+		{
+			name: "1->2",
+			args: args{
+				inputDescs: []*TxInputDesc{
+					{
+						lgrTxoList: []*LgrTxo{
+							{
+								txo: cbTxs[0].OutputTxos[0],
+								id:  ledgerTxoIdGen(ehash, 0),
+							},
+							{
+								txo: cbTxs[0].OutputTxos[1],
+								id:  ledgerTxoIdGen(ehash, 1),
+							},
+							{
+								txo: cbTxs[2].OutputTxos[0],
+								id:  ledgerTxoIdGen(ehash, 2),
+							},
+						},
+						sidx:            0,
+						serializedASksp: serializedASksps[0],
+						serializedASksn: serializedASksns[0],
+						serializedVPk:   serializedVPks[0],
+						serializedVSk:   serializedVSksCopy[0][0],
+						value:           256,
+					},
+				},
+				outputDescs: []*TxOutputDesc{
+					{
+						serializedAPk: serializedAPks[0],
+						serializedVPk: serializedVPks[0],
+						value:         200,
+					},
+					{
+						serializedAPk: serializedAPks[1],
+						serializedVPk: serializedVPks[1],
+						value:         46,
+					},
+				},
+				fee:    10,
+				txMemo: []byte{},
+			},
+			wantErr: false,
+			want:    true,
+		},
+		{
+			name: "2->2",
+			args: args{
+				inputDescs: []*TxInputDesc{
+					{
+						lgrTxoList: []*LgrTxo{
+							{
+								txo: cbTxs[0].OutputTxos[0],
+								id:  make([]byte, HashOutputBytesLen),
+							},
+							{
+								txo: cbTxs[0].OutputTxos[1],
+								id:  make([]byte, HashOutputBytesLen),
+							},
+						},
+						sidx:            0,
+						serializedASksp: serializedASksps[0],
+						serializedASksn: serializedASksns[0],
+						serializedVPk:   serializedVPks[0],
+						serializedVSk:   serializedVSksCopy[0][1],
+						value:           256,
+					},
+					{
+						lgrTxoList: []*LgrTxo{
+							{
+								txo: cbTxs[1].OutputTxos[0],
+								id:  make([]byte, HashOutputBytesLen),
+							},
+							{
+								txo: cbTxs[1].OutputTxos[1],
+								id:  make([]byte, HashOutputBytesLen),
+							},
+						},
+						sidx:            0,
+						serializedASksp: serializedASksps[0],
+						serializedASksn: serializedASksns[0],
+						serializedVPk:   serializedVPks[0],
+						serializedVSk:   serializedVSksCopy[0][2],
+						value:           256,
+					},
+				},
+				outputDescs: []*TxOutputDesc{
+					{
+						serializedAPk: serializedAPks[0],
+						serializedVPk: serializedVPks[0],
+						value:         500,
+					},
+					{
+						serializedAPk: serializedAPks[1],
+						serializedVPk: serializedVPks[1],
+						value:         2,
+					},
+				},
+				fee:    10,
+				txMemo: []byte{},
+			},
+			wantErr: false,
+			want:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			trTx, err := pp.transferTxGen(tt.args.inputDescs, tt.args.outputDescs, tt.args.fee, tt.args.txMemo)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("transferTxGen() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			for j := 0; j < len(trTx.OutputTxos); j++ {
+				serializedTxo, err := pp.SerializeTxo(trTx.OutputTxos[j])
+				if err != nil {
+					t.Fatalf(err.Error())
+				}
+
+				// nothing to read
+				_, err = pp.DeserializeTxo(serializedTxo[:0])
+				if !errors.Is(err, io.EOF) {
+					t.Fatalf("expected io.EOF when nothong to read")
+				}
+
+				// truncated
+				_, err = pp.DeserializeTxo(serializedTxo[:len(serializedTxo)-1])
+				if !errors.Is(err, io.ErrUnexpectedEOF) {
+					t.Fatalf("expected io.ErrUnexpectedEOF for truncated serialized txo")
+				}
+
+				// complete
+				deserializedTxo, err := pp.DeserializeTxo(serializedTxo)
+				if err != nil {
+					t.Fatalf(err.Error())
+				}
+				if !reflect.DeepEqual(deserializedTxo, trTx.OutputTxos[j]) {
+					t.Fatalf("deserialized txo is unmatched with deserialized txo")
+				}
+
+				serializeTrTxWitness, err := pp.SerializeTrTxWitness(trTx.TxWitness)
+				if err != nil {
+					t.Fatalf(err.Error())
+				}
+
+				// nothing to read
+				_, err = pp.DeserializeCbTxWitnessJ2(serializeTrTxWitness[:0])
+				if !errors.Is(err, io.EOF) {
+					t.Fatalf("expected io.EOF when nothong to read")
+				}
+
+				// truncated
+				_, err = pp.DeserializeTrTxWitness(serializeTrTxWitness[:len(serializeTrTxWitness)-1])
+				if !errors.Is(err, io.ErrUnexpectedEOF) {
+					t.Fatalf("expected io.ErrUnexpectedEOF for truncated serialized witnessJ1")
+				}
+
+				// complete
+				deserilizedTrTxWitness, err := pp.DeserializeTrTxWitness(serializeTrTxWitness)
+				if err != nil {
+					t.Fatalf(err.Error())
+				}
+				if !reflect.DeepEqual(deserilizedTrTxWitness, trTx.TxWitness) {
+					t.Fatalf("deserialized witness is unmatched with deserialized transfer witness")
+				}
+			}
+		})
+
 	}
 }
